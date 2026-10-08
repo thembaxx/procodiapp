@@ -136,3 +136,23 @@ test("follows system theme changes without leaving browser colours behind", asyn
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expectCanvas(page, colors.dark);
 });
+
+test("keeps missing-page backgrounds on the saved theme rather than the OS theme", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.addInitScript(() => {
+    localStorage.setItem("theme", "light");
+    localStorage.setItem("grocery-design", "orbit");
+  });
+  const response = await page.goto("/missing-grocery-aisle");
+  expect(response?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: "404" })).toBeVisible();
+  await expect(page.locator("html")).toHaveCSS("background-color", colors.orbitLight.rgb);
+  await expect(page.locator("body")).toHaveCSS("background-color", colors.orbitLight.rgb);
+  await expect(page.locator("body")).toHaveCSS("color", "rgb(23, 36, 32)");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute(
+    "content",
+    colors.orbitLight.hex,
+  );
+});

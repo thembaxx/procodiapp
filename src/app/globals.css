@@ -61,7 +61,8 @@ html {
   background: var(--bg);
   scroll-behavior: smooth;
 }
-body {
+/* Keep framework fallbacks from replacing the app canvas with OS-theme colours. */
+html body {
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0;

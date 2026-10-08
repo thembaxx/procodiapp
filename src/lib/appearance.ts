@@ -16,7 +16,7 @@ export const appearanceCriticalCss = `
 html { --bg: ${backgrounds.dark}; background: var(--bg); color-scheme: dark; }
 html[data-theme="light"] { --bg: ${backgrounds.light}; color-scheme: light; }
 html[data-theme="light"][data-design="orbit"] { --bg: ${backgrounds.orbitLight}; }
-body { margin: 0; background: var(--bg); }
+html body { margin: 0; background: var(--bg); }
 `;
 
 // With JavaScript enabled the bootstrap owns these nodes, avoiding React re-adding
