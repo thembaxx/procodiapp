@@ -23,6 +23,8 @@ pnpm dev
 
 Open `http://localhost:3000`. You can link directly to `/?design=wallet`, `/?design=rewards` or `/?design=orbit`. Dark, light and system themes are supported; dark is the initial default. Rewards switches to light when selected, and the theme button can change it.
 
+The document canvas, page, loading skeleton, browser theme colour and install manifest share the active background. A small inline head script applies saved preferences before React loads and keeps browser metadata in sync with theme and design changes. Light Orbit uses its lavender canvas throughout. Dynamic viewport heights and safe-area insets cover mobile browser bars, notches and landscape layouts. Browser chrome and installed splash-screen behaviour still depend on platform support; existing installs may keep their original launch colour until their manifest updates.
+
 For a production Node server:
 
 ```sh
@@ -90,13 +92,13 @@ The GitHub discovery workflow runs every six hours after you set repository vari
 ```sh
 pnpm check       # oxlint, oxfmt, TypeScript and Vitest
 pnpm build
-pnpm exec playwright install chromium
+pnpm exec playwright install --with-deps chromium firefox webkit
 pnpm test:e2e
 ```
 
 Browser tests use an isolated server on port 3100 and temporary fixtures in `.data/e2e`. Their coupon is test-only and never enters production sources. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using an existing Chromium binary.
 
-Tests cover expiry/freshness, South African dates, deduplication, source boundaries and evidence; mobile and desktop tests cover search, filters, accordion behaviour, copy, saved offers, reports, refresh limits, design selection, themes, dialog keyboard access and reduced motion. Automated axe checks scan all three designs in both themes on mobile and desktop, including dialog naming. A GitHub CI workflow runs these checks on pushes and PRs.
+Tests cover expiry/freshness, South African dates, deduplication, source boundaries and evidence; mobile and desktop tests cover search, filters, accordion behaviour, copy, saved offers, reports, refresh limits, design selection, themes, dialog keyboard access and reduced motion. Automated axe checks scan all three designs in both themes on mobile and desktop, including dialog naming. Background checks also run in Firefox and mobile WebKit, including saved preferences before hydration, loading states and manifest colours. A GitHub CI workflow runs these checks on pushes and PRs.
 
 ## Design and accessibility
 

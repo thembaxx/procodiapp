@@ -34,8 +34,8 @@ import {
   type OffersResponse,
 } from "@/lib/offers";
 import { stores, type Store } from "@/lib/stores";
+import type { Design } from "@/lib/appearance";
 
-type Design = "wallet" | "rewards" | "orbit";
 type IconType = typeof Search01Icon;
 const designs = [
   { id: "wallet", name: "Wallet", description: "Your stores, neatly stacked", icon: Wallet01Icon },
@@ -471,6 +471,9 @@ export function GroceryApp({
       refreshController.current?.abort();
     };
   }, []);
+  useEffect(() => {
+    if (mounted) document.documentElement.dataset.design = design;
+  }, [design, mounted]);
   useEffect(() => {
     const dialog = modalRef.current;
     if (infoOpen || report) dialog?.showModal();
