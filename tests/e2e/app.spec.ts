@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import { sourceSnapshot } from "../../src/lib/snapshot";
 
 const testOffer = {
@@ -132,4 +133,25 @@ test("supports keyboard dialog dismissal and reduced motion", async ({ page }) =
   expect(
     await page.locator(".ambient-glow").evaluate((node) => getComputedStyle(node).animationName),
   ).toBe("none");
+});
+
+test("passes automated accessibility checks for all designs and themes", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (const design of ["wallet", "rewards", "orbit"]) {
+    await page.goto(`/?design=${design}`);
+    await expect(page.locator(".app")).toHaveAttribute("data-ready", "true");
+    for (const theme of ["dark", "light"]) {
+      const change = page.getByRole("button", { name: `Switch to ${theme} theme` });
+      if (await change.count()) await change.click();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      await page.evaluate(() => document.fonts.ready);
+      const result = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+        .analyze();
+      expect(result.violations, `${design} / ${theme}`).toEqual([]);
+    }
+  }
+  await page.getByRole("button", { name: "Independent. Made for South Africa." }).click();
+  const dialog = await new AxeBuilder({ page }).withRules(["aria-dialog-name"]).analyze();
+  expect(dialog.violations).toEqual([]);
 });

@@ -2226,3 +2226,53 @@ h2 {
     margin-bottom: 20px;
   }
 }
+
+/* Keep small labels readable across retailer colours and both themes. */
+.store-card {
+  background: linear-gradient(
+    115deg,
+    color-mix(in srgb, var(--brand) 76%, #000),
+    var(--brand-secondary)
+  );
+}
+.store-card-info > span,
+.store-card-bottomline {
+  opacity: 1;
+}
+.offer-count {
+  background: #00000018;
+}
+.store-avatars button.inactive {
+  background: var(--surface) !important;
+  color: var(--muted) !important;
+  opacity: 1;
+  filter: none;
+}
+.design-rewards .store-card-bottomline,
+.design-rewards .store-card-info > span,
+.design-rewards .offer-criteria {
+  opacity: 1;
+}
+.design-rewards .store-card.no-offers .store-card-header,
+.design-rewards .store-card.no-offers .store-card-bottomline,
+.design-rewards .store-card.no-offers .store-mark {
+  opacity: 1;
+}
+.design-rewards .mark-checkers {
+  color: #00766e;
+}
+[data-theme="dark"] .design-rewards {
+  --accent: #b7caff;
+  --accent-ink: #172b61;
+}
+[data-theme="dark"] .design-rewards .store-mark {
+  color: var(--text);
+}
+@media (max-width: 560px) {
+  .offer-criteria {
+    font-size: 12px;
+  }
+}
+.design-rewards .store-card.no-offers .store-card-info > span {
+  opacity: 1;
+}

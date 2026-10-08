@@ -96,7 +96,7 @@ pnpm test:e2e
 
 Browser tests use an isolated server on port 3100 and temporary fixtures in `.data/e2e`. Their coupon is test-only and never enters production sources. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using an existing Chromium binary.
 
-Tests cover expiry/freshness, South African dates, deduplication, source boundaries and evidence; mobile and desktop tests cover search, filters, accordion behaviour, copy, saved offers, reports, refresh limits, design selection, themes, dialog keyboard access and reduced motion. A GitHub CI workflow runs these checks on pushes and PRs.
+Tests cover expiry/freshness, South African dates, deduplication, source boundaries and evidence; mobile and desktop tests cover search, filters, accordion behaviour, copy, saved offers, reports, refresh limits, design selection, themes, dialog keyboard access and reduced motion. Automated axe checks scan all three designs in both themes on mobile and desktop, including dialog naming. A GitHub CI workflow runs these checks on pushes and PRs.
 
 ## Design and accessibility
 

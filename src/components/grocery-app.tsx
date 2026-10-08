@@ -726,7 +726,10 @@ export function GroceryApp({
                     className={
                       !activeStores.some((active) => active.id === store.id) ? "inactive" : ""
                     }
-                    style={{ background: store.color, color: store.ink }}
+                    style={{
+                      background: `color-mix(in srgb, ${store.color} 76%, #000)`,
+                      color: store.ink,
+                    }}
                   >
                     <span>{store.monogram}</span>
                   </button>
@@ -989,6 +992,7 @@ export function GroceryApp({
       <dialog
         ref={modalRef}
         className="info-dialog"
+        aria-labelledby="info-title"
         onCancel={() => {
           setInfoOpen(false);
           setReport(null);
@@ -1011,7 +1015,9 @@ export function GroceryApp({
           <span className="eyebrow">
             {report ? "HELP KEEP OFFERS USEFUL" : "A LITTLE LESS SEARCHING"}
           </span>
-          <h2>{report ? "Something not quite right?" : "Find a saving. Know the details."}</h2>
+          <h2 id="info-title">
+            {report ? "Something not quite right?" : "Find a saving. Know the details."}
+          </h2>
           {report ? (
             <>
               <p>{report.title}</p>
