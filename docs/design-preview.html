@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Grocery codes — three design options</title>
+    <style>
+      @font-face {
+        font-family: Jakarta;
+        src: url("../public/fonts/jakarta-variable.woff2");
+        font-weight: 400 800;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        background: #eff2ed;
+        color: #172420;
+        font:
+          14px Jakarta,
+          sans-serif;
+        margin: 0;
+        padding: 38px;
+      }
+      main {
+        max-width: 1110px;
+        margin: 0 auto;
+      }
+      small {
+        font-size: 10px;
+        letter-spacing: 2px;
+        font-weight: 700;
+        color: #596962;
+      }
+      h1 {
+        font-size: 33px;
+        letter-spacing: -1.5px;
+        margin: 13px 0 8px;
+      }
+      p {
+        color: #596962;
+        font-size: 12px;
+      }
+      .options {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+        margin-top: 30px;
+      }
+      h2 {
+        font-size: 18px;
+        letter-spacing: -0.7px;
+        margin: 0 0 8px;
+      }
+      h2 span {
+        font-size: 8px;
+        padding: 5px 8px;
+        background: #d0e9d4;
+        color: #235338;
+        border-radius: 14px;
+        letter-spacing: 0;
+        vertical-align: middle;
+        margin-left: 7px;
+      }
+      article > p {
+        font-size: 10px;
+        line-height: 1.7;
+        margin-bottom: 15px;
+      }
+      img {
+        width: 100%;
+        border: 1px solid #dce2da;
+        border-radius: 23px;
+        display: block;
+        box-shadow: 0 10px 25px #17242015;
+      }
+      footer {
+        font-size: 9px;
+        color: #596962;
+        margin-top: 25px;
+      }
+      @media (max-width: 700px) {
+        body {
+          padding: 24px;
+        }
+        .options {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <small>GROCERY CODES SA · THREE WORKING DIRECTIONS</small>
+      <h1>A little less at checkout.</h1>
+      <p>One app. Three ways to explore today's grocery promotions.</p>
+      <section class="options" aria-label="Design choices">
+        <article>
+          <h2>01 · Wallet <span>RECOMMENDED</span></h2>
+          <p>
+            Overlapping store cards. Calm mint accents.<br />Closest to the Wallet and card
+            references.
+          </p>
+          <a href="previews/wallet-mobile.png"
+            ><img src="previews/wallet-phone.png" alt="Wallet design on a phone"
+          /></a>
+        </article>
+        <article>
+          <h2>02 · Rewards</h2>
+          <p>
+            A bold blue dashboard. Bright offer tiles.<br />Inspired by the rewards app reference.
+          </p>
+          <a href="previews/rewards-mobile.png"
+            ><img src="previews/rewards-phone.png" alt="Rewards design on a phone"
+          /></a>
+        </article>
+        <article>
+          <h2>03 · Orbit</h2>
+          <p>
+            Editorial typography. Swipeable store cards.<br />A softer, more expressive alternative.
+          </p>
+          <a href="previews/orbit-mobile.png"
+            ><img src="previews/orbit-phone.png" alt="Orbit design on a phone"
+          /></a>
+        </article>
+      </section>
+      <footer>
+        All three share search, filters, quick copying, saved offers, source links, expiry handling
+        and refresh. Previews: 8 October 2026.
+      </footer>
+    </main>
+  </body>
+</html>
