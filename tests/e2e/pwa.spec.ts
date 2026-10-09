@@ -165,7 +165,7 @@ test("cold launches offline with copying, saved offers, search and all three vie
   expect(errors).toEqual([]);
 });
 
-test("excludes expired, stale and corrupted offline listings", async ({ page, connection }) => {
+test("excludes expired and stale offline listings", async ({ page, connection }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(connection.url);
   await offlineReady(page);
@@ -197,6 +197,8 @@ test("excludes expired, stale and corrupted offline listings", async ({ page, co
             database.close();
           };
         };
+        request.onerror = () => reject(request.error);
+        request.onblocked = () => reject(new Error("Fixture database is blocked."));
       }),
   );
   await connection.setOnline(false);
@@ -214,9 +216,17 @@ test("excludes expired, stale and corrupted offline listings", async ({ page, co
       }
     }),
   ).toBe(false);
+});
+
+test("excludes corrupted offline listings", async ({ page, connection }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(connection.url);
+  await offlineReady(page);
+  // Seed corruption while the storage service is online in a fresh context.
+  // Raw fixture writes after an offline WebKit reload can stall indefinitely.
   await page.evaluate(
     () =>
-      new Promise<void>((resolve) => {
+      new Promise<void>((resolve, reject) => {
         const request = indexedDB.open("grocery-device", 1);
         request.onsuccess = () => {
           const database = request.result;
@@ -228,9 +238,16 @@ test("excludes expired, stale and corrupted offline listings", async ({ page, co
             database.close();
             resolve();
           };
+          transaction.onerror = () => {
+            database.close();
+            reject(transaction.error);
+          };
         };
+        request.onerror = () => reject(request.error);
+        request.onblocked = () => reject(new Error("Fixture database is blocked."));
       }),
   );
+  await connection.setOnline(false);
   await page.reload();
   await waitForApp(page);
   await expect(page.locator(".store-card.has-offers")).toHaveCount(0);
