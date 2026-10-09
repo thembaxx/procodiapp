@@ -33,7 +33,7 @@ Set `SITE_URL` to the public HTTPS origin and `INDEXING_ENABLED=true` on product
 
 `pnpm check:production` verifies required public URL, operator contact, scheduler secret and storage/provider configuration without printing credentials. `/api/health` checks storage readiness. [Directory preview](docs/previews/store-directory-phone.png) · [Store details](docs/previews/store-details-phone.png) · [Social card](docs/previews/social-card.png)
 
-[Production launch guide](docs/production.md) covers deployment, scheduling, privacy, monitoring, indexing and remaining operator steps.
+[Privacy and security audit](docs/security-audit.md) · [Production launch guide](docs/production.md) covers deployment, scheduling, privacy, monitoring, indexing and remaining operator steps.
 
 ## Run locally
 
@@ -90,7 +90,7 @@ All discovered codes are marked **not tested at checkout**. The app never genera
 | `POST /api/report`                      | Saves a report for an existing listing. Body: `{ "offerId": "...", "reason": "The code didn't work" }`. Also accepts `The offer has ended` and `The terms are different`.                                               |
 | `GET /api/cron`                         | Authenticated discovery. Header: `Authorization: Bearer <CRON_SECRET>`.                                                                                                                                                 |
 
-Refresh and reports validate browser origin. Set `TRUST_PROXY=true` only when the deployment ingress overwrites `x-forwarded-for`; otherwise all local clients share a conservative refresh bucket. No raw IP addresses are stored. The single-node development limiter is in memory; Supabase provides an atomic distributed limiter.
+Refresh and reports validate browser origin. Set `TRUST_PROXY=true` only when the deployment ingress overwrites `x-forwarded-for`; otherwise all local clients share a conservative refresh bucket. No raw IP addresses are stored by the app. Set a separate `RATE_LIMIT_SECRET` (32+ random characters) in production; address identifiers use daily rotating HMACs. Public discovery has a shared ten-minute cooldown. Reports are removed after 30 days during the next report write or scheduled cleanup, using the updated service-role-only Supabase RPCs. Apply the current `supabase/schema.sql` before enabling writes. The single-node development limiter is in memory; Supabase provides an atomic distributed limiter.
 
 API responses are excluded from indexing and use `no-store`. Reports have a 2KB streamed-body limit, JSON validation and safe error responses. Browser mutations accept the configured origin behind ingress and reject cross-site requests.
 

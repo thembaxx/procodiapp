@@ -1,48 +1,56 @@
 import { z } from "zod";
 import { stores } from "./stores";
+import { allowedStoreUrl } from "./source-urls";
 
 // Use interpreted validators under the production CSP, without runtime eval.
 z.config({ jitless: true });
 
-export const offerSchema = z.object({
-  id: z.string().min(1).max(180),
+export const offerSchema = z
+  .object({
+    id: z.string().min(1).max(180),
+    storeId: z.enum(["checkers", "pnp", "woolworths", "shoprite", "spar", "makro"]),
+    code: z.string().min(2).max(64).nullable(),
+    type: z.enum(["free_delivery", "discount"]),
+    title: z.string().min(5).max(160),
+    criteria: z.string().min(10).max(650),
+    minBasketZar: z.number().nonnegative().optional(),
+    newCustomersOnly: z.boolean().optional(),
+    expiresAt: z.iso.datetime({ offset: true }).nullable(),
+    expiryKnown: z.boolean(),
+    ongoing: z.boolean(),
+    sourceName: z.string().min(1).max(80),
+    sourceUrl: z.url().max(2000),
+    foundAt: z.iso.datetime({ offset: true }),
+    checkedAt: z.iso.datetime({ offset: true }),
+    validUntil: z.iso.datetime({ offset: true }),
+    verified: z.boolean(),
+    evidence: z.string().min(10).max(800),
+  })
+  .refine((offer) => {
+    const store = stores.find((item) => item.id === offer.storeId);
+    return !!store && allowedStoreUrl(offer.sourceUrl, store);
+  }, "Source must be an approved HTTPS host for this store.");
+
+export const sourceCheckSchema = z.object({
   storeId: z.enum(["checkers", "pnp", "woolworths", "shoprite", "spar", "makro"]),
-  code: z.string().min(2).max(64).nullable(),
-  type: z.enum(["free_delivery", "discount"]),
-  title: z.string().min(5).max(160),
-  criteria: z.string().min(10).max(650),
-  minBasketZar: z.number().nonnegative().optional(),
-  newCustomersOnly: z.boolean().optional(),
-  expiresAt: z.iso.datetime({ offset: true }).nullable(),
-  expiryKnown: z.boolean(),
-  ongoing: z.boolean(),
-  sourceName: z.string().min(1).max(80),
-  sourceUrl: z.url().refine((value) => {
-    const url = new URL(value);
-    return url.protocol === "https:" && !url.username && !url.password;
-  }, "Source must be a public HTTPS URL."),
-  foundAt: z.iso.datetime({ offset: true }),
-  checkedAt: z.iso.datetime({ offset: true }),
-  validUntil: z.iso.datetime({ offset: true }),
-  verified: z.boolean(),
-  evidence: z.string().min(10).max(800),
+  status: z.enum(["checked", "unavailable"]),
+  pages: z.number().int().min(0).max(5),
+  message: z.string().max(250).optional(),
+});
+export const cacheSchema = z.object({
+  offers: z.array(offerSchema).max(500),
+  updatedAt: z.iso.datetime({ offset: true }).nullable(),
+  checks: z.array(sourceCheckSchema).max(6),
+  mode: z.enum(["public_pages", "web_search"]),
+});
+export const offersResponseSchema = cacheSchema.extend({
+  newOfferIds: z.array(z.string().min(1).max(180)).max(500),
 });
 
 export type Offer = z.infer<typeof offerSchema>;
 export type Filter = "all" | "free_delivery" | "discount";
-export type SourceCheck = {
-  storeId: string;
-  status: "checked" | "unavailable";
-  pages: number;
-  message?: string;
-};
-export type OffersResponse = {
-  offers: Offer[];
-  updatedAt: string | null;
-  checks: SourceCheck[];
-  newOfferIds: string[];
-  mode: "public_pages" | "web_search";
-};
+export type SourceCheck = z.infer<typeof sourceCheckSchema>;
+export type OffersResponse = z.infer<typeof offersResponseSchema>;
 
 export function isLive(offer: Offer, now = Date.now()): boolean {
   const fresh = Date.parse(offer.validUntil) > now;

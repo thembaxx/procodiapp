@@ -92,10 +92,14 @@ self.addEventListener("fetch", (event) => {
   } else if (url.pathname === "/manifest.webmanifest") {
     event.respondWith(
       (async () => {
+        // These six theme manifests are build assets, not live promotion data.
+        // Avoid an offline network error while the browser is hydrating its shell.
+        const cached = await (await caches.open(CACHE)).match(request);
+        if (cached) return cached;
         try {
           return await fetch(request);
         } catch {
-          return (await (await caches.open(CACHE)).match(request)) || Response.error();
+          return Response.error();
         }
       })(),
     );

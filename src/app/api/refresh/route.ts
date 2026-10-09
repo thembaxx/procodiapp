@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { discoverOffers } from "@/lib/server/discovery";
-import { takeRefreshSlot } from "@/lib/server/storage";
+import { takeRefreshSlot, PUBLIC_DISCOVERY_COOLDOWN_SECONDS } from "@/lib/server/storage";
 import { filterOffers } from "@/lib/offers";
 import { sameOrigin, clientBucket } from "@/lib/server/request-guards";
 
@@ -14,14 +14,14 @@ export async function POST(request: NextRequest) {
     );
   try {
     const ip = clientBucket(request);
-    const retryAfter = await takeRefreshSlot(ip);
+    const retryAfter = await takeRefreshSlot(`refresh:client:${ip}`);
     if (retryAfter)
       return NextResponse.json(
         { error: `Give the search a moment. Refresh again in ${retryAfter}s.`, retryAfter },
         { status: 429, headers: { "Retry-After": String(retryAfter) } },
       );
-    // One shared discovery per minute also limits provider cost across clients.
-    const globalWait = await takeRefreshSlot("discovery:global");
+    // At most six public discovery attempts per hour across clients/instances.
+    const globalWait = await takeRefreshSlot("discovery:global", PUBLIC_DISCOVERY_COOLDOWN_SECONDS);
     if (globalWait)
       return NextResponse.json(
         {

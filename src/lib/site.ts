@@ -34,6 +34,7 @@ export function siteConfig(env: Record<string, string | undefined> = process.env
     contactEmail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.CONTACT_EMAIL ?? "")
       ? env.CONTACT_EMAIL
       : null,
+    operatorName: env.OPERATOR_NAME?.trim().slice(0, 120) || null,
   };
 }
 

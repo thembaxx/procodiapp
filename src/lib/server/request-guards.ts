@@ -1,4 +1,6 @@
 import { siteConfig } from "../site";
+import { isIP } from "node:net";
+import { boundedText, InputLimit } from "./bounded-input";
 
 export function sameOrigin(request: Request): boolean {
   if (request.headers.get("sec-fetch-site") === "cross-site") return false;
@@ -7,9 +9,11 @@ export function sameOrigin(request: Request): boolean {
   return !origin || origin === (siteConfig().origin ?? new URL(request.url).origin);
 }
 export function clientBucket(request: Request): string {
-  return process.env.TRUST_PROXY === "true"
-    ? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim().slice(0, 128) || "unknown"
-    : "local";
+  if (process.env.TRUST_PROXY !== "true") return "local";
+  const address = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+  const family = address.length <= 45 && !address.includes("%") ? isIP(address) : 0;
+  if (!family) return "unknown";
+  return family === 6 ? new URL(`http://[${address}]`).hostname.slice(1, -1) : address;
 }
 export class InvalidBody extends Error {
   constructor(
@@ -24,32 +28,15 @@ export async function reportBody(request: Request, maximumBytes = 2000): Promise
     request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !== "application/json"
   )
     throw new InvalidBody(415, "Send a JSON report.");
-  if (Number(request.headers.get("content-length") ?? 0) > maximumBytes)
-    throw new InvalidBody(413, "Report is too large.");
   if (!request.body) throw new InvalidBody(400, "Invalid report.");
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let length = 0;
   try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      length += value.byteLength;
-      if (length > maximumBytes) throw new InvalidBody(413, "Report is too large.");
-      chunks.push(value);
-    }
-  } finally {
-    await reader.cancel();
-  }
-  const body = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.length;
-  }
-  try {
-    return JSON.parse(new TextDecoder().decode(body));
-  } catch {
+    return JSON.parse(await boundedText(request, maximumBytes, 5000));
+  } catch (error) {
+    if (error instanceof InputLimit)
+      throw new InvalidBody(
+        error.kind === "size" ? 413 : 408,
+        error.kind === "size" ? "Report is too large." : "Report timed out.",
+      );
     throw new InvalidBody(400, "Invalid report.");
   }
 }

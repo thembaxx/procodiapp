@@ -341,3 +341,25 @@ test("supports standalone presentation, shortcut launches, sharing and native Ba
   await expect(page.locator(".store-card")).toHaveCount(1);
   await expect(page.getByRole("searchbox")).toHaveValue("Makro");
 });
+
+test("keeps offline shopping usable when device storage stops responding", async ({
+  page,
+  connection,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(connection.url);
+  await offlineReady(page);
+  // Simulate a blocked browser storage service only on the next document.
+  await page.addInitScript(() => {
+    Object.defineProperty(indexedDB, "open", { configurable: true, value: () => ({}) });
+  });
+  await connection.setOnline(false);
+  await page.reload();
+  await waitForApp(page);
+  await expect(page.getByRole("searchbox")).toBeEnabled();
+  await expect(page.locator(".store-card.has-offers")).toHaveCount(0);
+  await expect(page.locator(".live-number > span")).toHaveText("00");
+  await expect(
+    page.getByText("Offline. Still a little less searching.", { exact: true }),
+  ).toBeVisible();
+});

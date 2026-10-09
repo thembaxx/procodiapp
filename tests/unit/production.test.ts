@@ -142,6 +142,7 @@ describe("API request boundaries", () => {
   it("fails closed when distributed limiter responses are invalid", async () => {
     vi.stubEnv("SUPABASE_URL", "https://storage.example");
     vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "test-only-key");
+    vi.stubEnv("RATE_LIMIT_SECRET", "unit-test-only-rate-limit-secret-value");
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => Response.json("not a duration")),

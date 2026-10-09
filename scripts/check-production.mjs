@@ -38,11 +38,31 @@ if (
   );
 if ((process.env.CRON_SECRET ?? "").length < 32)
   issues.push("Set CRON_SECRET to a random value of at least 32 characters.");
+if ((process.env.RATE_LIMIT_SECRET ?? "").length < 32)
+  issues.push("Set RATE_LIMIT_SECRET to a separate random value of at least 32 characters.");
 if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(process.env.CONTACT_EMAIL ?? ""))
   issues.push("Set CONTACT_EMAIL to the operator's privacy/support contact before public launch.");
+if (!process.env.OPERATOR_NAME?.trim())
+  issues.push("Set OPERATOR_NAME to the real app operator before public launch.");
 const supabase = !!process.env.SUPABASE_URL || !!process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (supabase && !(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY))
   issues.push("Supabase needs both server-only URL and service-role key.");
+if (process.env.SUPABASE_URL) {
+  try {
+    const storage = new URL(process.env.SUPABASE_URL);
+    if (
+      storage.protocol !== "https:" ||
+      storage.username ||
+      storage.password ||
+      storage.pathname !== "/" ||
+      storage.search ||
+      storage.hash
+    )
+      throw new Error("Invalid origin");
+  } catch {
+    issues.push("SUPABASE_URL must be a credential-free HTTPS origin.");
+  }
+}
 if (!supabase) {
   if (!process.env.DATA_DIR || !path.isAbsolute(process.env.DATA_DIR))
     issues.push("Set DATA_DIR to an absolute persistent volume path, or configure Supabase.");

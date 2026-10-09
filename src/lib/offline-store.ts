@@ -1,20 +1,4 @@
-import { z } from "zod";
-import { offerSchema, type OffersResponse } from "./offers";
-
-const snapshotSchema = z.object({
-  offers: z.array(offerSchema).max(500),
-  updatedAt: z.string().nullable(),
-  checks: z.array(
-    z.object({
-      storeId: z.string(),
-      status: z.enum(["checked", "unavailable"]),
-      pages: z.number(),
-      message: z.string().optional(),
-    }),
-  ),
-  newOfferIds: z.array(z.string()),
-  mode: z.enum(["public_pages", "web_search"]),
-});
+import { offersResponseSchema, type OffersResponse } from "./offers";
 
 export const emptyOffers: OffersResponse = {
   offers: [],
@@ -25,17 +9,36 @@ export const emptyOffers: OffersResponse = {
 };
 
 export function parseOffers(value: unknown): OffersResponse | null {
-  const result = snapshotSchema.safeParse(value);
+  const result = offersResponseSchema.safeParse(value);
   return result.success ? result.data : null;
 }
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("grocery-device", 1);
+    let finished = false;
+    const timer = setTimeout(() => {
+      finished = true;
+      reject(new Error("Device storage timed out."));
+    }, 1500);
     request.onupgradeneeded = () => request.result.createObjectStore("snapshots");
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-    request.onblocked = () => reject(new Error("Device storage is busy."));
+    request.onsuccess = () => {
+      if (finished) {
+        request.result.close();
+        return;
+      }
+      finished = true;
+      clearTimeout(timer);
+      resolve(request.result);
+    };
+    const fail = (error: unknown) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      reject(error);
+    };
+    request.onerror = () => fail(request.error);
+    request.onblocked = () => fail(new Error("Device storage is busy."));
   });
 }
 
@@ -47,10 +50,27 @@ export async function saveOfflineOffers(data: OffersResponse): Promise<boolean> 
     database = await openDatabase();
     await new Promise<void>((resolve, reject) => {
       const transaction = database!.transaction("snapshots", "readwrite");
+      const timer = setTimeout(() => {
+        try {
+          transaction.abort();
+        } catch {
+          /* The transaction may already be closed. */
+        }
+        reject(new Error("Device storage timed out."));
+      }, 1500);
       transaction.objectStore("snapshots").put({ data: parsed, savedAt: Date.now() }, "latest");
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-      transaction.onabort = () => reject(transaction.error);
+      transaction.oncomplete = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      transaction.onerror = () => {
+        clearTimeout(timer);
+        reject(transaction.error);
+      };
+      transaction.onabort = () => {
+        clearTimeout(timer);
+        reject(transaction.error);
+      };
     });
     return true;
   } catch {
@@ -69,9 +89,28 @@ export async function readOfflineOffers(): Promise<{
   try {
     database = await openDatabase();
     const record = await new Promise<unknown>((resolve, reject) => {
-      const request = database!.transaction("snapshots").objectStore("snapshots").get("latest");
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+      const transaction = database!.transaction("snapshots");
+      const timer = setTimeout(() => {
+        try {
+          transaction.abort();
+        } catch {
+          /* The transaction may already be closed. */
+        }
+        reject(new Error("Device storage timed out."));
+      }, 1500);
+      const request = transaction.objectStore("snapshots").get("latest");
+      request.onsuccess = () => {
+        clearTimeout(timer);
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        clearTimeout(timer);
+        reject(request.error);
+      };
+      transaction.onabort = () => {
+        clearTimeout(timer);
+        reject(transaction.error);
+      };
     });
     if (!record || typeof record !== "object" || !("data" in record) || !("savedAt" in record))
       return null;

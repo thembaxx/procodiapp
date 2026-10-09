@@ -8,7 +8,7 @@ export const generateMetadata = () =>
     "/privacy",
   );
 export default function PrivacyPage() {
-  const { contactEmail } = siteConfig();
+  const { contactEmail, operatorName } = siteConfig();
   return (
     <ContentShell>
       <span className="eyebrow">YOUR DEVICE. YOUR CHOICES.</span>
@@ -21,6 +21,14 @@ export default function PrivacyPage() {
         You do not need an account. This app has no advertising cookies, analytics trackers or
         affiliate links.
       </p>
+      <section className="content-section">
+        <h2>Who operates Little Less</h2>
+        <p>
+          {operatorName
+            ? `${operatorName} operates this app.`
+            : "The app's operator name and private privacy contact are not yet available."}
+        </p>
+      </section>
       <section className="content-section">
         <h2>What stays on your device</h2>
         <p>
@@ -42,16 +50,19 @@ export default function PrivacyPage() {
           Reports are stored for review by the app operator.
         </p>
         <p>
-          To limit abuse, the server stores a SHA-256 hash of the client address supplied by a
-          trusted ingress, or a shared local bucket when proxy trust is disabled. The app does not
-          store raw IP addresses in promotion or rate-limit records. Hashes are pseudonymous, not
-          guaranteed anonymous. Limits last one minute; expired limit records are cleaned up during
-          later requests.
+          To limit abuse, the server derives a secret-keyed identifier from the client address
+          supplied by a trusted ingress, or uses a shared bucket when proxy trust is disabled.
+          Address identifiers rotate daily. The app does not store raw IP addresses in promotion or
+          rate-limit records. Identifiers are pseudonymous, not anonymous. Client/report limits last
+          one minute; the shared discovery budget lasts ten minutes. Expired records are deleted
+          during the next limiter request or scheduled cleanup.
         </p>
         <p>
-          The hosting provider may process IP addresses and request logs independently. Reports
-          remain stored until the operator removes them. Contact the operator to ask about retention
-          or request deletion of a report.
+          Reports become eligible for deletion after 30 days. The next successful report submission
+          or scheduled cleanup removes them from active storage; a stopped scheduler can delay
+          deletion. Backups may retain older records under the operator's backup policy. The hosting
+          provider processes IP addresses and request logs independently; its retention and
+          hosting/database regions have not been verified in this app audit.
         </p>
       </section>
       <section className="content-section">
@@ -61,7 +72,9 @@ export default function PrivacyPage() {
           public source text. These server-side requests use retailer queries and page evidence,
           rather than your bookmarks or personal search text. Supabase may store the shared offer
           cache, report records and rate-limit hashes. Following a source link opens a retailer or
-          voucher website with its own privacy practices.
+          voucher website with its own privacy practices. These providers may process data outside
+          South Africa; their current terms and the operator's provider arrangements determine the
+          locations and retention. Browser searches and bookmarks are not sent to Tavily or OpenAI.
         </p>
       </section>
       <section className="content-section">
@@ -70,6 +83,12 @@ export default function PrivacyPage() {
           Installation, sharing and device badges depend on browser support. The app does not enable
           push notifications or background tracking. Use a promotion's report action for incorrect
           terms.
+        </p>
+        <p>
+          For a report-deletion request, provide only its promotion ID, selected reason and
+          approximate submission time through a private contact. Without an account, the app cannot
+          reliably associate a report with a particular person. Do not send payment details or
+          identity documents.
         </p>
         {contactEmail ? (
           <p>
@@ -81,7 +100,8 @@ export default function PrivacyPage() {
           </p>
         ) : (
           <p>
-            For a technical issue, visit{" "}
+            A private privacy contact is not yet available. Do not use a public issue for privacy
+            requests. For a technical issue, visit{" "}
             <a
               className="content-link"
               href="https://github.com/thembaxx/procodiapp/issues"

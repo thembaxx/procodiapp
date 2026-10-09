@@ -109,6 +109,7 @@ test("checks readiness, security headers and safe API failures", async ({ reques
   const home = await request.get("/");
   expect(home.headers()["content-security-policy"]).toContain("object-src 'none'");
   expect(home.headers()["content-security-policy"]).not.toContain("unsafe-eval");
+  expect(home.headers()["content-security-policy"]).toContain("script-src-attr 'none'");
   const crossOrigin = await request.post("/api/refresh", {
     headers: { Origin: "https://attacker.example" },
   });
@@ -118,6 +119,15 @@ test("checks readiness, security headers and safe API failures", async ({ reques
     data: "{",
   });
   expect(malformed.status()).toBe(400);
+  const extraFields = await request.post("/api/report", {
+    headers: { Origin: origin, "Content-Type": "application/json" },
+    data: {
+      offerId: sourceSnapshot[0].id,
+      reason: "The offer has ended",
+      email: "private@test.invalid",
+    },
+  });
+  expect(extraFields.status()).toBe(400);
   const oversized = await request.post("/api/report", {
     headers: { Origin: origin, "Content-Type": "application/json" },
     data: "x".repeat(2501),
@@ -129,4 +139,57 @@ test("checks readiness, security headers and safe API failures", async ({ reques
   expect(image.headers()["content-type"]).toContain("image/png");
   const png = await image.body();
   expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1200, 630]);
+});
+
+// User-controlled source strings must remain text, even while scripts needed by
+// Next hydration are allowed by the document CSP.
+test("escapes hostile offer text and blocks inline event handlers without third-party page requests", async ({
+  page,
+}) => {
+  const marker = '<img src="/security-test-only" onerror="window.auditExecuted=true">';
+  const now = new Date().toISOString();
+  const offer = {
+    ...sourceSnapshot[0],
+    id: "security-browser-test",
+    title: marker,
+    criteria: `Test-only eligibility. ${marker}`,
+    checkedAt: now,
+    validUntil: new Date(Date.now() + 86400000).toISOString(),
+  };
+  const outside: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (!["127.0.0.1", "localhost"].includes(url.hostname)) outside.push(url.origin);
+  });
+  await page.route("**/api/refresh", (route) =>
+    route.fulfill({
+      json: {
+        offers: [offer],
+        checks: [],
+        newOfferIds: [offer.id],
+        updatedAt: now,
+        mode: "public_pages",
+      },
+    }),
+  );
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: /Refresh promotions|Find fresh offers/ })
+    .filter({ visible: true })
+    .first()
+    .click();
+  await expect(page.getByText(marker, { exact: true })).toBeVisible();
+  expect(await page.locator('img[src="/security-test-only"]').count()).toBe(0);
+  expect(
+    await page.evaluate(() => (window as Window & { auditExecuted?: boolean }).auditExecuted),
+  ).toBeUndefined();
+  await page.evaluate(() => {
+    const node = document.createElement("img");
+    node.setAttribute("onerror", "window.auditExecuted=true");
+    node.dispatchEvent(new Event("error"));
+  });
+  expect(
+    await page.evaluate(() => (window as Window & { auditExecuted?: boolean }).auditExecuted),
+  ).toBeUndefined();
+  expect(outside).toEqual([]);
 });

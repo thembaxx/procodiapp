@@ -1,37 +1,12 @@
-import { stores, type Store } from "../stores";
+import { allowedUrl } from "../source-urls";
+import { boundedText } from "./bounded-input";
+export { allowedUrl, allowedStoreUrl } from "../source-urls";
 
-const voucherDomains = ["picodi.com", "wethrift.com"];
 const agent = "LittleLess";
 const headers = {
   "User-Agent": `${agent}/1.0 (+https://github.com/thembaxx/procodiapp)`,
   Accept: "text/html,application/json,text/plain",
 };
-
-export function allowedUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    if (
-      url.protocol !== "https:" ||
-      url.username ||
-      url.password ||
-      (url.port && url.port !== "443")
-    )
-      return false;
-    return [...stores.flatMap((store) => [...store.domains]), ...voucherDomains].some(
-      (host) => url.hostname === host || url.hostname.endsWith(`.${host}`),
-    );
-  } catch {
-    return false;
-  }
-}
-
-export function allowedStoreUrl(value: string, store: Store): boolean {
-  if (!allowedUrl(value)) return false;
-  const host = new URL(value).hostname;
-  return [...store.domains, ...voucherDomains].some(
-    (domain) => host === domain || host.endsWith(`.${domain}`),
-  );
-}
 
 export function robotsAllows(text: string, pathname: string): boolean {
   const groups: { agents: string[]; rules: { allow: boolean; value: string }[] }[] = [];
@@ -103,33 +78,6 @@ async function fetchBounded(
   throw new Error("Too many source redirects.");
 }
 
-async function boundedText(response: Response) {
-  if (Number(response.headers.get("content-length") ?? 0) > 1_500_000)
-    throw new Error("Source is too large.");
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.length;
-      if (total > 1_500_000) throw new Error("Source is too large.");
-      chunks.push(value);
-    }
-  } finally {
-    await reader.cancel();
-  }
-  const merged = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    merged.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return new TextDecoder().decode(merged);
-}
-
 const policies = new Map<string, { text: string; until: number }>();
 export async function readPublicPage(url: string, signal?: AbortSignal): Promise<string> {
   if (!allowedUrl(url)) throw new Error("Unsupported source.");
@@ -139,7 +87,7 @@ export async function readPublicPage(url: string, signal?: AbortSignal): Promise
     const response = await fetchBounded(`${parsed.origin}/robots.txt`, true, signal);
     if (!response.ok && response.status !== 404) throw new Error("Source policy unavailable.");
     policy = {
-      text: response.status === 404 ? "" : await boundedText(response),
+      text: response.status === 404 ? "" : await boundedText(response, 1_500_000),
       until: Date.now() + 3600_000,
     };
     policies.set(parsed.origin, policy);
@@ -152,7 +100,7 @@ export async function readPublicPage(url: string, signal?: AbortSignal): Promise
     !/(text\/html|application\/json|text\/plain)/.test(response.headers.get("content-type") ?? "")
   )
     throw new Error("Source is not a supported public page.");
-  return stripHtml(await boundedText(response)).slice(0, 55_000);
+  return stripHtml(await boundedText(response, 1_500_000)).slice(0, 55_000);
 }
 
 export function stripHtml(html: string): string {

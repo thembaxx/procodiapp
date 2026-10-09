@@ -103,6 +103,25 @@ describe("offline service worker", () => {
     }
   });
 
+  it("serves a precached theme manifest without making an offline network request", async () => {
+    const app = worker();
+    app.current.match.mockResolvedValue(new Response('{"name":"Little Less"}'));
+    app.fetch.mockRejectedValue(new TypeError("Offline"));
+    let response: Promise<Response> | undefined;
+    app.listeners.get("fetch")!({
+      request: {
+        url: "https://grocery.test/manifest.webmanifest?theme=dark&design=wallet",
+        method: "GET",
+        mode: "cors",
+      },
+      respondWith: (value) => {
+        response = value;
+      },
+    });
+    expect(await (await response!).json()).toEqual({ name: "Little Less" });
+    expect(app.fetch).not.toHaveBeenCalled();
+  });
+
   it("keeps the previous build and leaves unrelated caches alone", async () => {
     const app = worker();
     let activation: Promise<unknown> | undefined;

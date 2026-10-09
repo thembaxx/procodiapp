@@ -53,6 +53,7 @@ export default defineConfig({
       SUPABASE_URL: "",
       SUPABASE_SERVICE_ROLE_KEY: "",
       CRON_SECRET: "",
+      RATE_LIMIT_SECRET: "browser-test-only-rate-limit-secret-value",
     },
     timeout: 120000,
   },

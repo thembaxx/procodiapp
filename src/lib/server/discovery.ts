@@ -12,6 +12,7 @@ import { stores, type Store } from "../stores";
 import { sourceSnapshot } from "../snapshot";
 import { allowedStoreUrl, readPublicPage } from "./public-pages";
 import { readCache, writeCache, type Cache } from "./storage";
+import { boundedJson } from "./bounded-input";
 
 const DAY = 86400_000;
 let inFlight: Promise<Cache & { newOfferIds: string[] }> | undefined;
@@ -20,6 +21,7 @@ async function searchCandidates(store: Store, signal: AbortSignal): Promise<stri
   if (process.env.SEARCH_PROVIDER !== "tavily" || !process.env.TAVILY_API_KEY) return [];
   const response = await fetch("https://api.tavily.com/search", {
     method: "POST",
+    redirect: "error",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       api_key: process.env.TAVILY_API_KEY,
@@ -31,8 +33,15 @@ async function searchCandidates(store: Store, signal: AbortSignal): Promise<stri
     signal: AbortSignal.any([signal, AbortSignal.timeout(12_000)]),
   });
   if (!response.ok) throw new Error("Web search is temporarily unavailable.");
-  const data = (await response.json()) as { results?: { url: string }[] };
-  return (data.results ?? [])
+  const data = z
+    .object({
+      results: z
+        .array(z.object({ url: z.string().max(2000) }))
+        .max(10)
+        .default([]),
+    })
+    .parse(await boundedJson(response, 256_000));
+  return data.results
     .map((result) => result.url)
     .filter((url) => allowedStoreUrl(url, store))
     .slice(0, 4);
@@ -75,6 +84,7 @@ async function extract(
   if (!process.env.OPENAI_API_KEY) return [];
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
+    redirect: "error",
     headers: {
       Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       "Content-Type": "application/json",
@@ -105,7 +115,13 @@ async function extract(
     signal: AbortSignal.any([signal, AbortSignal.timeout(18_000)]),
   });
   if (!response.ok) throw new Error("Offer extraction is temporarily unavailable.");
-  const data = (await response.json()) as { choices?: { message: { content: string } }[] };
+  const data = z
+    .object({
+      choices: z
+        .array(z.object({ message: z.object({ content: z.string().max(100_000).nullable() }) }))
+        .max(4),
+    })
+    .parse(await boundedJson(response, 256_000));
   const parsed = extractedSchema.safeParse(JSON.parse(data.choices?.[0]?.message.content ?? "{}"));
   if (!parsed.success) return [];
   const now = new Date().toISOString();

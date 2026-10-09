@@ -4,12 +4,15 @@ const pageCsp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'" +
     (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
+  "script-src-attr 'none'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
   "connect-src 'self'" + (process.env.NODE_ENV === "development" ? " ws: wss:" : ""),
   "worker-src 'self'",
   "object-src 'none'",
+  "frame-src 'none'",
+  "media-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
@@ -18,6 +21,9 @@ const config: NextConfig = {
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1"],
   output: "standalone",
+  outputFileTracingExcludes: {
+    "/*": [".data/**", ".env*", ".git/**", "test-results/**", "playwright-report/**"],
+  },
   async headers() {
     return [
       {

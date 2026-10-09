@@ -3,8 +3,8 @@ import { z } from "zod";
 import { readCache, saveReport, takeRefreshSlot } from "@/lib/server/storage";
 import { sameOrigin, clientBucket, reportBody, InvalidBody } from "@/lib/server/request-guards";
 
-const schema = z.object({
-  offerId: z.string().max(180),
+const schema = z.strictObject({
+  offerId: z.string().min(1).max(180),
   reason: z.enum(["The code didn't work", "The offer has ended", "The terms are different"]),
 });
 
