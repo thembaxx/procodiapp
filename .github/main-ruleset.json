@@ -26,7 +26,10 @@
     {
       "type": "required_status_checks",
       "parameters": {
-        "required_status_checks": [{ "context": "CI gate", "integration_id": 15368 }],
+        "required_status_checks": [
+          { "context": "CI gate", "integration_id": 15368 },
+          { "context": "GitGuardian Security Checks", "integration_id": 46505 }
+        ],
         "strict_required_status_checks_policy": true,
         "do_not_enforce_on_create": false
       }

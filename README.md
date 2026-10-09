@@ -35,7 +35,7 @@ Set `SITE_URL` to the public HTTPS origin and `INDEXING_ENABLED=true` on product
 
 [Privacy and security audit](docs/security-audit.md) · [Production launch guide](docs/production.md) covers deployment, scheduling, privacy, monitoring, indexing and remaining operator steps.
 
-[CI/CD and repository protection](docs/repository-automation.md) documents required checks, Dependabot, CodeQL, secret scanning, CodeRabbit/GitGuardian connections and candidate deployment/promotion. [Contributing](CONTRIBUTING.md) explains the pull-request workflow. Server rules and external integrations require owner-side activation; configuration alone does not enable them.
+[CI/CD and repository protection](docs/repository-automation.md) documents required checks, Dependabot, CodeQL, secret scanning, CodeRabbit/GitGuardian connections and candidate deployment/promotion. [Contributing](CONTRIBUTING.md) explains the pull-request workflow. GitGuardian and CodeRabbit are connected; server protection and production promotion require owner-side setup.
 
 ## Run locally
 

@@ -17,13 +17,21 @@ function request(method, endpoint, body) {
     encoding: "utf8",
     timeout: 30000,
   });
-  if (result.status !== 0) {
-    const status = result.stderr.match(/HTTP \d{3}/)?.[0] ?? "request failed";
+  if (result.error || result.status !== 0) {
+    const status = result.error
+      ? (result.error.code ?? "spawn failed")
+      : ((result.stderr ?? "").match(/HTTP \d{3}/)?.[0] ?? "request failed");
     console.error(`BLOCKED ${method} ${endpoint}: ${status}`);
     failed = true;
     return null;
   }
-  return result.stdout.trim() ? JSON.parse(result.stdout) : {};
+  try {
+    return result.stdout?.trim() ? JSON.parse(result.stdout) : {};
+  } catch {
+    console.error(`BLOCKED ${method} ${endpoint}: unexpected non-JSON response`);
+    failed = true;
+    return null;
+  }
 }
 
 const settings = [
@@ -59,8 +67,9 @@ if (!apply) {
     "No bypass: one independent code-owner approval; authors cannot approve their own PRs.",
   );
   console.log("Add a trusted collaborator to CODEOWNERS before owner-authored work needs merging.");
+  console.log(`Proposed ruleset: ${ruleset.name}, active on main after application.`);
   console.log(
-    `Ruleset: ${ruleset.name}, active on main, required check: CI gate (GitHub Actions).`,
+    "Required checks: CI gate (GitHub Actions) and GitGuardian Security Checks (GitGuardian).",
   );
   for (const setting of settings) console.log(`${setting.method} ${setting.endpoint}`);
   console.log("Run: node scripts/configure-github.mjs --apply");

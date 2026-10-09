@@ -11,7 +11,7 @@ The **CI gate** depends on every job and fails for failed, cancelled or skipped 
 - oxlint, oxfmt, TypeScript and unit tests; a production build and real Chromium/Firefox/WebKit browser/PWA tests;
 - repeatable PostgreSQL migration, actual unprivileged read refusal, service-role RPCs, retention and atomic concurrency;
 - checksum-verified Gitleaks against full history, with redacted output;
-- a moderate-or-higher dependency advisory gate and PR dependency review;
+- a moderate-or-higher dependency advisory gate and dependency review on PRs and merge groups;
 - checksum-verified actionlint, including shell checks when available on the runner;
 - extended CodeQL analysis uploaded to GitHub, and a local SARIF gate that fails for high/critical security or error-level findings. Empty/malformed analysis fails closed.
 
@@ -19,7 +19,7 @@ Dependabot opens weekly npm/pnpm, GitHub Actions and Docker updates. Minor/patch
 
 ## Protect main and repository settings
 
-Review [.github/main-ruleset.json](../.github/main-ruleset.json). The active ruleset requires **CI gate** from the GitHub Actions app (ID 15368), an up-to-date branch, one independent code-owner approval, dismissal of stale reviews, approval after the last push and resolved threads. It prohibits deletion, force pushes and merge commits, with **no bypass actors**.
+Review [.github/main-ruleset.json](../.github/main-ruleset.json). Once applied, the ruleset requires **CI gate** from the GitHub Actions app (ID 15368) and **GitGuardian Security Checks** from the GitGuardian app (ID 46505), an up-to-date branch, one independent code-owner approval, dismissal of stale reviews, approval after the last push and resolved threads. It prohibits deletion, force pushes and merge commits, with **no bypass actors**. Both contexts were observed on PR #1; GitGuardian's check passed. Verify external checks support merge groups before enabling a merge queue.
 
 `CODEOWNERS` initially lists `@thembaxx`. GitHub does not let an author approve their own PR. **Add a trusted collaborator/code owner** before enabling protection if the owner needs to author changes; AI review cannot satisfy this human policy. Alternatively, the owner must explicitly choose a less restrictive solo-maintainer policy.
 
@@ -36,7 +36,7 @@ Verify in [Rules](https://github.com/thembaxx/procodiapp/settings/rules), [Secur
 
 ## GitGuardian
 
-“GitHub guardian” is interpreted as **GitGuardian** unless corrected. Install the [GitGuardian GitHub app](https://github.com/apps/gitguardian) for this repository to enable its repository/PR scanning. Its app status check should become required only after the installation produces a real check and its exact context/app ID are verified.
+“GitHub guardian” is interpreted as **GitGuardian** unless corrected. The [GitGuardian GitHub app](https://github.com/apps/gitguardian) is connected: PR #1 produced a successful **GitGuardian Security Checks** check from app ID **46505**. The proposed main ruleset includes this verified context. The API could not inspect installation permissions or provider settings; confirm repository access, retention and alerts in the provider dashboard.
 
 An additional pinned ggshield workflow is available for trusted main pushes and weekly/manual checks. Store an API key as the GitHub secret `GITGUARDIAN_API_KEY`, then set repository variable `GITGUARDIAN_ENABLED=true`. If enabled without a key it fails explicitly. It does not run on PRs or expose the key to forked contributions. Without the variable it is **inactive**, not a passed external scan. Gitleaks remains a required independent scan without an external account.
 
@@ -44,9 +44,9 @@ GitGuardian sends repository/commit content to its service for analysis; restric
 
 ## CodeRabbit
 
-Install the [CodeRabbit GitHub app](https://github.com/apps/coderabbitai) for this repository. [.coderabbit.yaml](../.coderabbit.yaml) enables incremental assertive reviews, disables poems, provides security/accessibility/offline instructions, excludes runtime/env/binary files and opts out of retained knowledge-base features. This opt-out does not guarantee zero provider logs or inference retention; verify the provider's policies and installation access.
+The [CodeRabbit GitHub app](https://github.com/apps/coderabbitai) is connected: it posted a review-progress comment and a CodeRabbit status on PR #1. [.coderabbit.yaml](../.coderabbit.yaml) enables incremental assertive reviews, disables poems, provides security/accessibility/offline instructions, excludes runtime/env/binary files and opts out of retained knowledge-base features. This opt-out does not guarantee zero provider logs or inference retention; verify the provider's policies and installation access.
 
-The configuration has been checked against CodeRabbit's official v2 schema. A configuration file does not install the app. Confirm a real review on a new PR before describing CodeRabbit as active. Do not add a nonexistent CodeRabbit check to main protection, and keep independent human approval mandatory. AI review suggestions still need validation.
+The configuration has been checked against CodeRabbit's official v2 schema. CodeRabbit completed a review on PR #1 using this configuration; its verified findings were addressed before release. CodeRabbit remains advisory to the server-side required checks, while independent human approval stays mandatory in the proposed rules. AI review suggestions still need validation. Review reruns can be limited by the provider's included allowance; do not assume a completed review covers later commits.
 
 ## Production CD
 
@@ -67,4 +67,4 @@ For rollback, use Vercel's rollback/promote controls for a previously verified p
 
 ## Connection status
 
-The current GitHub integration can push code and run CI, but administration/settings and variable/secret reads returned **HTTP 403**. GitGuardian/CodeRabbit installations and production CD credentials are unverified. Plugin discovery found no matching connector for either provider. Owner-side setup is needed wherever the API denies access; do not mistake prepared configuration for an active connection.
+The current GitHub integration can push code and run CI, but administration/settings and variable/secret reads returned **HTTP 403**. Attempts to create the main ruleset and change repository security settings were denied; those settings were not changed by this work. GitGuardian passed PR #1, and CodeRabbit completed a review using the repository configuration. Their account/installation settings and production CD credentials remain unverified. Plugin discovery found no matching ChatGPT connector for either provider; the GitHub apps operate separately. Owner-side setup is needed for protection and deployment credentials wherever the API denies access.
