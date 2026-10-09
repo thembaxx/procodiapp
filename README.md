@@ -1,15 +1,15 @@
 # Grocery Codes SA
 
-A mobile-first app for finding South African grocery promotions, reading the terms, and copying a code in one tap. Built with **Next.js 16, React 19, TypeScript, Tailwind CSS 4, Motion, Hugeicons, oxlint, oxfmt and pnpm**.
+A mobile-first app for finding South African grocery promotions, reading the terms, and copying a code in one tap. Built with **Next.js 16, React 19, TypeScript, Tailwind CSS 4, Motion, Three.js, Hugeicons, oxlint, oxfmt and pnpm**.
 
-Three working designs are included. Choose a view with the floating switcher; your choice and saved offers persist in your browser.
+Three working designs are included. Open the header's settings gear to choose a view from illustrated previews, set a light, dark or system theme, and control animated backgrounds. The mobile sheet can be swiped down to close; desktop uses a side panel. Your preferences and saved offers persist in your browser.
 
 | Wallet · default                                                                        | Rewards                                                                                   | Orbit                                                                                 |
 | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Stacked brand-colour cards, mint accents and a dark canvas.                             | A bright blue hero, generous offer tiles and a light theme.                               | Editorial serif typography and a swipeable store carousel.                            |
 | <img src="docs/previews/wallet-phone.png" width="250" alt="Wallet design on a phone" /> | <img src="docs/previews/rewards-phone.png" width="250" alt="Rewards design on a phone" /> | <img src="docs/previews/orbit-phone.png" width="250" alt="Orbit design on a phone" /> |
 
-[Compare the designs](docs/designs.md) · [Desktop preview](docs/previews/wallet-desktop.png)
+[Compare the designs](docs/designs.md) · [Settings preview](docs/previews/settings-phone.png) · [Desktop preview](docs/previews/wallet-desktop.png)
 
 ## Run locally
 
@@ -21,7 +21,7 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-Open `http://localhost:3000`. You can link directly to `/?design=wallet`, `/?design=rewards` or `/?design=orbit`. Dark, light and system themes are supported; dark is the initial default. Rewards switches to light when selected, and the theme button can change it.
+Open `http://localhost:3000`. You can link directly to `/?design=wallet`, `/?design=rewards` or `/?design=orbit`. Dark, light and system themes are supported; dark is the initial default. Rewards switches to light when selected, and settings can change it.
 
 The document canvas, page, loading skeleton, browser theme colour and install manifest share the active background. A small inline head script applies saved preferences before React loads and keeps browser metadata in sync with theme and design changes. Light Orbit uses its lavender canvas throughout. Dynamic viewport heights and safe-area insets cover mobile browser bars, notches and landscape layouts. Browser chrome and installed splash-screen behaviour still depend on platform support; existing installs may keep their original launch colour until their manifest updates.
 
@@ -98,11 +98,13 @@ pnpm test:e2e
 
 Browser tests use an isolated server on port 3100 and temporary fixtures in `.data/e2e`. Their coupon is test-only and never enters production sources. Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when using an existing Chromium binary.
 
-Tests cover expiry/freshness, South African dates, deduplication, source boundaries and evidence; mobile and desktop tests cover search, filters, accordion behaviour, copy, saved offers, reports, refresh limits, design selection, themes, dialog keyboard access and reduced motion. Automated axe checks scan all three designs in both themes on mobile and desktop, including dialog naming. Background checks also run in Firefox and mobile WebKit, including saved preferences before hydration, loading states and manifest colours. A GitHub CI workflow runs these checks on pushes and PRs.
+Tests cover expiry/freshness, South African dates, deduplication, source boundaries and evidence; mobile and desktop tests cover search, filters, accordion behaviour, copy, saved offers, reports and refresh limits. Settings checks cover saved choices, focus return, Escape, sheet dragging, small and landscape screens, and changes to the device's motion preference. Automated axe checks scan all three designs in both themes on mobile and desktop, including the settings panel. Appearance and settings checks also run in Firefox and mobile WebKit. Software WebGL checks in Chromium verify all three scenes, a single canvas, context-loss recovery and the sparkle action; every engine tests the no-WebGL fallback. A GitHub CI workflow runs these checks on pushes and PRs.
 
 ## Design and accessibility
 
-The UI follows the attached Wallet handoff and card references: overlapping store cards, clear offer counts, full-width copy actions, no-code states, brand-responsive ambient colour, and a calm count-up. Motion handles expansion, card layout changes, toast entry and the view selector. Search does not retrigger an entrance cascade. CSS animation handles the small background drift and refresh indicator. All motion respects `prefers-reduced-motion`.
+The UI follows the attached Wallet handoff and card references: overlapping store cards, clear offer counts, full-width copy actions, no-code states, brand-responsive ambient colour, and a calm count-up. Hugeicons provide interface icons throughout; the grocery bag remains a custom illustration. Motion adds gentle pointer tilt, spring filters, press feedback, copy checkmarks and bookmark pops. Saving or copying an offer sends a small pulse through the background; the sparkle beside today's count invites the same delight. Pull-to-refresh distinguishes vertical movement from a horizontal carousel swipe.
+
+Each view has its own transparent Three.js scene over the shared page colour: soft ribbons for Wallet, floating rounded tiles for Rewards, and orbiting rings for Orbit. The renderer loads separately after hydration, caps rendering at 30fps and pixel ratio at 1.25 on phones or 1.5 on larger screens, and pauses in hidden tabs. Geometry and listeners are disposed when disabled. Reduced-motion and data-saving visits skip the renderer; unavailable WebGL keeps the static ambient background. All motion respects `prefers-reduced-motion`, including preference changes during a visit.
 
 Controls are labelled; search and filters work on small screens; dialogs use native focus trapping and Escape dismissal; keyboard focus is visible. Saved offers stay on the device. The install manifest is included, but offline discovery and a service worker are not implemented, so this is not an offline app.
 

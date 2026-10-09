@@ -1,15 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { AnimatePresence, animate, motion, useReducedMotion } from "motion/react";
+import {
+  AnimatePresence,
+  animate,
+  motion,
+  useMotionValue,
+  useSpring,
+  type MotionStyle,
+} from "motion/react";
 import { useTheme } from "next-themes";
-import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ShoppingBasket01Icon,
   Search01Icon,
   RefreshIcon,
-  Sun01Icon,
-  Moon02Icon,
   Copy01Icon,
   Tick02Icon,
   ArrowUpRight01Icon,
@@ -21,8 +25,7 @@ import {
   InformationCircleIcon,
   SparklesIcon,
   Location01Icon,
-  Wallet01Icon,
-  GiftIcon,
+  Settings02Icon,
   CheckmarkCircle02Icon,
 } from "@hugeicons/core-free-icons";
 import {
@@ -35,24 +38,14 @@ import {
 } from "@/lib/offers";
 import { stores, type Store } from "@/lib/stores";
 import type { Design } from "@/lib/appearance";
+import { designs } from "@/lib/designs";
+import { Icon } from "@/components/icon";
+import { ViewSettings } from "@/components/view-settings";
+import { ViewBackground } from "@/components/view-background";
+import { useMotionPreference } from "@/components/use-motion-preference";
 
-type IconType = typeof Search01Icon;
-const designs = [
-  { id: "wallet", name: "Wallet", description: "Your stores, neatly stacked", icon: Wallet01Icon },
-  { id: "rewards", name: "Rewards", description: "A brighter way to save", icon: GiftIcon },
-  { id: "orbit", name: "Orbit", description: "A fresh perspective on offers", icon: SparklesIcon },
-] as const;
-
-function Icon({
-  icon,
-  size = 20,
-  ...props
-}: {
-  icon: IconType;
-  size?: number;
-  className?: string;
-}) {
-  return <HugeiconsIcon icon={icon} size={size} strokeWidth={1.7} aria-hidden="true" {...props} />;
+function littleDelight() {
+  window.dispatchEvent(new Event("grocery:delight"));
 }
 
 function StoreMark({ store, large = false }: { store: Store; large?: boolean }) {
@@ -85,7 +78,7 @@ function StoreMark({ store, large = false }: { store: Store; large?: boolean }) 
 
 function Count({ value }: { value: number }) {
   const [count, setCount] = useState(value);
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
   useEffect(() => {
     if (reduced) return;
     const control = animate(0, value, {
@@ -132,6 +125,7 @@ function OfferRow({
   now: number;
 }) {
   const [copied, setCopied] = useState(false);
+  const reduced = useMotionPreference();
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
   const copy = async () => {
@@ -139,8 +133,9 @@ function OfferRow({
     try {
       await copyText(offer.code);
       setCopied(true);
+      littleDelight();
       onToast(`${offer.code} copied. Happy shopping!`);
-      navigator.vibrate?.(15);
+      if (!reduced) navigator.vibrate?.(15);
       clearTimeout(timer.current);
       timer.current = setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -159,14 +154,15 @@ function OfferRow({
           {offer.type === "free_delivery" ? "Free delivery" : "Discount"}
         </span>
         {isNew && <span className="new-tag">New</span>}
-        <button
+        <motion.button
           className={`save-offer ${saved ? "is-saved" : ""}`}
           onClick={onSave}
           aria-pressed={saved}
           aria-label={`${saved ? "Unsave" : "Save"} promotion: ${offer.title}`}
+          whileTap={reduced ? undefined : { scale: 0.85 }}
         >
           <Icon icon={Bookmark02Icon} size={19} />
-        </button>
+        </motion.button>
       </div>
       <h3>{offer.title}</h3>
       <p className="offer-criteria">{offer.criteria}</p>
@@ -185,17 +181,26 @@ function OfferRow({
         </a>
       </div>
       {offer.code ? (
-        <button
+        <motion.button
           className={`copy-code ${copied ? "copied" : ""}`}
           onClick={copy}
           aria-label={`Copy code ${offer.code}`}
+          whileTap={reduced ? undefined : { scale: 0.98 }}
         >
           <code>{offer.code}</code>
           <span>
-            <Icon icon={copied ? Tick02Icon : Copy01Icon} size={17} />
+            <motion.span
+              key={copied ? "copied" : "copy"}
+              className="copy-icon"
+              initial={reduced ? false : { scale: 0.7, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 450, damping: 18 }}
+            >
+              <Icon icon={copied ? Tick02Icon : Copy01Icon} size={17} />
+            </motion.span>
             {copied ? "Copied" : "Copy code"}
           </span>
-        </button>
+        </motion.button>
       ) : (
         <div className="no-code">
           <Icon icon={CheckmarkCircle02Icon} size={20} />
@@ -266,6 +271,11 @@ function StoreCard({
   checked?: string;
   now: number;
 }) {
+  const reduced = useMotionPreference();
+  const pointerX = useMotionValue(0);
+  const pointerY = useMotionValue(0);
+  const rotateX = useSpring(pointerX, { stiffness: 180, damping: 24 });
+  const rotateY = useSpring(pointerY, { stiffness: 180, damping: 24 });
   const hasOffers = offers.length > 0;
   const alwaysOpen = design !== "wallet";
   const expanded = open || alwaysOpen;
@@ -273,13 +283,26 @@ function StoreCard({
     "--brand": store.color,
     "--brand-secondary": store.secondary,
     "--ink": store.ink,
-  } as CSSProperties;
+    rotateX: reduced ? 0 : rotateX,
+    rotateY: reduced ? 0 : rotateY,
+    transformPerspective: 900,
+  } as MotionStyle;
   return (
     <motion.article
       layout="position"
       className={`store-card ${expanded ? "expanded" : ""} ${hasOffers ? "has-offers" : "no-offers"}`}
       style={style}
       transition={{ duration: 0.5, ease: [0.2, 0.9, 0.25, 1] }}
+      onPointerMove={(event) => {
+        if (reduced || event.pointerType !== "mouse" || event.buttons) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        pointerX.set((0.5 - (event.clientY - rect.top) / rect.height) * 1.6);
+        pointerY.set(((event.clientX - rect.left) / rect.width - 0.5) * 2.2);
+      }}
+      onPointerLeave={() => {
+        pointerX.set(0);
+        pointerY.set(0);
+      }}
     >
       <button
         className="store-card-header"
@@ -435,14 +458,17 @@ export function GroceryApp({
   const [report, setReport] = useState<Offer | null>(null);
   const [reportBusy, setReportBusy] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [effects, setEffects] = useState(true);
+  const [delights, setDelights] = useState(0);
   const [now, setNow] = useState(initialNow);
   const [pull, setPull] = useState(0);
-  const touchStart = useRef<number | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const refreshController = useRef<AbortController | null>(null);
   const modalRef = useRef<HTMLDialogElement>(null);
   const { resolvedTheme, setTheme } = useTheme();
-  const reduced = useReducedMotion();
+  const reduced = useMotionPreference();
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -456,6 +482,7 @@ export function GroceryApp({
       try {
         const preference = selected ?? localStorage.getItem("grocery-design");
         if (designs.some((item) => item.id === preference)) setDesign(preference as Design);
+        setEffects(localStorage.getItem("grocery-effects") !== "off");
         const stored: unknown = JSON.parse(localStorage.getItem("grocery-saved") ?? "[]");
         if (Array.isArray(stored))
           setSaved(stored.filter((id): id is string => typeof id === "string"));
@@ -481,7 +508,9 @@ export function GroceryApp({
   }, [infoOpen, report]);
 
   const chooseDesign = (value: Design) => {
+    if (value === design) return;
     setDesign(value);
+    if (!reduced) navigator.vibrate?.(10);
     if (value === "rewards") setTheme("light");
     try {
       localStorage.setItem("grocery-design", value);
@@ -492,9 +521,21 @@ export function GroceryApp({
     url.searchParams.set("design", value);
     window.history.replaceState({}, "", url);
   };
+  const chooseEffects = (enabled: boolean) => {
+    setEffects(enabled);
+    try {
+      localStorage.setItem("grocery-effects", enabled ? "on" : "off");
+    } catch {
+      /* Preference is optional. */
+    }
+  };
   const saveOffer = (id: string) => {
     const next = saved.includes(id) ? saved.filter((item) => item !== id) : [...saved, id];
     setSaved(next);
+    if (next.includes(id)) {
+      littleDelight();
+      if (!reduced) navigator.vibrate?.(10);
+    }
     try {
       localStorage.setItem("grocery-saved", JSON.stringify(next));
     } catch {
@@ -597,17 +638,32 @@ export function GroceryApp({
     <div
       className={`app design-${design}`}
       data-ready={mounted}
+      data-effects={effects && !reduced ? "on" : "off"}
       style={glowStyle}
       onTouchStart={(event) => {
         if (window.scrollY <= 0 && !(event.target as HTMLElement).closest("button,input,a,dialog"))
-          touchStart.current = event.touches[0].clientY;
+          touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
       }}
       onTouchMove={(event) => {
-        if (touchStart.current !== null)
-          setPull(Math.min(130, Math.max(0, event.touches[0].clientY - touchStart.current)));
+        if (touchStart.current === null) return;
+        const dx = event.touches[0].clientX - touchStart.current.x;
+        const dy = event.touches[0].clientY - touchStart.current.y;
+        if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) {
+          touchStart.current = null;
+          setPull(0);
+          return;
+        }
+        setPull(Math.min(130, Math.max(0, dy)));
       }}
       onTouchEnd={() => {
-        if (pull > 100) void refresh();
+        if (pull > 100) {
+          if (!reduced) navigator.vibrate?.(10);
+          void refresh();
+        }
+        touchStart.current = null;
+        setPull(0);
+      }}
+      onTouchCancel={() => {
         touchStart.current = null;
         setPull(0);
       }}
@@ -616,6 +672,14 @@ export function GroceryApp({
         Skip to offers
       </a>
       <div className="ambient-glow" aria-hidden="true" />
+      {mounted && (
+        <ViewBackground
+          design={design}
+          light={resolvedTheme === "light"}
+          brand={selectedStore.color}
+          enabled={effects}
+        />
+      )}
       <header className="site-header shell">
         <a className="brand" href="/" aria-label="Grocery codes home">
           <span className="brand-icon">
@@ -643,13 +707,22 @@ export function GroceryApp({
             <Icon icon={Location01Icon} size={14} />
             SOUTH AFRICA
           </span>
-          <button
-            className="icon-button theme-button"
-            aria-label={`Switch to ${mounted && resolvedTheme === "light" ? "dark" : "light"} theme`}
-            onClick={() => setTheme(resolvedTheme === "light" ? "dark" : "light")}
+          <motion.button
+            className="icon-button settings-button"
+            aria-label="Open view settings"
+            aria-haspopup="dialog"
+            aria-expanded={settingsOpen}
+            aria-controls="view-settings"
+            onClick={() => setSettingsOpen(true)}
+            whileTap={reduced ? undefined : { scale: 0.9 }}
           >
-            <Icon icon={mounted && resolvedTheme === "light" ? Moon02Icon : Sun01Icon} size={20} />
-          </button>
+            <motion.span
+              animate={{ rotate: reduced ? 0 : settingsOpen ? 70 : 0 }}
+              transition={{ type: "spring", stiffness: 220, damping: 18 }}
+            >
+              <Icon icon={Settings02Icon} size={21} />
+            </motion.span>
+          </motion.button>
           <button
             className={`icon-button header-refresh ${refreshing ? "refreshing" : ""}`}
             onClick={() => void refresh()}
@@ -670,7 +743,12 @@ export function GroceryApp({
       )}
       {pull > 35 && (
         <div className="pull-cue">
-          <Icon icon={RefreshIcon} size={18} />
+          <span
+            className="pull-icon"
+            style={{ transform: reduced ? undefined : `rotate(${pull * 1.7}deg)` }}
+          >
+            <Icon icon={RefreshIcon} size={18} />
+          </span>
           {pull > 100 ? "Release to refresh" : "Pull to find fresh offers"}
         </div>
       )}
@@ -694,7 +772,10 @@ export function GroceryApp({
               <span>{date}</span>
               <span className="date-divider" />
               <span>
-                Made for Mzansi<span className="tiny-star">✳</span>
+                Made for Mzansi
+                <span className="tiny-star">
+                  <Icon icon={SparklesIcon} size={12} />
+                </span>
               </span>
             </div>
           </div>
@@ -706,7 +787,20 @@ export function GroceryApp({
               </span>
               <div className="live-number">
                 <Count value={live.length} />
-                <span className="number-star">✳</span>
+                <motion.button
+                  className="number-star delight-trigger"
+                  aria-label="Make a little magic"
+                  onClick={() => {
+                    littleDelight();
+                    setDelights((value) => value + 1);
+                    if (!reduced) navigator.vibrate?.(10);
+                  }}
+                  animate={{ rotate: reduced ? 0 : delights * 90 }}
+                  whileTap={reduced ? undefined : { scale: 0.8 }}
+                  transition={{ type: "spring", stiffness: 160, damping: 12 }}
+                >
+                  <Icon icon={SparklesIcon} size={38} />
+                </motion.button>
               </div>
               <p>
                 live {live.length === 1 ? "offer" : "offers"} across{" "}
@@ -808,8 +902,18 @@ export function GroceryApp({
                   aria-label={item.label}
                   aria-pressed={filter === item.id}
                   className={filter === item.id ? "active" : ""}
-                  onClick={() => setFilter(item.id)}
+                  onClick={() => {
+                    setFilter(item.id);
+                    if (!reduced) navigator.vibrate?.(7);
+                  }}
                 >
+                  {filter === item.id && (
+                    <motion.i
+                      className="filter-selection"
+                      layoutId="selected-filter"
+                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                    />
+                  )}
                   <Icon icon={item.icon} size={17} />
                   {item.label}
                   {filter === item.id && <span>{allVisible.length}</span>}
@@ -944,7 +1048,10 @@ export function GroceryApp({
         </section>
         <footer className="site-footer">
           <a className="footer-brand" href="/">
-            grocerycodes<span>✳</span>
+            grocerycodes
+            <span>
+              <Icon icon={SparklesIcon} size={15} />
+            </span>
           </a>
           <p>A little less at checkout. A little more for you.</p>
           <button onClick={() => setInfoOpen(true)}>
@@ -953,27 +1060,15 @@ export function GroceryApp({
           </button>
         </footer>
       </main>
-      <nav className="design-switcher" aria-label="Choose a design option">
-        <span className="design-label">PICK YOUR VIEW</span>
-        {designs.map((item) => (
-          <button
-            key={item.id}
-            aria-pressed={design === item.id}
-            className={design === item.id ? "active" : ""}
-            onClick={() => chooseDesign(item.id)}
-          >
-            <Icon icon={item.icon} size={18} />
-            <span>{item.name}</span>
-            {design === item.id && (
-              <motion.i
-                layoutId="selected-design"
-                className="selected-design"
-                transition={{ type: "spring", stiffness: 350, damping: 30 }}
-              />
-            )}
-          </button>
-        ))}
-      </nav>
+      <ViewSettings
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        design={design}
+        onDesign={chooseDesign}
+        effects={effects}
+        onEffects={chooseEffects}
+        ready={mounted}
+      />
       <AnimatePresence>
         {toast && (
           <motion.output

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { chooseView, chooseTheme, waitForApp } from "./helpers";
 
 const colors = {
   dark: { hex: "#0b0e11", rgb: "rgb(11, 14, 17)" },
@@ -28,7 +29,7 @@ test("applies a saved canvas before stylesheets and hydration load", async ({ pa
     "content",
     colors.orbitLight.hex,
   );
-  await expect(page.locator(".app[data-ready]")).toHaveAttribute("data-ready", "false");
+  await expect(page.locator(".app[data-ready]:visible")).toHaveAttribute("data-ready", "false");
 });
 
 test("keeps the server loading shell on the same canvas in portrait and landscape", async ({
@@ -75,13 +76,12 @@ test("matches page, browser and manifest colours across designs, themes and refr
   page.on("pageerror", (error) => errors.push(error.message));
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/?design=wallet");
-  await expect(page.locator(".app")).toHaveAttribute("data-ready", "true");
+  await waitForApp(page);
   for (const design of ["Wallet", "Rewards", "Orbit"]) {
-    await page.getByRole("button", { name: design, exact: true }).click();
+    await chooseView(page, design);
     await expect(page.locator("html")).toHaveAttribute("data-design", design.toLowerCase());
     for (const theme of ["dark", "light"]) {
-      const toggle = page.getByRole("button", { name: `Switch to ${theme} theme` });
-      if (await toggle.count()) await toggle.click();
+      await chooseTheme(page, theme);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       const color =
         theme === "dark" ? colors.dark : design === "Orbit" ? colors.orbitLight : colors.light;
@@ -100,6 +100,7 @@ test("matches page, browser and manifest colours across designs, themes and refr
     }
   }
   await page.reload();
+  await waitForApp(page);
   await expect(page.locator(".app")).toHaveClass(/design-orbit/);
   await expectCanvas(page, colors.orbitLight);
 
@@ -130,7 +131,7 @@ test("follows system theme changes without leaving browser colours behind", asyn
     localStorage.setItem("theme", "system");
   });
   await page.goto("/?design=wallet");
-  await expect(page.locator(".app")).toHaveAttribute("data-ready", "true");
+  await waitForApp(page);
   await expectCanvas(page, colors.light);
   await page.emulateMedia({ colorScheme: "dark" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");

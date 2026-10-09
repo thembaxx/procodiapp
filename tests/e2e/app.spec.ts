@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { sourceSnapshot } from "../../src/lib/snapshot";
+import { chooseView, chooseTheme, closeSettings, waitForApp } from "./helpers";
 
 const testOffer = {
   ...sourceSnapshot[0],
@@ -103,17 +104,19 @@ test("reports refresh limits without discarding offers", async ({ page }) => {
 test("offers three layouts, persists a choice, and supports light and dark", async ({ page }) => {
   await page.goto("/?design=wallet");
   for (const name of ["Rewards", "Orbit", "Wallet"]) {
-    await page.getByRole("button", { name, exact: true }).click();
+    await chooseView(page, name, false);
     await expect(page.locator(".app")).toHaveClass(new RegExp(`design-${name.toLowerCase()}`));
     await expect(page.getByRole("button", { name, exact: true })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
   }
+  await closeSettings(page);
   await page.reload();
+  await waitForApp(page);
   await expect(page.locator(".app")).toHaveClass(/design-wallet/);
   const before = await page.locator("html").getAttribute("data-theme");
-  await page.getByRole("button", { name: /Switch to .* theme/ }).click();
+  await chooseTheme(page, before === "dark" ? "light" : "dark");
   await expect(page.locator("html")).toHaveAttribute(
     "data-theme",
     before === "dark" ? "light" : "dark",
@@ -136,13 +139,18 @@ test("supports keyboard dialog dismissal and reduced motion", async ({ page }) =
 });
 
 test("passes automated accessibility checks for all designs and themes", async ({ page }) => {
+  test.setTimeout(60000);
   await page.emulateMedia({ reducedMotion: "reduce" });
   for (const design of ["wallet", "rewards", "orbit"]) {
     await page.goto(`/?design=${design}`);
-    await expect(page.locator(".app")).toHaveAttribute("data-ready", "true");
+    await waitForApp(page);
     for (const theme of ["dark", "light"]) {
-      const change = page.getByRole("button", { name: `Switch to ${theme} theme` });
-      if (await change.count()) await change.click();
+      await chooseTheme(page, theme, false);
+      const settings = await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+        .analyze();
+      expect(settings.violations, `settings / ${design} / ${theme}`).toEqual([]);
+      await closeSettings(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       await page.evaluate(() => document.fonts.ready);
       const result = await new AxeBuilder({ page })

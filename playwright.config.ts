@@ -1,9 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
 import path from "node:path";
 
-const chromiumLaunchOptions = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
-  ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } }
-  : {};
+const chromiumLaunchOptions = {
+  launchOptions: {
+    args: ["--enable-unsafe-swiftshader"],
+    ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
+      : {}),
+  },
+};
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -24,12 +29,12 @@ export default defineConfig({
     { name: "desktop", use: { viewport: { width: 1440, height: 1000 }, ...chromiumLaunchOptions } },
     {
       name: "firefox",
-      testMatch: "appearance.spec.ts",
+      testMatch: ["appearance.spec.ts", "settings.spec.ts"],
       use: { browserName: "firefox", viewport: { width: 1440, height: 1000 } },
     },
     {
       name: "webkit-mobile",
-      testMatch: "appearance.spec.ts",
+      testMatch: ["appearance.spec.ts", "settings.spec.ts"],
       use: { ...devices["iPhone 13"], browserName: "webkit" },
     },
   ],
