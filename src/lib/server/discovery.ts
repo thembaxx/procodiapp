@@ -10,13 +10,13 @@ import {
 } from "../offers";
 import { stores, type Store } from "../stores";
 import { sourceSnapshot } from "../snapshot";
-import { allowedUrl, readPublicPage } from "./public-pages";
+import { allowedStoreUrl, readPublicPage } from "./public-pages";
 import { readCache, writeCache, type Cache } from "./storage";
 
 const DAY = 86400_000;
 let inFlight: Promise<Cache & { newOfferIds: string[] }> | undefined;
 
-async function searchCandidates(store: Store): Promise<string[]> {
+async function searchCandidates(store: Store, signal: AbortSignal): Promise<string[]> {
   if (process.env.SEARCH_PROVIDER !== "tavily" || !process.env.TAVILY_API_KEY) return [];
   const response = await fetch("https://api.tavily.com/search", {
     method: "POST",
@@ -28,13 +28,13 @@ async function searchCandidates(store: Store): Promise<string[]> {
       search_depth: "basic",
       include_domains: [...store.domains, "picodi.com", "wethrift.com"],
     }),
-    signal: AbortSignal.timeout(12_000),
+    signal: AbortSignal.any([signal, AbortSignal.timeout(12_000)]),
   });
   if (!response.ok) throw new Error("Web search is temporarily unavailable.");
   const data = (await response.json()) as { results?: { url: string }[] };
   return (data.results ?? [])
     .map((result) => result.url)
-    .filter(allowedUrl)
+    .filter((url) => allowedStoreUrl(url, store))
     .slice(0, 4);
 }
 
@@ -42,28 +42,36 @@ const extractedSchema = z.object({
   offers: z
     .array(
       z.object({
-        code: z.string().nullable(),
+        code: z.string().min(2).max(64).nullable(),
         type: z.enum(["free_delivery", "discount"]),
-        title: z.string(),
-        criteria: z.string(),
+        title: z.string().min(5).max(160),
+        criteria: z.string().min(10).max(650),
         expiresAt: z.string().nullable(),
         ongoing: z.boolean(),
-        evidence: z.string(),
-        expiryEvidence: z.string(),
-        codeEvidence: z.string().nullable(),
-        minBasketZar: z.number().nullable(),
+        evidence: z.string().min(10).max(800),
+        expiryEvidence: z.string().min(10).max(800),
+        codeEvidence: z.string().min(10).max(800).nullable(),
+        minBasketZar: z.number().nonnegative().nullable(),
         newCustomersOnly: z.boolean(),
       }),
     )
     .max(8),
 });
 
+const extractionJsonSchema = z.toJSONSchema(extractedSchema);
+delete extractionJsonSchema.$schema;
+
 export function containsEvidence(text: string, evidence: string): boolean {
   const tidy = (value: string) => value.toLowerCase().replace(/\s+/g, " ").trim();
   return evidence.trim().length >= 10 && tidy(text).includes(tidy(evidence));
 }
 
-async function extract(store: Store, url: string, text: string): Promise<Offer[]> {
+async function extract(
+  store: Store,
+  url: string,
+  text: string,
+  signal: AbortSignal,
+): Promise<Offer[]> {
   if (!process.env.OPENAI_API_KEY) return [];
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -74,7 +82,15 @@ async function extract(store: Store, url: string, text: string): Promise<Offer[]
     body: JSON.stringify({
       model: process.env.EXTRACTION_MODEL ?? "gpt-4.1-mini",
       temperature: 0,
-      response_format: { type: "json_object" },
+      max_completion_tokens: 4000,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "grocery_promotions",
+          strict: true,
+          schema: extractionJsonSchema,
+        },
+      },
       messages: [
         {
           role: "system",
@@ -86,7 +102,7 @@ async function extract(store: Store, url: string, text: string): Promise<Offer[]
         },
       ],
     }),
-    signal: AbortSignal.timeout(18_000),
+    signal: AbortSignal.any([signal, AbortSignal.timeout(18_000)]),
   });
   if (!response.ok) throw new Error("Offer extraction is temporarily unavailable.");
   const data = (await response.json()) as { choices?: { message: { content: string } }[] };
@@ -133,7 +149,7 @@ async function extract(store: Store, url: string, text: string): Promise<Offer[]
   });
 }
 
-async function runDiscovery() {
+async function runDiscovery(signal: AbortSignal) {
   const previous = await readCache();
   const results = await Promise.all(
     stores.map(async (store) => {
@@ -142,15 +158,19 @@ async function runDiscovery() {
       const errors: string[] = [];
       let candidates: string[] = [];
       try {
-        candidates = await searchCandidates(store);
+        candidates = await searchCandidates(store, signal);
       } catch {
         errors.push("Web search could not be completed.");
       }
       const urls = [...new Set([...store.sources, ...candidates])].slice(0, 5);
       // Sequential requests within each retailer avoid hammering its website.
       for (const url of urls) {
+        if (signal.aborted) {
+          errors.push("Discovery deadline reached; remaining pages were not checked.");
+          break;
+        }
         try {
-          const text = await readPublicPage(url);
+          const text = await readPublicPage(url, signal);
           if (
             text.length < 100 ||
             /enable javascript to continue|access denied|verify you are human/i.test(text)
@@ -171,7 +191,7 @@ async function runDiscovery() {
                 validUntil: new Date(Date.now() + DAY).toISOString(),
               });
           }
-          offers.push(...(await extract(store, url, text)));
+          offers.push(...(await extract(store, url, text, signal)));
         } catch {
           errors.push("Some promotion pages could not be checked.");
         }
@@ -211,7 +231,7 @@ async function runDiscovery() {
 
 export async function discoverOffers() {
   if (!inFlight)
-    inFlight = runDiscovery().finally(() => {
+    inFlight = runDiscovery(AbortSignal.timeout(90_000)).finally(() => {
       inFlight = undefined;
     });
   return inFlight;

@@ -1,19 +1,24 @@
 import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/providers";
 import { appearanceBootstrap, appearanceCriticalCss, appearanceNoScript } from "@/lib/appearance";
+import { pageMetadata, siteDescription } from "@/lib/site";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Grocery codes — A little less at checkout",
-  description:
-    "Find today's South African grocery promotions. Explore six stores, filter free delivery and discounts, and copy coupon codes in a tap.",
-  applicationName: "Grocery Codes SA",
-  icons: {
-    icon: "/icon.svg",
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
-  },
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Grocery codes" },
-};
+export function generateMetadata(): Metadata {
+  return {
+    ...pageMetadata(
+      "Grocery Codes SA — South African grocery coupons & free delivery",
+      siteDescription,
+      "/",
+    ),
+    applicationName: "Grocery Codes SA",
+    icons: {
+      icon: "/icon.svg",
+      apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    },
+    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Grocery codes" },
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -26,6 +31,27 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en-ZA" suppressHydrationWarning>
       <head>
+        <link
+          rel="preload"
+          href="/fonts/jakarta-variable.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/bricolage-variable.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/instrument-italic.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
         <noscript dangerouslySetInnerHTML={{ __html: appearanceNoScript }} />
         <style dangerouslySetInnerHTML={{ __html: appearanceCriticalCss }} />
         <script id="grocery-appearance" dangerouslySetInnerHTML={{ __html: appearanceBootstrap }} />

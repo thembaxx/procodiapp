@@ -342,7 +342,6 @@ function StoreCard({
         onClick={onToggle}
         aria-expanded={expanded}
         aria-controls={`offers-${store.id}`}
-        aria-label={`${store.name}, ${offers.length} ${offers.length === 1 ? "offer" : "offers"} today${design === "wallet" ? ", expand promotions" : ""}`}
       >
         <StoreMark store={store} />
         <span className="store-card-info">
@@ -848,7 +847,7 @@ export function GroceryApp({
         />
       )}
       <header className="site-header shell">
-        <a className="brand" href="/" aria-label="Grocery codes home">
+        <a className="brand" href="/" aria-label="grocerycodes home">
           <span className="brand-icon">
             <Icon icon={ShoppingBasket01Icon} size={25} />
           </span>
@@ -998,7 +997,7 @@ export function GroceryApp({
                   <button
                     key={store.id}
                     title={`${store.name}: ${live.filter((offer) => offer.storeId === store.id).length} offers`}
-                    aria-label={`Search ${store.name}`}
+                    aria-label={`${store.monogram}: Search ${store.name}`}
                     onClick={() => {
                       setQuery(store.name);
                       setSavedOnly(false);
@@ -1086,7 +1085,6 @@ export function GroceryApp({
               ).map((item) => (
                 <button
                   key={item.id}
-                  aria-label={item.label}
                   aria-pressed={filter === item.id}
                   className={filter === item.id ? "active" : ""}
                   onClick={() => {
@@ -1103,7 +1101,7 @@ export function GroceryApp({
                   )}
                   <Icon icon={item.icon} size={17} />
                   {item.label}
-                  {filter === item.id && <span>{allVisible.length}</span>}
+                  {filter === item.id && <span> {allVisible.length}</span>}
                 </button>
               ))}
             </fieldset>
@@ -1241,6 +1239,11 @@ export function GroceryApp({
             </span>
           </a>
           <p>A little less at checkout. A little more for you.</p>
+          <nav className="footer-links" aria-label="Information">
+            <a href="/stores">All stores</a>
+            <a href="/about">How we find offers</a>
+            <a href="/privacy">Privacy</a>
+          </nav>
           <button onClick={() => setInfoOpen(true)}>
             Independent. Made for South Africa.
             <Icon icon={ArrowUpRight01Icon} size={14} />

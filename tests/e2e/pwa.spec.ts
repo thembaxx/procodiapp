@@ -152,6 +152,10 @@ test("cold launches offline with copying, saved offers, search and all three vie
     await chooseView(page, view);
     await expect(page.getByText(offer.title, { exact: true })).toBeVisible();
   }
+  const storeFallback = await page.goto(`${connection.url}/stores/checkers`);
+  expect(storeFallback?.headers()["x-grocery-offline"]).toBe("1");
+  await waitForApp(page);
+  await expect(page.getByText(offer.title, { exact: true })).toBeVisible();
   await page.getByRole("searchbox", { name: "Search stores" }).fill("");
   await connection.setOnline(true);
   await expect(page.getByRole("complementary", { name: "Offline status" })).not.toBeVisible();
@@ -313,7 +317,7 @@ test("supports standalone presentation, shortcut launches, sharing and native Ba
   await page.goto(`${connection.url}/?filter=free_delivery`);
   await offlineReady(page);
   await expect(page.locator("html")).toHaveAttribute("data-display", "standalone");
-  await expect(page.getByRole("button", { name: "Free delivery", exact: true })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: /^Free delivery(?:\s*\d+)?$/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );

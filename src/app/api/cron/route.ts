@@ -14,7 +14,12 @@ export async function GET(request: NextRequest) {
   )
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    return NextResponse.json(await discoverOffers());
+    const data = await discoverOffers();
+    const unavailable = !data.checks.some((check) => check.status === "checked");
+    return NextResponse.json(
+      { ...data, ...(unavailable ? { error: "No promotion source could be checked." } : {}) },
+      { status: unavailable ? 503 : 200 },
+    );
   } catch {
     return NextResponse.json({ error: "Scheduled discovery failed." }, { status: 503 });
   }

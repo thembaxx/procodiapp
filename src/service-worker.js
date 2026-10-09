@@ -84,7 +84,10 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
   // Discovery, reports, RSC payloads and retailer pages always use the network.
-  if (request.mode === "navigate" && ["/", "/offline"].includes(url.pathname)) {
+  const publicPage =
+    ["/", "/offline", "/stores", "/about", "/privacy"].includes(url.pathname) ||
+    /^\/stores\/(checkers|pnp|woolworths|shoprite|spar|makro)$/.test(url.pathname);
+  if (request.mode === "navigate" && publicPage) {
     event.respondWith(navigation(event));
   } else if (url.pathname === "/manifest.webmanifest") {
     event.respondWith(

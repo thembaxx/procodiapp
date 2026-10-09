@@ -19,13 +19,13 @@ test("searches stores, changes filters, and handles no results", async ({ page }
   await page.goto("/?design=wallet");
   await page.getByRole("searchbox", { name: "Search stores" }).fill("Pick n Pay");
   await expect(page.locator(".store-card")).toHaveCount(1);
-  await expect(page.getByRole("button", { name: /Pick n Pay asap!,/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Pick n Pay asap!/ })).toBeVisible();
   await page.getByRole("searchbox").fill("not-a-store");
   await expect(page.getByText("No stores by that name.")).toBeVisible();
   await page.getByRole("button", { name: "Explore all stores" }).click();
   await expect(page.locator(".store-card")).toHaveCount(6);
-  await page.getByRole("button", { name: "Discounts", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Discounts", exact: true })).toHaveAttribute(
+  await page.getByRole("button", { name: /^Discounts(?:\s*\d+)?$/ }).click();
+  await expect(page.getByRole("button", { name: /^Discounts(?:\s*\d+)?$/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -33,8 +33,8 @@ test("searches stores, changes filters, and handles no results", async ({ page }
 
 test("opens only one Wallet card and shows terms for no-code benefits", async ({ page }) => {
   await page.goto("/?design=wallet");
-  const checkers = page.getByRole("button", { name: /Checkers Sixty60,/ });
-  const pnp = page.getByRole("button", { name: /Pick n Pay asap!,/ });
+  const checkers = page.getByRole("button", { name: /^Checkers Sixty60/ });
+  const pnp = page.getByRole("button", { name: /^Pick n Pay asap!/ });
   await expect(checkers).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("No code needed").first()).toBeVisible();
   await page.getByText("Details & terms", { exact: true }).first().click();

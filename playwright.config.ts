@@ -43,7 +43,17 @@ export default defineConfig({
     command: "pnpm start --port 3100",
     url: "http://127.0.0.1:3100",
     reuseExistingServer: false,
-    env: { DATA_DIR: path.join(process.cwd(), ".data/e2e") },
+    env: {
+      DATA_DIR: path.join(process.cwd(), ".data/e2e"),
+      // Reserved test-only domain; never used by production or preview configuration.
+      SITE_URL: "https://grocery.example",
+      INDEXING_ENABLED: "true",
+      CONTACT_EMAIL: "privacy@grocery.example",
+      SEARCH_PROVIDER: "none",
+      SUPABASE_URL: "",
+      SUPABASE_SERVICE_ROLE_KEY: "",
+      CRON_SECRET: "",
+    },
     timeout: 120000,
   },
 });

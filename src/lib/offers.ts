@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { stores } from "./stores";
 
+// Use interpreted validators under the production CSP, without runtime eval.
+z.config({ jitless: true });
+
 export const offerSchema = z.object({
   id: z.string().min(1).max(180),
   storeId: z.enum(["checkers", "pnp", "woolworths", "shoprite", "spar", "makro"]),
@@ -14,7 +17,10 @@ export const offerSchema = z.object({
   expiryKnown: z.boolean(),
   ongoing: z.boolean(),
   sourceName: z.string().min(1).max(80),
-  sourceUrl: z.url(),
+  sourceUrl: z.url().refine((value) => {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password;
+  }, "Source must be a public HTTPS URL."),
   foundAt: z.iso.datetime({ offset: true }),
   checkedAt: z.iso.datetime({ offset: true }),
   validUntil: z.iso.datetime({ offset: true }),

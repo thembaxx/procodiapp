@@ -1,4 +1,4 @@
-import { stores } from "../stores";
+import { stores, type Store } from "../stores";
 
 const voucherDomains = ["picodi.com", "wethrift.com"];
 const agent = "GroceryCodesSA";
@@ -23,6 +23,14 @@ export function allowedUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function allowedStoreUrl(value: string, store: Store): boolean {
+  if (!allowedUrl(value)) return false;
+  const host = new URL(value).hostname;
+  return [...store.domains, ...voucherDomains].some(
+    (domain) => host === domain || host.endsWith(`.${domain}`),
+  );
 }
 
 export function robotsAllows(text: string, pathname: string): boolean {
@@ -62,14 +70,20 @@ export function robotsAllows(text: string, pathname: string): boolean {
   return rules[0]?.allow ?? true;
 }
 
-async function fetchBounded(url: string, acceptRobots = false): Promise<Response> {
+async function fetchBounded(
+  url: string,
+  acceptRobots = false,
+  signal?: AbortSignal,
+): Promise<Response> {
   let current = url;
   for (let hop = 0; hop < 4; hop++) {
     if (!allowedUrl(current)) throw new Error("Source is outside the approved public domains.");
     const response = await fetch(current, {
       headers,
       redirect: "manual",
-      signal: AbortSignal.timeout(9000),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(9000)])
+        : AbortSignal.timeout(9000),
       cache: "no-store",
     });
     if ([301, 302, 303, 307, 308].includes(response.status)) {
@@ -117,12 +131,12 @@ async function boundedText(response: Response) {
 }
 
 const policies = new Map<string, { text: string; until: number }>();
-export async function readPublicPage(url: string): Promise<string> {
+export async function readPublicPage(url: string, signal?: AbortSignal): Promise<string> {
   if (!allowedUrl(url)) throw new Error("Unsupported source.");
   const parsed = new URL(url);
   let policy = policies.get(parsed.origin);
   if (!policy || policy.until < Date.now()) {
-    const response = await fetchBounded(`${parsed.origin}/robots.txt`, true);
+    const response = await fetchBounded(`${parsed.origin}/robots.txt`, true, signal);
     if (!response.ok && response.status !== 404) throw new Error("Source policy unavailable.");
     policy = {
       text: response.status === 404 ? "" : await boundedText(response),
@@ -132,7 +146,7 @@ export async function readPublicPage(url: string): Promise<string> {
   }
   if (!robotsAllows(policy.text, `${parsed.pathname}${parsed.search}`))
     throw new Error("Source does not permit automated access.");
-  const response = await fetchBounded(url);
+  const response = await fetchBounded(url, false, signal);
   if (!response.ok) throw new Error("Source could not be checked.");
   if (
     !/(text\/html|application\/json|text\/plain)/.test(response.headers.get("content-type") ?? "")

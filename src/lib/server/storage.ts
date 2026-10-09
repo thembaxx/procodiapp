@@ -1,19 +1,24 @@
 import { createHash } from "node:crypto";
-import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { access, appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { constants } from "node:fs";
 import { offerSchema, type OffersResponse } from "../offers";
 import { sourceSnapshot } from "../snapshot";
 
 export type Cache = Omit<OffersResponse, "newOfferIds">;
-const dataDir = process.env.DATA_DIR ?? path.join(process.cwd(), ".data");
+const dataDir = () => process.env.DATA_DIR ?? path.join(process.cwd(), ".data");
 const initial: Cache = {
   offers: sourceSnapshot,
   updatedAt: null,
   checks: [],
   mode: "public_pages",
 };
-const hasSupabase = () =>
-  Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+function hasSupabase() {
+  const url = !!process.env.SUPABASE_URL,
+    key = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (url !== key) throw new Error("Promotion storage configuration is incomplete.");
+  return url && key;
+}
 
 async function database(endpoint: string, init: RequestInit = {}) {
   const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/${endpoint}`, {
@@ -39,7 +44,7 @@ export async function readCache(): Promise<Cache> {
             data: Cache;
           }[]
         )[0]?.data
-      : JSON.parse(await readFile(path.join(dataDir, "offers.json"), "utf8"));
+      : JSON.parse(await readFile(path.join(dataDir(), "offers.json"), "utf8"));
     if (!raw || !Array.isArray(raw.offers)) return initial;
     return {
       ...raw,
@@ -52,7 +57,7 @@ export async function readCache(): Promise<Cache> {
       updatedAt: raw.updatedAt ?? null,
     };
   } catch (error) {
-    if (hasSupabase()) throw error;
+    if (process.env.SUPABASE_URL || process.env.SUPABASE_SERVICE_ROLE_KEY) throw error;
     return initial;
   }
 }
@@ -66,10 +71,10 @@ export async function writeCache(data: Cache): Promise<void> {
     });
     return;
   }
-  await mkdir(dataDir, { recursive: true });
-  const temporary = path.join(dataDir, `offers-${crypto.randomUUID()}.tmp`);
+  await mkdir(dataDir(), { recursive: true });
+  const temporary = path.join(dataDir(), `offers-${crypto.randomUUID()}.tmp`);
   await writeFile(temporary, JSON.stringify(data), { mode: 0o600 });
-  await rename(temporary, path.join(dataDir, "offers.json"));
+  await rename(temporary, path.join(dataDir(), "offers.json"));
 }
 
 const buckets = new Map<string, number>();
@@ -82,7 +87,9 @@ export async function takeRefreshSlot(ip: string): Promise<number> {
         body: JSON.stringify({ client_key: key }),
       })
     ).json();
-    return Number(result);
+    if (!Number.isInteger(result) || result < 0 || result > 60)
+      throw new Error("Rate-limit storage returned an invalid response.");
+    return result;
   }
   const now = Date.now();
   for (const [hash, expires] of buckets) if (expires <= now) buckets.delete(hash);
@@ -98,8 +105,22 @@ export async function saveReport(offerId: string, reason: string) {
     await database("promotion_reports", { method: "POST", body: JSON.stringify(report) });
     return;
   }
-  await mkdir(dataDir, { recursive: true });
-  await appendFile(path.join(dataDir, "reports.jsonl"), `${JSON.stringify(report)}\n`, {
+  await mkdir(dataDir(), { recursive: true });
+  await appendFile(path.join(dataDir(), "reports.jsonl"), `${JSON.stringify(report)}\n`, {
     mode: 0o600,
   });
+}
+
+export async function checkStorage(): Promise<boolean> {
+  try {
+    if (hasSupabase()) await database("promotion_cache?select=id&limit=1");
+    else {
+      if (process.env.SUPABASE_URL || process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
+      await mkdir(dataDir(), { recursive: true });
+      await access(dataDir(), constants.R_OK | constants.W_OK);
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }

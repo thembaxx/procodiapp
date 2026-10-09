@@ -21,6 +21,18 @@ Each production build generates a versioned service worker from the actual Next.
 
 [Installation controls](docs/previews/pwa-settings-phone.png) · [Offline preview](docs/previews/offline-phone.png)
 
+## SEO, AI discovery and production readiness
+
+Public store pages at `/stores` and `/stores/checkers` (plus the other five store IDs) render qualifying criteria, exact expiry/review times and source links without JavaScript. `/about` explains the evidence and expiry policy; `/privacy` documents device storage, reports and external services. Footer links make these pages discoverable.
+
+Set `SITE_URL` to the public HTTPS origin and `INDEXING_ENABLED=true` on production to enable canonical URLs, Open Graph/Twitter sharing, robots and the ten-page sitemap. On Vercel, the stable `VERCEL_PROJECT_PRODUCTION_URL` is the automatic fallback and indexing defaults on only for `VERCEL_ENV=production`; an explicit `INDEXING_ENABLED` overrides this. Other hosts and previews default to noindex and an empty sitemap. The app never substitutes a guessed domain or request Host for a canonical. Structured data describes the website/application and breadcrumbs without invented ratings or prices.
+
+`/llms.txt` links to current information; `/promotions.md` provides request-time Markdown with the same expiry/freshness filtering as the UI. Records include source evidence links, qualifying criteria and validity deadlines. These are discovery aids, not a guarantee of search or AI-answer ranking.
+
+`pnpm check:production` verifies required public URL, operator contact, scheduler secret and storage/provider configuration without printing credentials. `/api/health` checks storage readiness. [Directory preview](docs/previews/store-directory-phone.png) · [Store details](docs/previews/store-details-phone.png) · [Social card](docs/previews/social-card.png)
+
+[Production launch guide](docs/production.md) covers deployment, scheduling, privacy, monitoring, indexing and remaining operator steps.
+
 ## Run locally
 
 Use Node.js 24 and pnpm 11.19.0:
@@ -63,20 +75,22 @@ OPENAI_API_KEY=your_server_only_key
 EXTRACTION_MODEL=gpt-4.1-mini
 ```
 
-The pipeline queries Tavily for each store, checks candidate URLs against the supported retailer/voucher-domain list, honours robots rules, and reads accessible public pages with timeouts and size limits. OpenAI extracts structured offers; Zod validates them. Verbatim evidence must exist in the fetched page, a coupon must appear in its code evidence, and expiry must be supported. Unknown-expiry promotions and expired offers are excluded. An explicitly recurring membership benefit may have a null expiry. LLM extraction is evidence-checked but still requires human review for unusual terms; it does not test checkout.
+The pipeline queries Tavily for each store, checks candidate URLs against the supported retailer/voucher-domain list, honours robots rules, and reads accessible public pages with timeouts and size limits. OpenAI extracts strict JSON-schema offers with a 4,000-token response cap; Zod validates them. Discovery has a 90-second overall deadline propagated to source and provider requests. Verbatim evidence must exist in the fetched page, a coupon must appear in its code evidence, and expiry must be supported. Unknown-expiry promotions and expired offers are excluded. An explicitly recurring membership benefit may have a null expiry. LLM extraction is evidence-checked but still requires human review for unusual terms; it does not test checkout.
 
 All discovered codes are marked **not tested at checkout**. The app never generates or silently guesses a coupon code. Date-only expiry is interpreted as 23:59:59.999 in `Africa/Johannesburg` (UTC+2). Offers are deduplicated by retailer plus code or title. Every listing links to its source, shows its last review time, and supports reporting a problem.
 
 ## API
 
-| Endpoint                                | Behaviour                                                                                                                                                                                                         |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/offers?filter=all&q=checkers` | Fresh, unexpired offers. Filters: `all`, `free_delivery`, `discount`. Search matches retailer and loyalty names.                                                                                                  |
-| `POST /api/refresh`                     | Checks public sources and optionally web-search candidates. Returns offers, new IDs and per-store source status. One attempt per minute per client; concurrent searches within a process share one discovery job. |
-| `POST /api/report`                      | Saves a report for an existing listing. Body: `{ "offerId": "...", "reason": "The code didn't work" }`. Also accepts `The offer has ended` and `The terms are different`.                                         |
-| `GET /api/cron`                         | Authenticated discovery. Header: `Authorization: Bearer <CRON_SECRET>`.                                                                                                                                           |
+| Endpoint                                | Behaviour                                                                                                                                                                                                               |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/offers?filter=all&q=checkers` | Fresh, unexpired offers. Filters: `all`, `free_delivery`, `discount`. Search matches retailer and loyalty names.                                                                                                        |
+| `POST /api/refresh`                     | Checks public sources and optionally web-search candidates. Returns offers, new IDs and per-store source status. Client and shared discovery limits apply; concurrent server discovery within a process shares one job. |
+| `POST /api/report`                      | Saves a report for an existing listing. Body: `{ "offerId": "...", "reason": "The code didn't work" }`. Also accepts `The offer has ended` and `The terms are different`.                                               |
+| `GET /api/cron`                         | Authenticated discovery. Header: `Authorization: Bearer <CRON_SECRET>`.                                                                                                                                                 |
 
 Refresh and reports validate browser origin. Set `TRUST_PROXY=true` only when the deployment ingress overwrites `x-forwarded-for`; otherwise all local clients share a conservative refresh bucket. No raw IP addresses are stored. The single-node development limiter is in memory; Supabase provides an atomic distributed limiter.
+
+API responses are excluded from indexing and use `no-store`. Reports have a 2KB streamed-body limit, JSON validation and safe error responses. Browser mutations accept the configured origin behind ingress and reject cross-site requests.
 
 ## Persistence
 
@@ -100,6 +114,7 @@ The GitHub discovery workflow runs every six hours after you set repository vari
 ## Quality checks
 
 ```sh
+pnpm check:production # Check deployment configuration before launch
 pnpm check       # oxlint, oxfmt, TypeScript and Vitest
 pnpm build
 pnpm exec playwright install --with-deps chromium firefox webkit
@@ -110,13 +125,13 @@ Browser tests use an isolated server on port 3100 and temporary fixtures in `.da
 
 Tests cover expiry/freshness, South African dates, deduplication, source boundaries and evidence; mobile and desktop tests cover search, filters, accordion behaviour, copy, saved offers, reports and refresh limits. Settings checks cover saved choices, focus return, Escape, sheet dragging, small and landscape screens, and changes to the device's motion preference. Automated axe checks scan all three designs in both themes on mobile and desktop, including the settings panel. Appearance and settings checks also run in Firefox and mobile WebKit. Software WebGL checks in Chromium verify all three scenes, a single canvas, context-loss recovery and the sparkle action; every engine tests the no-WebGL fallback. A GitHub CI workflow runs these checks on pushes and PRs.
 
-PWA tests enable real service workers and drop network connections at an isolated local origin, covering cold launches, expired and corrupted snapshots, reconnecting, install controls, launch shortcuts, native sharing and explicit worker updates in Chromium, Firefox and WebKit. Ordinary UI tests block workers so network mocks remain isolated. Unit tests verify worker caching boundaries, outage fallback, previous-build retention and failed installation cleanup.
+PWA tests enable real service workers and drop network connections at an isolated local origin, covering cold launches, expired and corrupted snapshots, reconnecting, install controls, launch shortcuts, native sharing and explicit worker updates in Chromium, Firefox and WebKit. Ordinary UI tests block workers so network mocks remain isolated. Unit tests verify worker caching boundaries, outage fallback, previous-build retention and failed installation cleanup. Production tests cover canonical/preview isolation, structured-data escaping, AI feed expiry, strict extraction evidence, report byte limits, readiness and crawler/social endpoints. Store and information pages are checked without JavaScript and with automated accessibility scans.
 
 ## Design and accessibility
 
 The UI follows the attached Wallet handoff and card references: overlapping store cards, clear offer counts, full-width copy actions, no-code states, brand-responsive ambient colour, and a calm count-up. Hugeicons provide interface icons throughout; the grocery bag remains a custom illustration. Motion adds gentle pointer tilt, spring filters, press feedback, copy checkmarks and bookmark pops. Saving or copying an offer sends a small pulse through the background; the sparkle beside today's count invites the same delight. Pull-to-refresh distinguishes vertical movement from a horizontal carousel swipe.
 
-Each view has its own transparent Three.js scene over the shared page colour: soft ribbons for Wallet, floating rounded tiles for Rewards, and orbiting rings for Orbit. The renderer loads separately after hydration, caps rendering at 30fps and pixel ratio at 1.25 on phones or 1.5 on larger screens, and pauses in hidden tabs. Geometry and listeners are disposed when disabled. Reduced-motion and data-saving visits skip the renderer; unavailable WebGL keeps the static ambient background. All motion respects `prefers-reduced-motion`, including preference changes during a visit.
+Each view has its own transparent Three.js scene over the shared page colour: soft ribbons for Wallet, floating rounded tiles for Rewards, and orbiting rings for Orbit. The renderer loads separately after the useful content paints and the browser has idle time, caps rendering at 30fps and pixel ratio at 1.25 on phones or 1.5 on larger screens, and pauses in hidden tabs. Geometry and listeners are disposed when disabled. Reduced-motion and data-saving visits skip the renderer; unavailable WebGL keeps the static ambient background. All motion respects `prefers-reduced-motion`, including preference changes during a visit.
 
 Controls are labelled; search and filters work on small screens; dialogs use native focus trapping, Escape and Back dismissal; keyboard focus is visible. Search inputs use 16px text on touch devices to avoid automatic iPhone zoom, while pinch zoom remains available. Installed mode respects safe areas, limits overscroll and adapts to the onscreen keyboard. Share actions use the system share sheet when available, with a clipboard fallback. Supported installed platforms can show the current offer count as an app badge. Saved offers and preferences stay on the device. Push notifications and background discovery are not enabled; the scheduled server discovery remains separate from offline browsing.
 

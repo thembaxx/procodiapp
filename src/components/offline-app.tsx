@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { GroceryApp } from "@/components/grocery-app";
 import { readOfflineOffers, emptyOffers } from "@/lib/offline-store";
 import type { OffersResponse } from "@/lib/offers";
-import Loading from "@/app/loading";
+import Loading from "@/components/loading-shell";
 import { usePwa } from "@/components/pwa-provider";
 
 export function OfflineApp() {
