@@ -1,4 +1,6 @@
-# Grocery Codes SA
+# Little Less
+
+**A little less at checkout.**
 
 A mobile-first app for finding South African grocery promotions, reading the terms, and copying a code in one tap. Built with **Next.js 16, React 19, TypeScript, Tailwind CSS 4, Motion, Three.js, Hugeicons, oxlint, oxfmt and pnpm**.
 
@@ -9,7 +11,7 @@ Three working designs are included. Open the header's settings gear to choose a 
 | Stacked brand-colour cards, mint accents and a dark canvas.                             | A bright blue hero, generous offer tiles and a light theme.                               | Editorial serif typography and a swipeable store carousel.                            |
 | <img src="docs/previews/wallet-phone.png" width="250" alt="Wallet design on a phone" /> | <img src="docs/previews/rewards-phone.png" width="250" alt="Rewards design on a phone" /> | <img src="docs/previews/orbit-phone.png" width="250" alt="Orbit design on a phone" /> |
 
-[Compare the designs](docs/designs.md) · [Settings preview](docs/previews/settings-phone.png) · [Desktop preview](docs/previews/wallet-desktop.png)
+[Brand guidelines](docs/brand.md) · [Compare the designs](docs/designs.md) · [Settings preview](docs/previews/settings-phone.png) · [Desktop preview](docs/previews/wallet-desktop.png)
 
 ## Install and use offline
 

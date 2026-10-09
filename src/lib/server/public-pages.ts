@@ -1,7 +1,7 @@
 import { stores, type Store } from "../stores";
 
 const voucherDomains = ["picodi.com", "wethrift.com"];
-const agent = "GroceryCodesSA";
+const agent = "LittleLess";
 const headers = {
   "User-Agent": `${agent}/1.0 (+https://github.com/thembaxx/procodiapp)`,
   Accept: "text/html,application/json,text/plain",

@@ -234,7 +234,7 @@ button:active {
 .brand-light {
   font-weight: 500;
 }
-.brand i {
+.brand-dot {
   display: inline-block;
   width: 5px;
   height: 5px;
@@ -3117,7 +3117,7 @@ html[data-display="standalone"] {
   letter-spacing: -1px;
 }
 .content-brand svg,
-.content-brand > span {
+.content-brand .brand-dot {
   color: var(--accent);
 }
 .content-back {

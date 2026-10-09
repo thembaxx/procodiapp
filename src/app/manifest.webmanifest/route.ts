@@ -1,14 +1,15 @@
 import type { MetadataRoute } from "next";
 import { appearanceBackground } from "@/lib/appearance";
+import { brandName, brandTagline, brandDescriptor } from "@/lib/brand";
 
 export function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const background = appearanceBackground(searchParams.get("theme"), searchParams.get("design"));
   const manifest: MetadataRoute.Manifest = {
     id: "/",
-    name: "Grocery Codes SA",
-    short_name: "Grocery codes",
-    description: "A little less at checkout. Today's South African grocery promotions.",
+    name: brandName,
+    short_name: brandName,
+    description: `${brandTagline} ${brandDescriptor}`,
     start_url: "/",
     scope: "/",
     display: "standalone",

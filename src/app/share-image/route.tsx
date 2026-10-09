@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { brandWordmark } from "@/lib/brand";
 export async function GET() {
   return new ImageResponse(
     <div
@@ -14,7 +15,8 @@ export async function GET() {
       }}
     >
       <div style={{ display: "flex", fontSize: 29, fontWeight: 700 }}>
-        grocerycodes<span style={{ color: "#c4f4ca" }}>.</span>
+        {brandWordmark}
+        <span style={{ color: "#c4f4ca" }}>.</span>
       </div>
       <div
         style={{

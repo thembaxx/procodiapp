@@ -3,7 +3,7 @@ import { ContentShell } from "@/components/content-shell";
 import { StructuredData } from "@/components/structured-data";
 import { Icon } from "@/components/icon";
 import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
-import { pageMetadata, siteConfig } from "@/lib/site";
+import { pageMetadata, siteConfig, siteName } from "@/lib/site";
 import { getStore } from "@/lib/stores";
 import { storeContent } from "@/lib/store-content";
 import { filterOffers } from "@/lib/offers";
@@ -44,7 +44,7 @@ export default async function StorePage({ params }: Props) {
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             itemListElement: [
-              { "@type": "ListItem", position: 1, name: "Grocery Codes SA", item: origin },
+              { "@type": "ListItem", position: 1, name: siteName, item: origin },
               { "@type": "ListItem", position: 2, name: "Stores", item: `${origin}/stores` },
               {
                 "@type": "ListItem",

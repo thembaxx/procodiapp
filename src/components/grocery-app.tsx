@@ -49,6 +49,8 @@ import { usePwa } from "@/components/pwa-provider";
 import { AppUpdateNotice } from "@/components/pwa-controls";
 import { useDialogHistory } from "@/components/use-dialog-history";
 import { parseOffers, saveOfflineOffers } from "@/lib/offline-store";
+import { brandDescriptor, brandTagline, brandWordmark } from "@/lib/brand";
+import { BrandWordmark } from "./brand-wordmark";
 
 function littleDelight() {
   window.dispatchEvent(new Event("grocery:delight"));
@@ -847,14 +849,11 @@ export function GroceryApp({
         />
       )}
       <header className="site-header shell">
-        <a className="brand" href="/" aria-label="grocerycodes home">
+        <a className="brand" href="/" aria-label="little less home">
           <span className="brand-icon">
             <Icon icon={ShoppingBasket01Icon} size={25} />
           </span>
-          <span>
-            grocery<span className="brand-light">codes</span>
-            <i />
-          </span>
+          <BrandWordmark />
         </a>
         <nav className="header-nav" aria-label="Main navigation">
           <button className={!savedOnly ? "current" : ""} onClick={() => setSavedOnly(false)}>
@@ -948,10 +947,7 @@ export function GroceryApp({
               <br />
               at <em>checkout.</em>
             </h1>
-            <p>
-              Good groceries. Better prices.
-              <br className="mobile-break" /> All your stores, in one place.
-            </p>
+            <p>{brandDescriptor}</p>
             <div className="hero-date">
               <span>{date}</span>
               <span className="date-divider" />
@@ -1233,12 +1229,12 @@ export function GroceryApp({
         </section>
         <footer className="site-footer">
           <a className="footer-brand" href="/">
-            grocerycodes
+            {brandWordmark}
             <span>
               <Icon icon={SparklesIcon} size={15} />
             </span>
           </a>
-          <p>A little less at checkout. A little more for you.</p>
+          <p>{brandTagline} A little more for you.</p>
           <nav className="footer-links" aria-label="Information">
             <a href="/stores">All stores</a>
             <a href="/about">How we find offers</a>

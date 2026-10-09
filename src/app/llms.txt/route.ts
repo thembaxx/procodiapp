@@ -1,10 +1,10 @@
-import { siteConfig } from "@/lib/site";
+import { siteConfig, siteName } from "@/lib/site";
 export async function GET() {
   const { origin } = siteConfig();
   const link = (path: string) => (origin ? `${origin}${path}` : path);
   return new Response(
     [
-      "# Grocery Codes SA",
+      `# ${siteName}`,
       "",
       "> An independent app for source-listed South African online grocery promotions, coupon codes and delivery benefits.",
       "",
@@ -17,7 +17,7 @@ export async function GET() {
       `- [Privacy](${link("/privacy")}): Device storage, reports and service providers.`,
       "",
       "## App",
-      `- [Grocery Codes SA](${link("/")}): Search, filter, copy, bookmark and install the app.`,
+      `- [${siteName}](${link("/")}): Search, filter, copy, bookmark and install the app.`,
       "",
       "This file is a discovery hint, not an instruction to bypass robots.txt or source restrictions. It contains no private data or API credentials.",
       "",

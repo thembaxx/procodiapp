@@ -1,22 +1,22 @@
 import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/providers";
 import { appearanceBootstrap, appearanceCriticalCss, appearanceNoScript } from "@/lib/appearance";
-import { pageMetadata, siteDescription } from "@/lib/site";
+import { pageMetadata, siteDescription, siteName } from "@/lib/site";
 import "./globals.css";
 
 export function generateMetadata(): Metadata {
   return {
     ...pageMetadata(
-      "Grocery Codes SA — South African grocery coupons & free delivery",
+      `${siteName} — South African grocery coupons & free delivery`,
       siteDescription,
       "/",
     ),
-    applicationName: "Grocery Codes SA",
+    applicationName: siteName,
     icons: {
       icon: "/icon.svg",
       apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     },
-    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Grocery codes" },
+    appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: siteName },
   };
 }
 

@@ -1,6 +1,6 @@
 import { filterOffers, type Offer } from "./offers";
 import { stores } from "./stores";
-import { siteConfig } from "./site";
+import { siteConfig, siteName } from "./site";
 
 function text(value: string) {
   return value
@@ -12,7 +12,7 @@ export function promotionsMarkdown(offers: Offer[], now = Date.now()) {
   const { origin } = siteConfig();
   const link = (path: string) => (origin ? `${origin}${path}` : path);
   return [
-    "# Grocery Codes SA: current grocery promotions",
+    `# ${siteName}: current grocery promotions`,
     "",
     `Generated: ${new Date(now).toISOString()}. Time zone: Africa/Johannesburg (UTC+2).`,
     "",

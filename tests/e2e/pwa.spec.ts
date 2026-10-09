@@ -49,6 +49,8 @@ test("has installable icons, launch shortcuts and an uncached worker", async ({
   const manifest = await (await page.request.get("/manifest.webmanifest")).json();
   expect(manifest).toMatchObject({
     id: "/",
+    name: "Little Less",
+    short_name: "Little Less",
     start_url: "/",
     display: "standalone",
     scope: "/",

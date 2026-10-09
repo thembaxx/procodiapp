@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { stores } from "./stores";
+import { brandName, brandTagline } from "./brand";
 
-export const siteName = "Grocery Codes SA";
+export const siteName = brandName;
 export const siteDescription =
   "Find South African grocery coupon codes, free delivery and discounts. Read qualifying terms and expiry dates for Checkers, Pick n Pay, Woolworths, Shoprite, SPAR and Makro.";
 
@@ -67,7 +68,7 @@ export function pageMetadata(title: string, description: string, pathname: strin
                 url: `${origin}/share-image`,
                 width: 1200,
                 height: 630,
-                alt: "Grocery Codes SA — A little less at checkout",
+                alt: `${siteName} — ${brandTagline}`,
               },
             ],
           }

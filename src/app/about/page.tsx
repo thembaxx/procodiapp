@@ -1,10 +1,10 @@
 import { ContentShell } from "@/components/content-shell";
-import { pageMetadata } from "@/lib/site";
+import { pageMetadata, siteName } from "@/lib/site";
 export const dynamic = "force-dynamic";
 export const generateMetadata = () =>
   pageMetadata(
     "How we find and check grocery promotions",
-    "Learn how Grocery Codes SA reviews public sources, checks expiry dates and labels online grocery coupons, delivery offers and membership benefits.",
+    `Learn how ${siteName} reviews public sources, checks expiry dates and labels online grocery coupons, delivery offers and membership benefits.`,
     "/about",
   );
 export default function AboutPage() {
@@ -17,7 +17,7 @@ export default function AboutPage() {
         <em>Clear details.</em>
       </h1>
       <p className="content-intro">
-        Grocery Codes SA is an independent tool for finding South African online grocery promotions.
+        {siteName} is an independent tool for finding South African online grocery promotions.
         Retailers own their names and marks. We are not affiliated with them and use no affiliate
         links.
       </p>

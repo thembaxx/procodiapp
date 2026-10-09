@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
-import { ArrowLeft01Icon, ArrowUpRight01Icon, ShoppingBag01Icon } from "@hugeicons/core-free-icons";
+import {
+  ArrowLeft01Icon,
+  ArrowUpRight01Icon,
+  ShoppingBasket01Icon,
+} from "@hugeicons/core-free-icons";
 import { Icon } from "./icon";
+import { BrandWordmark } from "./brand-wordmark";
 
 export function ContentShell({ children }: { children: ReactNode }) {
   return (
@@ -10,7 +15,7 @@ export function ContentShell({ children }: { children: ReactNode }) {
       </a>
       <header className="content-header">
         <a href="/" className="content-brand">
-          <Icon icon={ShoppingBag01Icon} size={23} /> grocerycodes<span>.</span>
+          <Icon icon={ShoppingBasket01Icon} size={23} /> <BrandWordmark />
         </a>
         <a href="/" className="content-back">
           <Icon icon={ArrowLeft01Icon} size={17} /> Back to offers

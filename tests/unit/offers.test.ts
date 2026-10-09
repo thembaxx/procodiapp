@@ -77,10 +77,7 @@ describe("public-source discovery boundaries", () => {
       ),
     ).toBe(true);
     expect(
-      robotsAllows(
-        "User-agent: *\nDisallow: /\nUser-agent: GroceryCodesSA\nAllow: /",
-        "/promotions",
-      ),
+      robotsAllows("User-agent: *\nDisallow: /\nUser-agent: LittleLess\nAllow: /", "/promotions"),
     ).toBe(true);
     expect(robotsAllows("User-agent: *\nDisallow: /offers*secret", "/offers/secret")).toBe(false);
   });

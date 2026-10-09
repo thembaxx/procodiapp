@@ -1,10 +1,10 @@
 import { ContentShell } from "@/components/content-shell";
-import { pageMetadata, siteConfig } from "@/lib/site";
+import { pageMetadata, siteConfig, siteName } from "@/lib/site";
 export const dynamic = "force-dynamic";
 export const generateMetadata = () =>
   pageMetadata(
     "Privacy and device storage",
-    "Understand what Grocery Codes SA saves on your device, how reports and rate limits work, and how to remove saved preferences and offline data.",
+    `Understand what ${siteName} saves on your device, how reports and rate limits work, and how to remove saved preferences and offline data.`,
     "/privacy",
   );
 export default function PrivacyPage() {

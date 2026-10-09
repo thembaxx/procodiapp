@@ -6,6 +6,15 @@ const origin = "https://grocery.example";
 
 test("serves canonical metadata, social cards and honest structured data", async ({ page }) => {
   await page.goto("/?design=orbit&filter=discount");
+  await expect(page).toHaveTitle("Little Less — South African grocery coupons & free delivery");
+  await expect(page.locator('meta[name="application-name"]')).toHaveAttribute(
+    "content",
+    "Little Less",
+  );
+  await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute(
+    "content",
+    "Little Less",
+  );
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", origin);
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute("content", origin);
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
@@ -24,6 +33,7 @@ test("serves canonical metadata, social cards and honest structured data", async
     "WebSite",
     "WebApplication",
   ]);
+  expect(data["@graph"].every((item: { name: string }) => item.name === "Little Less")).toBe(true);
   expect(JSON.stringify(data)).not.toMatch(/aggregateRating|priceValidUntil|SearchAction/);
 });
 
