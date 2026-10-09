@@ -2,7 +2,7 @@
 
 All three directions share the same real data, store search, category filters, terms, bookmarks, copy behaviour and refresh service. Switch views through the header's settings gear. The panel also saves your theme and animated-background preference.
 
-[Settings on a phone](previews/settings-phone.png)
+[Settings on a phone](previews/settings-phone.png) · [Install controls](previews/pwa-settings-phone.png) · [Offline view](previews/offline-phone.png)
 
 ## 1. Wallet — recommended
 
@@ -28,6 +28,6 @@ An editorial alternative with lavender accents, large serif store names and hori
 
 [Full page](previews/orbit-mobile.png) · App route: `/?design=orbit`
 
-The settings sheet supports Escape, backdrop dismissal and a downward drag on its handle. Filters, bookmarks and copy actions use short, purposeful feedback. Decorative motion can be turned off and follows the device's reduced-motion setting.
+The settings sheet supports Escape, Back, backdrop dismissal and a downward drag on its handle. Filters, bookmarks, copy and share actions use short, purposeful feedback. Install the app from settings; all three views work with saved, still-fresh listings offline. Decorative motion can be turned off and follows the device's reduced-motion setting.
 
 Previews capture the source-backed listings available on 9 October 2026. The app itself filters dates and freshness continuously; screenshot counts are not a promise of future availability.

@@ -20,6 +20,7 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:3100",
     trace: "retain-on-failure",
+    serviceWorkers: "block",
   },
   projects: [
     {
@@ -29,12 +30,12 @@ export default defineConfig({
     { name: "desktop", use: { viewport: { width: 1440, height: 1000 }, ...chromiumLaunchOptions } },
     {
       name: "firefox",
-      testMatch: ["appearance.spec.ts", "settings.spec.ts"],
+      testMatch: ["appearance.spec.ts", "settings.spec.ts", "pwa.spec.ts"],
       use: { browserName: "firefox", viewport: { width: 1440, height: 1000 } },
     },
     {
       name: "webkit-mobile",
-      testMatch: ["appearance.spec.ts", "settings.spec.ts"],
+      testMatch: ["appearance.spec.ts", "settings.spec.ts", "pwa.spec.ts"],
       use: { ...devices["iPhone 13"], browserName: "webkit" },
     },
   ],

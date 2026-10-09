@@ -876,6 +876,30 @@ h2 {
   fill: currentColor;
   animation: bookmark-pop 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
+
+.offer-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.offer-actions .save-offer {
+  margin: 0;
+}
+.share-offer {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: inherit;
+  background: transparent;
+  opacity: 0.85;
+}
+.share-offer:hover {
+  background: #ffffff1c;
+  opacity: 1;
+}
 @keyframes bookmark-pop {
   45% {
     transform: translateY(-3px) rotate(-10deg) scale(1.15);
@@ -2806,4 +2830,249 @@ h2 {
 }
 .design-rewards .store-card.no-offers .store-card-info > span {
   opacity: 1;
+}
+
+/* App installation and offline controls share the active view's palette. */
+.pwa-settings {
+  margin: 8px 0 22px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+.pwa-setting-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.pwa-app-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 44px;
+  color: var(--accent);
+}
+.pwa-setting-heading h3 {
+  margin: 0 0 5px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.pwa-setting-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.pwa-install-button,
+.pwa-update-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 11px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  margin-top: 16px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pwa-update-button {
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.pwa-installed {
+  color: var(--accent);
+  font-size: 11px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 16px 0 0;
+}
+.install-help {
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--muted);
+}
+.install-help ol {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+.install-help li {
+  display: flex;
+  gap: 9px;
+  margin-top: 8px;
+  align-items: flex-start;
+}
+.install-help li svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--accent);
+}
+.install-help strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.offline-readiness {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.offline-readiness svg {
+  flex-shrink: 0;
+}
+.app-update-notice,
+.offline-notice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 18px;
+  margin-top: 16px;
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  font-size: 12px;
+}
+.app-update-notice > span {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex: 1;
+}
+.app-update-notice svg,
+.offline-notice > svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.app-update-notice small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.app-update-notice button,
+.offline-notice button {
+  min-height: 44px;
+  padding: 10px 15px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.app-update-notice .update-later {
+  background: transparent;
+  color: var(--muted);
+  padding: 10px;
+}
+.offline-notice > div {
+  flex: 1;
+}
+.offline-notice strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.offline-notice p {
+  margin: 5px 0 0;
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.settings-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-raised);
+  padding: 8px 0;
+}
+button,
+summary,
+.filters,
+.store-avatars {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.offer-row code {
+  -webkit-user-select: text;
+  user-select: text;
+}
+.settings-dialog {
+  -webkit-overflow-scrolling: touch;
+}
+.offers-section {
+  scroll-margin-top: calc(110px + env(safe-area-inset-top, 0px));
+}
+@media (display-mode: standalone) {
+  html {
+    overscroll-behavior-y: none;
+  }
+  .site-header {
+    background: color-mix(in srgb, var(--bg) 97%, transparent);
+  }
+}
+html[data-display="standalone"] {
+  overscroll-behavior-y: none;
+}
+@media (pointer: coarse) {
+  .search-field input {
+    font-size: 16px;
+  }
+  .filters button {
+    min-height: 44px;
+  }
+  .store-avatars button {
+    position: relative;
+  }
+  .offer-details summary {
+    min-height: 44px;
+  }
+}
+@media (max-width: 560px) {
+  .app-update-notice,
+  .offline-notice {
+    gap: 10px;
+    padding: 13px;
+  }
+  .app-update-notice {
+    flex-wrap: wrap;
+  }
+  .app-update-notice > span {
+    flex-basis: 100%;
+  }
+  .offline-notice {
+    flex-wrap: wrap;
+  }
+  .offline-notice > div {
+    flex-basis: calc(100% - 34px);
+  }
+  .offline-notice button {
+    margin-left: 30px;
+  }
+  .settings-drag-handle {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--surface-raised);
+  }
+  .settings-heading {
+    top: 31px;
+  }
+  .pwa-settings {
+    padding: 16px;
+  }
+  .pwa-setting-heading {
+    gap: 8px;
+  }
+  .offers-section {
+    scroll-margin-top: calc(94px + env(safe-area-inset-top, 0px));
+  }
 }

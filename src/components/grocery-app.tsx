@@ -27,6 +27,8 @@ import {
   Location01Icon,
   Settings02Icon,
   CheckmarkCircle02Icon,
+  Share01Icon,
+  WifiOff01Icon,
 } from "@hugeicons/core-free-icons";
 import {
   expiryLabel,
@@ -43,6 +45,10 @@ import { Icon } from "@/components/icon";
 import { ViewSettings } from "@/components/view-settings";
 import { ViewBackground } from "@/components/view-background";
 import { useMotionPreference } from "@/components/use-motion-preference";
+import { usePwa } from "@/components/pwa-provider";
+import { AppUpdateNotice } from "@/components/pwa-controls";
+import { useDialogHistory } from "@/components/use-dialog-history";
+import { parseOffers, saveOfflineOffers } from "@/lib/offline-store";
 
 function littleDelight() {
   window.dispatchEvent(new Event("grocery:delight"));
@@ -142,6 +148,23 @@ function OfferRow({
       onToast("Copy wasn't available. Select the code to copy it manually.");
     }
   };
+  const share = async () => {
+    const store = stores.find((item) => item.id === offer.storeId);
+    const url = new URL("/", window.location.origin);
+    url.searchParams.set("store", offer.storeId);
+    const text = `${store?.name}: ${offer.title}\n${offer.code ? `Code: ${offer.code}\n` : "No code needed.\n"}${offer.criteria}\n${expiryLabel(offer, new Date(now))}\nTerms: ${offer.sourceUrl}`;
+    try {
+      if (navigator.share) await navigator.share({ title: offer.title, text, url: url.href });
+      else {
+        await copyText(`${text}\n${url.href}`);
+        onToast("Promotion details copied. Share a little saving.");
+      }
+      if (!reduced) navigator.vibrate?.(10);
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError"))
+        onToast("Sharing wasn't available. You can still copy the code.");
+    }
+  };
   const urgent = offer.expiresAt && Date.parse(offer.expiresAt) - now < 86400000;
   return (
     <div className="offer-row">
@@ -154,15 +177,25 @@ function OfferRow({
           {offer.type === "free_delivery" ? "Free delivery" : "Discount"}
         </span>
         {isNew && <span className="new-tag">New</span>}
-        <motion.button
-          className={`save-offer ${saved ? "is-saved" : ""}`}
-          onClick={onSave}
-          aria-pressed={saved}
-          aria-label={`${saved ? "Unsave" : "Save"} promotion: ${offer.title}`}
-          whileTap={reduced ? undefined : { scale: 0.85 }}
-        >
-          <Icon icon={Bookmark02Icon} size={19} />
-        </motion.button>
+        <div className="offer-actions">
+          <motion.button
+            className="share-offer"
+            onClick={share}
+            aria-label={`Share promotion: ${offer.title}`}
+            whileTap={reduced ? undefined : { scale: 0.85 }}
+          >
+            <Icon icon={Share01Icon} size={19} />
+          </motion.button>
+          <motion.button
+            className={`save-offer ${saved ? "is-saved" : ""}`}
+            onClick={onSave}
+            aria-pressed={saved}
+            aria-label={`${saved ? "Unsave" : "Save"} promotion: ${offer.title}`}
+            whileTap={reduced ? undefined : { scale: 0.85 }}
+          >
+            <Icon icon={Bookmark02Icon} size={19} />
+          </motion.button>
+        </div>
       </div>
       <h3>{offer.title}</h3>
       <p className="offer-criteria">{offer.criteria}</p>
@@ -440,9 +473,13 @@ function SavingsIllustration() {
 export function GroceryApp({
   initialData,
   initialNow,
+  offlineLaunch = false,
+  cachedAt = 0,
 }: {
   initialData: OffersResponse;
   initialNow: number;
+  offlineLaunch?: boolean;
+  cachedAt?: number;
 }) {
   const [data, setData] = useState(initialData);
   const [design, setDesign] = useState<Design>("wallet");
@@ -461,14 +498,25 @@ export function GroceryApp({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [effects, setEffects] = useState(true);
   const [delights, setDelights] = useState(0);
+  const [recovered, setRecovered] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
   const [now, setNow] = useState(initialNow);
   const [pull, setPull] = useState(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const refreshController = useRef<AbortController | null>(null);
+  const syncController = useRef<AbortController | null>(null);
+  const lastSync = useRef(initialNow);
   const modalRef = useRef<HTMLDialogElement>(null);
   const { resolvedTheme, setTheme } = useTheme();
   const reduced = useMotionPreference();
+  const { online, installed, markSnapshotReady } = usePwa();
+  const offline = !online || (offlineLaunch && !recovered);
+  const closeSettings = useDialogHistory(settingsOpen, "settings", () => setSettingsOpen(false));
+  const closeDetails = useDialogHistory(infoOpen || !!report, "details", () => {
+    setInfoOpen(false);
+    setReport(null);
+  });
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -478,7 +526,21 @@ export function GroceryApp({
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       setMounted(true);
-      const selected = new URLSearchParams(window.location.search).get("design");
+      setNow(Date.now());
+      const parameters = new URLSearchParams(window.location.search);
+      const selected = parameters.get("design");
+      const category = parameters.get("filter");
+      if (category === "free_delivery" || category === "discount") setFilter(category);
+      if (parameters.get("saved") === "1") setSavedOnly(true);
+      const store = stores.find((item) => item.id === parameters.get("store"));
+      if (store) {
+        setQuery(store.name);
+        setOpenStore(store.id);
+      }
+      if (category || store || parameters.get("saved") === "1")
+        requestAnimationFrame(() =>
+          document.getElementById("offers")?.scrollIntoView({ behavior: "instant" }),
+        );
       try {
         const preference = selected ?? localStorage.getItem("grocery-design");
         if (designs.some((item) => item.id === preference)) setDesign(preference as Design);
@@ -496,6 +558,7 @@ export function GroceryApp({
       clearInterval(timer);
       clearTimeout(toastTimer.current);
       refreshController.current?.abort();
+      syncController.current?.abort();
     };
   }, []);
   useEffect(() => {
@@ -506,6 +569,96 @@ export function GroceryApp({
     if (infoOpen || report) dialog?.showModal();
     else dialog?.close();
   }, [infoOpen, report]);
+
+  useEffect(() => {
+    if (!mounted || !online || (offlineLaunch && !recovered)) return;
+    let cancelled = false;
+    saveOfflineOffers(data).then((ready) => {
+      if (!cancelled) markSnapshotReady(ready);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [data, mounted, online, offlineLaunch, recovered, markSnapshotReady]);
+
+  const reconnect = useCallback(
+    async (announce = false) => {
+      if (syncController.current) return true;
+      const controller = new AbortController();
+      syncController.current = controller;
+      setReconnecting(true);
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch("/api/offers", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const next = response.ok ? parseOffers(await response.json()) : null;
+        if (!next) throw new Error("Offers unavailable.");
+        setData(next);
+        setNow(Date.now());
+        lastSync.current = Date.now();
+        setRecovered(true);
+        setStatus("");
+        if (announce) showToast("You're connected. Your offers are up to date.");
+        return true;
+      } catch {
+        if (announce) showToast("Still offline. Your saved listings are here when you need them.");
+        return false;
+      } finally {
+        clearTimeout(timeout);
+        syncController.current = null;
+        setReconnecting(false);
+      }
+    },
+    [showToast],
+  );
+
+  useEffect(() => {
+    if (!mounted) return;
+    let disposed = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    const restore = (attempt = 0) => {
+      if (disposed || !navigator.onLine) return;
+      void reconnect().then((connected) => {
+        if (!connected && !disposed && navigator.onLine && attempt < 2)
+          retry = setTimeout(() => restore(attempt + 1), attempt === 0 ? 1200 : 3200);
+      });
+    };
+    const resume = () => {
+      if (document.hidden) return;
+      setNow(Date.now());
+      if (navigator.onLine && Date.now() - lastSync.current > 60000) restore();
+    };
+    const connected = () => {
+      setNow(Date.now());
+      clearTimeout(retry);
+      restore();
+    };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("online", connected);
+    const frame = requestAnimationFrame(() => {
+      if (offlineLaunch && navigator.onLine) restore();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      disposed = true;
+      clearTimeout(retry);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("online", connected);
+    };
+  }, [mounted, offlineLaunch, reconnect]);
+
+  useEffect(() => {
+    if (!installed) return;
+    const badge = navigator as Navigator & {
+      setAppBadge?: (count: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+    const count = data.offers.filter((offer) => isLive(offer, now)).length;
+    const task = count ? badge.setAppBadge?.(count) : badge.clearAppBadge?.();
+    void task?.catch(() => {});
+  }, [data.offers, now, installed]);
 
   const chooseDesign = (value: Design) => {
     if (value === design) return;
@@ -519,7 +672,7 @@ export function GroceryApp({
     }
     const url = new URL(window.location.href);
     url.searchParams.set("design", value);
-    window.history.replaceState({}, "", url);
+    window.history.replaceState(window.history.state, "", url);
   };
   const chooseEffects = (enabled: boolean) => {
     setEffects(enabled);
@@ -547,6 +700,10 @@ export function GroceryApp({
     );
   };
   const refresh = async () => {
+    if (offline) {
+      showToast("Connect to the internet to find fresh offers.");
+      return;
+    }
     if (refreshing) return;
     setRefreshing(true);
     setStatus("Checking public promotion pages…");
@@ -588,6 +745,10 @@ export function GroceryApp({
     }
   };
   const sendReport = async (reason: string) => {
+    if (offline) {
+      showToast("Connect to the internet to send a report.");
+      return;
+    }
     if (!report || reportBusy) return;
     setReportBusy(true);
     try {
@@ -597,7 +758,7 @@ export function GroceryApp({
         body: JSON.stringify({ offerId: report.id, reason }),
       });
       if (!response.ok) throw new Error("Your report couldn't be saved. Please try again.");
-      setReport(null);
+      closeDetails();
       showToast("Thanks. Your report was saved for review.");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Couldn't save the report.");
@@ -639,9 +800,15 @@ export function GroceryApp({
       className={`app design-${design}`}
       data-ready={mounted}
       data-effects={effects && !reduced ? "on" : "off"}
+      data-offline={offline}
       style={glowStyle}
       onTouchStart={(event) => {
-        if (window.scrollY <= 0 && !(event.target as HTMLElement).closest("button,input,a,dialog"))
+        if (
+          !offline &&
+          event.touches.length === 1 &&
+          window.scrollY <= 0 &&
+          !(event.target as HTMLElement).closest("button,input,a,dialog")
+        )
           touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
       }}
       onTouchMove={(event) => {
@@ -726,13 +893,31 @@ export function GroceryApp({
           <button
             className={`icon-button header-refresh ${refreshing ? "refreshing" : ""}`}
             onClick={() => void refresh()}
-            disabled={refreshing}
+            disabled={refreshing || offline}
             aria-label="Refresh promotions"
           >
             <Icon icon={RefreshIcon} size={20} />
           </button>
         </div>
       </header>
+      <AppUpdateNotice />
+      {offline && (
+        <aside className="offline-notice shell" aria-label="Offline status" aria-live="polite">
+          <Icon icon={WifiOff01Icon} size={20} />
+          <div>
+            <strong>Offline. Still a little less searching.</strong>
+            <p>
+              {cachedAt
+                ? `Saved ${new Date(cachedAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" })} SAST. `
+                : ""}
+              Browse saved listings. Expired or stale offers stay hidden.
+            </p>
+          </div>
+          <button onClick={() => void reconnect(true)} disabled={reconnecting}>
+            {reconnecting ? "Connecting…" : "Reconnect"}
+          </button>
+        </aside>
+      )}
       {refreshing && (
         <>
           <progress className="sr-only" aria-label="Checking promotion sources" />
@@ -783,7 +968,7 @@ export function GroceryApp({
             <div className="hero-live">
               <span className="live-pill">
                 <i className="status-dot" />
-                TODAY'S FINDS
+                {offline ? "SAVED FINDS" : "TODAY'S FINDS"}
               </span>
               <div className="live-number">
                 <Count value={live.length} />
@@ -803,8 +988,10 @@ export function GroceryApp({
                 </motion.button>
               </div>
               <p>
-                live {live.length === 1 ? "offer" : "offers"} across{" "}
-                <strong>{activeStores.length} stores</strong>
+                {offline ? "saved" : "live"} {live.length === 1 ? "offer" : "offers"} across{" "}
+                <strong>
+                  {activeStores.length} {activeStores.length === 1 ? "store" : "stores"}
+                </strong>
               </p>
               <div className="store-avatars">
                 {stores.map((store) => (
@@ -860,7 +1047,7 @@ export function GroceryApp({
             <button
               className={`refresh-button ${refreshing ? "refreshing" : ""}`}
               onClick={() => void refresh()}
-              disabled={refreshing}
+              disabled={refreshing || offline}
             >
               <Icon icon={RefreshIcon} size={18} />
               <span>{refreshing ? "Checking sources…" : "Find fresh offers"}</span>
@@ -1062,7 +1249,7 @@ export function GroceryApp({
       </main>
       <ViewSettings
         open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        onClose={closeSettings}
         design={design}
         onDesign={chooseDesign}
         effects={effects}
@@ -1091,19 +1278,16 @@ export function GroceryApp({
         ref={modalRef}
         className="info-dialog"
         aria-labelledby="info-title"
-        onCancel={() => {
-          setInfoOpen(false);
-          setReport(null);
+        onCancel={(event) => {
+          event.preventDefault();
+          closeDetails();
         }}
       >
         <div className="dialog-content">
           <button
             className="icon-button close-dialog"
             aria-label="Close dialog"
-            onClick={() => {
-              setInfoOpen(false);
-              setReport(null);
-            }}
+            onClick={closeDetails}
           >
             <Icon icon={Cancel01Icon} />
           </button>
@@ -1119,13 +1303,17 @@ export function GroceryApp({
           {report ? (
             <>
               <p>{report.title}</p>
-              <p>What happened? Your report helps us review the listing.</p>
+              <p>
+                {offline
+                  ? "Reconnect to send a report. Your saved listings are still available."
+                  : "What happened? Your report helps us review the listing."}
+              </p>
               <div className="report-reasons">
                 {["The code didn't work", "The offer has ended", "The terms are different"].map(
                   (reason) => (
                     <button
                       key={reason}
-                      disabled={reportBusy}
+                      disabled={reportBusy || offline}
                       onClick={() => void sendReport(reason)}
                     >
                       {reason}

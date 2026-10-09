@@ -8,7 +8,10 @@ export const metadata: Metadata = {
   description:
     "Find today's South African grocery promotions. Explore six stores, filter free delivery and discounts, and copy coupon codes in a tap.",
   applicationName: "Grocery Codes SA",
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  icons: {
+    icon: "/icon.svg",
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Grocery codes" },
 };
 
@@ -16,6 +19,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

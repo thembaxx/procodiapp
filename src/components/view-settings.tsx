@@ -17,6 +17,7 @@ import { Icon } from "@/components/icon";
 import { designs } from "@/lib/designs";
 import type { Design } from "@/lib/appearance";
 import { useMotionPreference } from "@/components/use-motion-preference";
+import { PwaControls } from "@/components/pwa-controls";
 
 export function ViewSettings({
   open,
@@ -78,7 +79,10 @@ export function ViewSettings({
       id="view-settings"
       className="settings-dialog"
       aria-labelledby="settings-title"
-      onCancel={onClose}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
       onPointerDown={(event) => {
         if (event.target !== event.currentTarget) return;
         const bounds = event.currentTarget.getBoundingClientRect();
@@ -203,6 +207,7 @@ export function ViewSettings({
             <span />
           </button>
         </div>
+        <PwaControls />
         <button className="settings-done primary-button" onClick={onClose}>
           Back to offers <Icon icon={ArrowRight01Icon} size={18} />
         </button>

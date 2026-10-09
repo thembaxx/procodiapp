@@ -11,6 +11,16 @@ Three working designs are included. Open the header's settings gear to choose a 
 
 [Compare the designs](docs/designs.md) · [Settings preview](docs/previews/settings-phone.png) · [Desktop preview](docs/previews/wallet-desktop.png)
 
+## Install and use offline
+
+Open settings to install the app on a phone or desktop. Supported browsers offer an **Install app** button; on iPhone and iPad, settings explains **Share → Add to Home Screen → Add**. Installation requires HTTPS in production (localhost is supported for development). The app includes 192px and 512px launcher icons, a separate maskable icon, an Apple touch icon, an install screenshot and shortcuts for delivery, discounts and saved offers.
+
+After the first online visit, settings shows **Ready offline** when both the app shell and offer snapshot are saved. The installed app can cold-launch without a connection. Search, filters, store details, bookmarks, copying, themes and view switching continue to work. Expired promotions and records past their 24-hour freshness deadline stay hidden, including offline; an empty offline list never claims there are new offers. Discovery, source pages and reports need a connection. Reconnection loads current listings automatically, with a manual retry available.
+
+Each production build generates a versioned service worker from the actual Next.js assets. It precaches a clean `/offline` shell, scripts, styles, fonts, icons and theme manifests; offer snapshots live separately in IndexedDB. It does not cache live HTML, API responses, RSC payloads, POST requests or retailer pages. A failed precache does not activate, and its partial cache is removed. The last working build remains available to older open tabs. An **Update now / Later** notice lets users choose when to reload; bookmarks and preferences survive updates. Development mode does not register the worker.
+
+[Installation controls](docs/previews/pwa-settings-phone.png) · [Offline preview](docs/previews/offline-phone.png)
+
 ## Run locally
 
 Use Node.js 24 and pnpm 11.19.0:
@@ -100,12 +110,14 @@ Browser tests use an isolated server on port 3100 and temporary fixtures in `.da
 
 Tests cover expiry/freshness, South African dates, deduplication, source boundaries and evidence; mobile and desktop tests cover search, filters, accordion behaviour, copy, saved offers, reports and refresh limits. Settings checks cover saved choices, focus return, Escape, sheet dragging, small and landscape screens, and changes to the device's motion preference. Automated axe checks scan all three designs in both themes on mobile and desktop, including the settings panel. Appearance and settings checks also run in Firefox and mobile WebKit. Software WebGL checks in Chromium verify all three scenes, a single canvas, context-loss recovery and the sparkle action; every engine tests the no-WebGL fallback. A GitHub CI workflow runs these checks on pushes and PRs.
 
+PWA tests enable real service workers and drop network connections at an isolated local origin, covering cold launches, expired and corrupted snapshots, reconnecting, install controls, launch shortcuts, native sharing and explicit worker updates in Chromium, Firefox and WebKit. Ordinary UI tests block workers so network mocks remain isolated. Unit tests verify worker caching boundaries, outage fallback, previous-build retention and failed installation cleanup.
+
 ## Design and accessibility
 
 The UI follows the attached Wallet handoff and card references: overlapping store cards, clear offer counts, full-width copy actions, no-code states, brand-responsive ambient colour, and a calm count-up. Hugeicons provide interface icons throughout; the grocery bag remains a custom illustration. Motion adds gentle pointer tilt, spring filters, press feedback, copy checkmarks and bookmark pops. Saving or copying an offer sends a small pulse through the background; the sparkle beside today's count invites the same delight. Pull-to-refresh distinguishes vertical movement from a horizontal carousel swipe.
 
 Each view has its own transparent Three.js scene over the shared page colour: soft ribbons for Wallet, floating rounded tiles for Rewards, and orbiting rings for Orbit. The renderer loads separately after hydration, caps rendering at 30fps and pixel ratio at 1.25 on phones or 1.5 on larger screens, and pauses in hidden tabs. Geometry and listeners are disposed when disabled. Reduced-motion and data-saving visits skip the renderer; unavailable WebGL keeps the static ambient background. All motion respects `prefers-reduced-motion`, including preference changes during a visit.
 
-Controls are labelled; search and filters work on small screens; dialogs use native focus trapping and Escape dismissal; keyboard focus is visible. Saved offers stay on the device. The install manifest is included, but offline discovery and a service worker are not implemented, so this is not an offline app.
+Controls are labelled; search and filters work on small screens; dialogs use native focus trapping, Escape and Back dismissal; keyboard focus is visible. Search inputs use 16px text on touch devices to avoid automatic iPhone zoom, while pinch zoom remains available. Installed mode respects safe areas, limits overscroll and adapts to the onscreen keyboard. Share actions use the system share sheet when available, with a clipboard fallback. Supported installed platforms can show the current offer count as an app badge. Saved offers and preferences stay on the device. Push notifications and background discovery are not enabled; the scheduled server discovery remains separate from offline browsing.
 
 Fonts are self-hosted Plus Jakarta Sans, Bricolage Grotesque and Instrument Serif, with their OFL licences in `public/fonts`. Retailer names are rendered as typographic identifiers and fallbacks rather than claiming to be official logo assets. Verified retailer-supplied SVGs can replace `StoreMark` when provided. Retailer names and marks belong to their owners; the app is independent and uses no affiliate links.
