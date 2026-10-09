@@ -938,10 +938,6 @@ export function GroceryApp({
       <main className="shell">
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <span className="eyebrow">
-              <i className="status-dot" />
-              YOUR DAILY DOSE OF SAVINGS
-            </span>
             <h1 id="hero-title">
               A little less
               <br />
