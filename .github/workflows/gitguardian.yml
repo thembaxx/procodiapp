@@ -1,0 +1,34 @@
+name: GitGuardian
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: gitguardian-main
+  cancel-in-progress: false
+jobs:
+  scan:
+    name: GitGuardian secret scan
+    if: github.ref == 'refs/heads/main' && vars.GITGUARDIAN_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the GitGuardian connection
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}
+        run: |
+          if [ -z "$GITGUARDIAN_API_KEY" ]; then
+            echo 'GitGuardian is enabled but its API key is missing.' >&2
+            exit 1
+          fi
+      - uses: GitGuardian/ggshield-action@7f66d3be9c59a821dcf4f45ee5d929203a1a0b90 # v1.55.0
+        env:
+          GITGUARDIAN_API_KEY: ${{ secrets.GITGUARDIAN_API_KEY }}

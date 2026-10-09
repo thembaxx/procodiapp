@@ -347,15 +347,32 @@ test("keeps offline shopping usable when device storage stops responding", async
   connection,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  // Install the fault on the factory prototype in every document and verify
+  // actual blocked calls; an instance-only override was unreliable in WebKit.
+  await page.addInitScript(() => {
+    const open = IDBFactory.prototype.open;
+    Object.defineProperty(IDBFactory.prototype, "open", {
+      configurable: true,
+      value: function (this: IDBFactory, ...args: Parameters<typeof open>) {
+        if (sessionStorage.getItem("test-block-storage") === "true") {
+          sessionStorage.setItem("test-blocked-storage-attempt", "true");
+          return {};
+        }
+        return Reflect.apply(open, this, args);
+      },
+    });
+  });
   await page.goto(connection.url);
   await offlineReady(page);
-  // Simulate a blocked browser storage service only on the next document.
-  await page.addInitScript(() => {
-    Object.defineProperty(indexedDB, "open", { configurable: true, value: () => ({}) });
+  await page.evaluate(() => {
+    sessionStorage.setItem("test-block-storage", "true");
   });
   await connection.setOnline(false);
   await page.reload();
   await waitForApp(page);
+  expect(await page.evaluate(() => sessionStorage.getItem("test-blocked-storage-attempt"))).toBe(
+    "true",
+  );
   await expect(page.getByRole("searchbox")).toBeEnabled();
   await expect(page.locator(".store-card.has-offers")).toHaveCount(0);
   await expect(page.locator(".live-number > span")).toHaveText("00");
