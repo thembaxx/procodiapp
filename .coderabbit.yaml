@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-ZA
+tone_instructions: >-
+  Be concise and concrete. Prioritize correctness, privacy, security, accessibility,
+  offline behavior, and regressions. Distinguish verified findings from assumptions.
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  allow_author_approval: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  path_filters:
+    - "!docs/previews/**"
+    - "!public/fonts/**"
+    - "!pnpm-lock.yaml"
+    - "!.data/**"
+    - "!.env*"
+    - "!test-results/**"
+    - "!playwright-report/**"
+  path_instructions:
+    - path: "src/lib/server/**"
+      instructions: >-
+        Check secret boundaries, bounded input, origin checks, source allowlists,
+        safe errors, fail-closed behavior, rate limiting, and data minimization.
+        Never claim extracted coupon codes are checkout-tested without evidence.
+    - path: "supabase/**"
+      instructions: >-
+        Review RLS, explicit grants, service-role-only RPCs, migration repeatability,
+        retention and atomic concurrency. A local migration does not prove live grants.
+    - path: "src/components/**"
+      instructions: >-
+        Preserve mobile usability, Hugeicons, keyboard accessibility, reduced motion,
+        safe text rendering, offline states and South African date/currency conventions.
+    - path: ".github/**"
+      instructions: >-
+        Require minimal permissions and pinned action SHAs. Do not execute untrusted
+        pull-request code with secrets. Reject skipped checks at the required CI gate.
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+    description:
+      mode: warning
+chat:
+  auto_reply: true
+knowledge_base:
+  opt_out: true

@@ -1,0 +1,106 @@
+name: Deploy production
+on:
+  workflow_run:
+    workflows: [Checks]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+jobs:
+  deploy:
+    name: Validate candidate and promote
+    if: >-
+      vars.PRODUCTION_CD_ENABLED == 'true' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch')
+    environment: production
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+      GH_TOKEN: ${{ github.token }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Verify release is still main
+        run: |
+          if ! [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]]; then exit 1; fi
+          current_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          if [ "$current_sha" != "$RELEASE_SHA" ]; then
+            echo 'Refusing to deploy an obsolete release.' >&2
+            exit 1
+          fi
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install the pinned deployment CLI
+        run: |
+          npm install --prefix "$RUNNER_TEMP/vercel-cli" --no-audit --no-fund vercel@63.1.0
+          echo "$RUNNER_TEMP/vercel-cli/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Load production configuration privately
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo 'Production CD is enabled but Vercel credentials or project IDs are missing.' >&2
+            exit 1
+          fi
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - run: pnpm install --frozen-lockfile
+      - name: Enforce production launch configuration
+        run: |
+          node --env-file=.vercel/.env.production.local scripts/check-production.mjs
+          node --env-file=.vercel/.env.production.local --input-type=module <<'JS'
+          if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            console.error('Vercel production requires durable Supabase storage.');
+            process.exit(1);
+          }
+          JS
+      - name: Build and deploy without moving production aliases
+        id: candidate
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          vercel build --prod --token="$VERCEL_TOKEN"
+          candidate_url=$(vercel deploy --prebuilt --prod --skip-domain --yes --token="$VERCEL_TOKEN")
+          node --input-type=module - "$candidate_url" <<'JS'
+          const url = new URL(process.argv[2]);
+          if (url.protocol !== 'https:' || !url.hostname.endsWith('.vercel.app') ||
+              url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+            throw new Error('Unexpected candidate deployment URL.');
+          }
+          JS
+          echo "url=$candidate_url" >> "$GITHUB_OUTPUT"
+      - name: Check candidate readiness and public routes
+        env:
+          DEPLOYMENT_URL: ${{ steps.candidate.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: node scripts/check-deployment.mjs
+      - name: Recheck main and promote the verified candidate
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CANDIDATE_URL: ${{ steps.candidate.outputs.url }}
+        run: |
+          current_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          if [ "$current_sha" != "$RELEASE_SHA" ]; then
+            echo 'Main changed during deployment; candidate will not be promoted.' >&2
+            exit 1
+          fi
+          vercel promote "$CANDIDATE_URL" --yes --token="$VERCEL_TOKEN"
+          echo 'Verified candidate promoted to production.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove downloaded production environment
+        if: always()
+        run: rm -rf .vercel

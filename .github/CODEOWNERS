@@ -1,0 +1,8 @@
+# GitHub uses the version on the PR's base branch. Never substitute AI approval
+# for human review. Add another trusted collaborator for owner-authored PRs.
+* @thembaxx
+/.github/ @thembaxx
+/supabase/ @thembaxx
+/src/lib/server/ @thembaxx
+/scripts/ @thembaxx
+/SECURITY.md @thembaxx
