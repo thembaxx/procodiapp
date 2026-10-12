@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { discoverOffers } from "@/lib/server/discovery";
-import { takeRefreshSlot, PUBLIC_DISCOVERY_COOLDOWN_SECONDS } from "@/lib/server/storage";
-import { filterOffers } from "@/lib/offers";
+import { requireWebDiscovery } from "@/lib/server/discovery";
+import { takeRefreshSlot } from "@/lib/server/storage";
+import {
+  DiscoveryBusyError,
+  hasWebDiscovery,
+  refreshPromotions,
+} from "@/lib/server/promotion-refresh";
 import { sameOrigin, clientBucket } from "@/lib/server/request-guards";
 
 export const maxDuration = 120;
@@ -13,6 +17,7 @@ export async function POST(request: NextRequest) {
       { status: 403 },
     );
   try {
+    requireWebDiscovery();
     const ip = clientBucket(request);
     const retryAfter = await takeRefreshSlot(`refresh:client:${ip}`);
     if (retryAfter)
@@ -20,22 +25,22 @@ export async function POST(request: NextRequest) {
         { error: `Give the search a moment. Refresh again in ${retryAfter}s.`, retryAfter },
         { status: 429, headers: { "Retry-After": String(retryAfter) } },
       );
-    // At most six public discovery attempts per hour across clients/instances.
-    const globalWait = await takeRefreshSlot("discovery:global", PUBLIC_DISCOVERY_COOLDOWN_SECONDS);
-    if (globalWait)
+    const data = await refreshPromotions();
+    if (!hasWebDiscovery(data))
+      return NextResponse.json(
+        { error: "We couldn't check promotion sources right now. Please try again later." },
+        { status: 503 },
+      );
+    return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    if (error instanceof DiscoveryBusyError)
       return NextResponse.json(
         {
-          error: `Sources were just checked. Try again in ${globalWait}s.`,
-          retryAfter: globalWait,
+          error: `Give the search a moment. Try again in ${error.retryAfter}s.`,
+          retryAfter: error.retryAfter,
         },
-        { status: 429, headers: { "Retry-After": String(globalWait) } },
+        { status: 429, headers: { "Retry-After": String(error.retryAfter) } },
       );
-    const data = await discoverOffers();
-    return NextResponse.json(
-      { ...data, offers: filterOffers(data.offers) },
-      { headers: { "Cache-Control": "no-store" } },
-    );
-  } catch {
     return NextResponse.json(
       { error: "We couldn't complete the search. Your last checked offers are still here." },
       { status: 503 },

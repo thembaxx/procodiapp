@@ -13,10 +13,10 @@ Set these server environment variables before public launch:
 | `OPERATOR_NAME`                                       | The real operator/responsible party displayed on the privacy page.                                                                       |
 | `RATE_LIMIT_SECRET`                                   | A separate random server-only secret of at least 32 characters, identical across replicas. Required for keyed rate limits in production. |
 | `CONTACT_EMAIL`                                       | The operator's support/privacy email, displayed on the privacy page.                                                                     |
-| `CRON_SECRET`                                         | A cryptographically random secret of at least 32 characters, also configured in the scheduler.                                           |
+| `CRON_SECRET`                                         | Optional for the alternative HTTP scheduler: use 32+ random characters. The direct daily worker does not need it.                        |
 | `DATA_DIR`                                            | An absolute path on a persistent volume for exactly one Node instance. Docker defaults to `/app/.data`; mount it.                        |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`           | Use instead of local storage for multiple instances or serverless. Run `supabase/schema.sql` first. Credentials are server-only.         |
-| `SEARCH_PROVIDER`, `TAVILY_API_KEY`, `OPENAI_API_KEY` | Set `SEARCH_PROVIDER=tavily` and both keys for broader discovery of new offers. Without them, public-page mode rechecks known benefits.  |
+| `SEARCH_PROVIDER`, `TAVILY_API_KEY`, `OPENAI_API_KEY` | Set `SEARCH_PROVIDER=tavily` and both keys for live discovery. Without them, Refresh and scheduled scanning fail explicitly.             |
 | `TRUST_PROXY`                                         | Enable only when a trusted ingress overwrites `x-forwarded-for`.                                                                         |
 
 Metadata for public pages, robots and sitemap use runtime configuration. The static offline shell is always excluded from indexing. Set the same public configuration during build and runtime when possible, and rebuild after changing branding or metadata defaults. Never put provider keys into `NEXT_PUBLIC_*` variables or the container image.
@@ -29,13 +29,13 @@ pnpm build
 pnpm start
 ```
 
-`check:production` reports missing or inconsistent configuration without printing credentials. A successful check does not validate provider access, volume persistence, DNS, TLS or your ingress configuration. Public-page mode is valid, but must not be described as broad discovery of new codes.
+`check:production` reports missing or inconsistent configuration without printing credentials. A successful check does not validate provider access, volume persistence, DNS, TLS or your ingress configuration. Real browser/scheduled discovery requires Tavily and OpenAI; public-page fixtures do not establish broad discovery of new codes.
 
 ## Verify the running host
 
 1. Use a managed HTTPS ingress with HTTP-to-HTTPS redirection, connection/request deadlines and request-body limits. Forward the original host correctly and overwrite forwarding headers before trusting them. The app recognises its configured canonical origin behind an internal host.
 2. Check `GET /api/health`. It returns `200 {"status":"ready"}` when storage is accessible and `503` when unavailable. It exposes no environment variables, paths or credentials. This is storage readiness, not proof of fresh offers or working external providers.
-3. Run authenticated discovery once through `GET /api/cron` with `Authorization: Bearer <CRON_SECRET>`. Inspect per-store checks in the response and confirm the stored cache updates. Configure the six-hour scheduler, then verify a successful scheduled run. GitHub scheduling needs repository variable `APP_URL` and secret `CRON_SECRET`.
+3. Configure [daily discovery](promotion-discovery.md) with shared Supabase/provider secrets, then dispatch **Discover promotions** on main. It runs at 06:17 SAST and uses the same update service as Refresh. Confirm the stored cache and per-store search/extraction checks update. Authenticated `GET /api/cron` with `Authorization: Bearer <CRON_SECRET>` remains an alternative entrypoint; the direct worker does not need `APP_URL` or `CRON_SECRET`.
 4. Restart/redeploy and verify the cache and reports survive. Back up the volume/database and rehearse restoration. Do not scale local-file storage across processes or replicas.
 5. Check the live canonical, `/robots.txt`, `/sitemap.xml`, `/llms.txt`, `/promotions.md` and `/share-image`. Canonicals must use the public domain, with no `localhost`, preview host or query variants. Submit the sitemap through Google Search Console and Bing Webmaster Tools using your own verified accounts.
 6. Install from the actual HTTPS origin on iOS and Android. Check the Ready offline state, close/reopen offline, reconnect and accept an app update. An app manifest check cannot substitute for actual device installation.

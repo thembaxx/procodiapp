@@ -36,7 +36,7 @@ if (
   notes.push(
     "Search indexing is disabled. Enable INDEXING_ENABLED=true only on the public production deployment.",
   );
-if ((process.env.CRON_SECRET ?? "").length < 32)
+if (process.env.CRON_SECRET && process.env.CRON_SECRET.length < 32)
   issues.push("Set CRON_SECRET to a random value of at least 32 characters.");
 if ((process.env.RATE_LIMIT_SECRET ?? "").length < 32)
   issues.push("Set RATE_LIMIT_SECRET to a separate random value of at least 32 characters.");
@@ -77,13 +77,12 @@ if (!supabase) {
     "Use exactly one Node instance with local storage. Multiple instances require Supabase. A writable directory does not verify persistence across redeploys.",
   );
 }
-if (process.env.SEARCH_PROVIDER === "tavily") {
-  if (!process.env.TAVILY_API_KEY || !process.env.OPENAI_API_KEY)
-    issues.push("Broad discovery needs TAVILY_API_KEY and OPENAI_API_KEY together.");
-} else
-  notes.push(
-    "Public-page mode rechecks known benefits; broad discovery of new codes is not configured.",
-  );
+if (
+  process.env.SEARCH_PROVIDER !== "tavily" ||
+  !process.env.TAVILY_API_KEY ||
+  !process.env.OPENAI_API_KEY
+)
+  issues.push("Live discovery needs SEARCH_PROVIDER=tavily, TAVILY_API_KEY and OPENAI_API_KEY.");
 if (process.env.TRUST_PROXY === "true")
   notes.push(
     "Verify that your ingress overwrites x-forwarded-for; never trust client-supplied forwarding headers.",

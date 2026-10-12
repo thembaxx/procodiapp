@@ -101,6 +101,32 @@ test("reports refresh limits without discarding offers", async ({ page }) => {
   await expect(page.locator(".store-card")).toHaveCount(6);
 });
 
+test("loads the latest daily scan when refresh reuses a recently checked result", async ({
+  page,
+}) => {
+  await page.route("**/api/refresh", (route) =>
+    route.fulfill({
+      json: {
+        offers: [testOffer],
+        updatedAt: new Date().toISOString(),
+        checks: [],
+        newOfferIds: [],
+        mode: "web_search",
+        reused: true,
+      },
+    }),
+  );
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: /Refresh promotions|Find fresh offers/ })
+    .filter({ visible: true })
+    .first()
+    .click();
+  await expect(page.getByText(testOffer.title, { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Copy code E2E50" })).toBeVisible();
+  await expect(page.locator(".status-text")).toContainText("Sources were checked recently");
+});
+
 test("offers three layouts, persists a choice, and supports light and dark", async ({ page }) => {
   await page.goto("/?design=wallet");
   for (const name of ["Rewards", "Orbit", "Wallet"]) {

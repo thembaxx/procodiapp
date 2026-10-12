@@ -15,7 +15,8 @@
     "test:e2e": "playwright test",
     "check:production": "node scripts/check-production.mjs",
     "check": "pnpm lint && pnpm format:check && pnpm typecheck && pnpm test",
-    "test:database": "node scripts/test-database.mjs"
+    "test:database": "node scripts/test-database.mjs",
+    "discover": "tsx scripts/discover-promotions.ts"
   },
   "dependencies": {
     "@hugeicons/core-free-icons": "4.3.5",
@@ -39,6 +40,7 @@
     "oxfmt": "0.72.0",
     "oxlint": "1.87.0",
     "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
     "typescript": "^7.0.2",
     "vitest": "5.0.3"
   },

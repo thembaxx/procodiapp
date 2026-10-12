@@ -17,6 +17,36 @@ import { boundedJson } from "./bounded-input";
 const DAY = 86400_000;
 let inFlight: Promise<Cache & { newOfferIds: string[] }> | undefined;
 
+export function requireWebDiscovery() {
+  if (
+    process.env.SEARCH_PROVIDER !== "tavily" ||
+    !process.env.TAVILY_API_KEY ||
+    !process.env.OPENAI_API_KEY
+  )
+    throw new Error(
+      "Internet discovery requires Tavily search and OpenAI extraction configuration.",
+    );
+}
+
+export function discoveryUrls(store: Store, candidates: string[], previous: Offer[]): string[] {
+  const queues = [
+    candidates,
+    previous
+      .filter((offer) => offer.storeId === store.id && isLive(offer))
+      .map((offer) => offer.sourceUrl),
+    [...store.sources],
+  ];
+  const urls = new Set<string>();
+  for (let index = 0; queues.some((queue) => index < queue.length) && urls.size < 5; index++) {
+    for (const queue of queues) {
+      const url = queue[index];
+      if (url && allowedStoreUrl(url, store)) urls.add(url);
+      if (urls.size === 5) break;
+    }
+  }
+  return [...urls];
+}
+
 async function searchCandidates(store: Store, signal: AbortSignal): Promise<string[]> {
   if (process.env.SEARCH_PROVIDER !== "tavily" || !process.env.TAVILY_API_KEY) return [];
   const response = await fetch("https://api.tavily.com/search", {
@@ -123,7 +153,7 @@ async function extract(
     })
     .parse(await boundedJson(response, 256_000));
   const parsed = extractedSchema.safeParse(JSON.parse(data.choices?.[0]?.message.content ?? "{}"));
-  if (!parsed.success) return [];
+  if (!parsed.success) throw new Error("Extraction returned an invalid promotion response.");
   const now = new Date().toISOString();
   return parsed.data.offers.flatMap((item) => {
     if (!containsEvidence(text, item.evidence) || !containsEvidence(text, item.expiryEvidence))
@@ -137,6 +167,8 @@ async function extract(
       return [];
     const expiresAt = normaliseExpiry(item.expiresAt);
     if (item.expiresAt && !expiresAt) return [];
+    // A recurring delivery benefit can be ongoing; a voucher code needs an end date.
+    if (item.code && !expiresAt) return [];
     if (
       !expiresAt &&
       (!item.ongoing ||
@@ -170,15 +202,19 @@ async function runDiscovery(signal: AbortSignal) {
   const results = await Promise.all(
     stores.map(async (store) => {
       let pages = 0;
+      let extractedPages = 0;
+      let searched = false;
+      const reconciledSources = new Set<string>();
       const offers: Offer[] = [];
       const errors: string[] = [];
       let candidates: string[] = [];
       try {
         candidates = await searchCandidates(store, signal);
+        searched = process.env.SEARCH_PROVIDER === "tavily" && !!process.env.TAVILY_API_KEY;
       } catch {
         errors.push("Web search could not be completed.");
       }
-      const urls = [...new Set([...store.sources, ...candidates])].slice(0, 5);
+      const urls = discoveryUrls(store, candidates, previous.offers);
       // Sequential requests within each retailer avoid hammering its website.
       for (const url of urls) {
         if (signal.aborted) {
@@ -208,6 +244,10 @@ async function runDiscovery(signal: AbortSignal) {
               });
           }
           offers.push(...(await extract(store, url, text, signal)));
+          if (process.env.OPENAI_API_KEY) extractedPages++;
+          // Only a completed page evaluation supersedes its previous listings.
+          // Failed extraction leaves the previous TTL unchanged.
+          reconciledSources.add(url);
         } catch {
           errors.push("Some promotion pages could not be checked.");
         }
@@ -216,25 +256,49 @@ async function runDiscovery(signal: AbortSignal) {
         storeId: store.id,
         status: pages ? "checked" : "unavailable",
         pages,
+        searched,
+        extractedPages,
         ...(errors.length ? { message: [...new Set(errors)].join(" ") } : {}),
       };
-      return { offers, check };
+      return { offers, check, reconciledSources };
     }),
   );
   const found = deduplicate(results.flatMap((result) => result.offers));
   // Retain fresh last-known offers on partial failure, without extending their TTL.
-  const offers = deduplicate([...previous.offers.filter((offer) => isLive(offer)), ...found]);
+  const offers = deduplicate([
+    ...previous.offers.filter(
+      (offer) =>
+        isLive(offer) &&
+        !(
+          (process.env.OPENAI_API_KEY || (offer.code === null && offer.ongoing)) &&
+          results
+            .find((result) => result.check.storeId === offer.storeId)
+            ?.reconciledSources.has(offer.sourceUrl)
+        ),
+    ),
+    ...found,
+  ])
+    .sort((a, b) => Date.parse(b.checkedAt) - Date.parse(a.checkedAt))
+    .slice(0, 500);
   const oldKeys = new Set(
     previous.offers.map((offer) => `${offer.storeId}:${(offer.code ?? offer.title).toLowerCase()}`),
   );
   const newOfferIds = found
     .filter(
-      (offer) => !oldKeys.has(`${offer.storeId}:${(offer.code ?? offer.title).toLowerCase()}`),
+      (offer) =>
+        offers.some((retained) => retained.id === offer.id) &&
+        !oldKeys.has(`${offer.storeId}:${(offer.code ?? offer.title).toLowerCase()}`),
     )
     .map((offer) => offer.id);
   const cache: Cache = {
     offers,
-    updatedAt: new Date().toISOString(),
+    updatedAt: results.some((result) =>
+      process.env.SEARCH_PROVIDER === "tavily"
+        ? result.check.searched && result.check.extractedPages! > 0
+        : result.check.pages > 0,
+    )
+      ? new Date().toISOString()
+      : previous.updatedAt,
     checks: results.map((result) => result.check),
     mode:
       process.env.SEARCH_PROVIDER === "tavily" && process.env.TAVILY_API_KEY
