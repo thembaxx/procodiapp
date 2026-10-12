@@ -18,6 +18,10 @@ begin
   assert result = 0;
   result := public.take_refresh_slot(key, 600);
   assert result between 599 and 600;
+  insert into public.refresh_limits (client_key, next_allowed_at)
+    values (repeat('d', 64), clock_timestamp() + interval '60 seconds');
+  result := public.take_refresh_slot(repeat('d', 64), 60);
+  assert result between 1 and 60, 'A transaction started before the winner must not report a 61-second cooldown';
   begin
     perform public.take_refresh_slot(key, 601);
     raise exception 'Oversized window was accepted';

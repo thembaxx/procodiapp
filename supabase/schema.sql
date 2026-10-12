@@ -39,15 +39,18 @@ begin
   if client_key is null or client_key !~ '^[a-f0-9]{64}$' or window_seconds is null or window_seconds < 1 or window_seconds > 600 then
     raise exception 'Invalid rate-limit input' using errcode = '22023';
   end if;
-  delete from public.refresh_limits where next_allowed_at <= now();
+  delete from public.refresh_limits where next_allowed_at <= clock_timestamp();
   insert into public.refresh_limits as limits (client_key, next_allowed_at)
-  values (take_refresh_slot.client_key, now() + make_interval(secs => window_seconds))
+  values (take_refresh_slot.client_key, clock_timestamp() + make_interval(secs => window_seconds))
   on conflict on constraint refresh_limits_pkey do update
-    set next_allowed_at = excluded.next_allowed_at
-    where limits.next_allowed_at <= now()
+    set next_allowed_at = clock_timestamp() + make_interval(secs => window_seconds)
+    where limits.next_allowed_at <= clock_timestamp()
   returning true into allowed;
   if allowed then return 0; end if;
-  select greatest(1, ceil(extract(epoch from (limits.next_allowed_at - now())))::integer)
+  -- now() is transaction-start time. A loser that began before the winner can
+  -- otherwise report 61 seconds for a 60-second window. Use elapsed wall time
+  -- and enforce the same bounded response contract as the application.
+  select least(window_seconds, greatest(1, ceil(extract(epoch from (limits.next_allowed_at - clock_timestamp())))::integer))
     into wait_seconds
     from public.refresh_limits as limits
     where limits.client_key = take_refresh_slot.client_key;

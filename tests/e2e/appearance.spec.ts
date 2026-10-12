@@ -117,7 +117,7 @@ test("matches page, browser and manifest colours across designs, themes and refr
     .filter({ visible: true })
     .first()
     .click();
-  await expect(page.locator(".status-text")).toContainText("Checking public promotion pages");
+  await expect(page.locator(".status-text")).toContainText("Searching for fresh promotions");
   await expectCanvas(page, colors.orbitLight);
   finishRefresh();
   await expect(page.locator(".status-text")).toContainText("Refresh again in 30s.");

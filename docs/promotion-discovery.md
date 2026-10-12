@@ -6,7 +6,7 @@ The worker runs `pnpm discover` on Actions, searching Tavily for Checkers Sixty6
 
 ## Activate
 
-1. Configure Supabase and apply `supabase/schema.sql` to the intended project. Use the server-only service-role key, never the anonymous key.
+1. Configure Supabase and apply the current `supabase/schema.sql` to the intended project, including its wall-clock cooldown correction. Use the server-only service-role key, never the anonymous key.
 2. Add these [GitHub Actions secrets](https://github.com/thembaxx/procodiapp/settings/secrets/actions), either at repository level or in the `discovery` environment:
 
    - `TAVILY_API_KEY`

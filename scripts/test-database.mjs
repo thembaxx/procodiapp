@@ -53,7 +53,9 @@ if (
   attempts.filter((value) => value === 0).length !== 1 ||
   attempts.some((value) => !Number.isInteger(value) || value < 0 || value > 60)
 )
-  throw new Error("Distributed limiter was not atomic.");
+  throw new Error(
+    `Distributed limiter check failed: accepted=${attempts.filter((value) => value === 0).length}, waits=${JSON.stringify(attempts)}.`,
+  );
 sql(`delete from public.refresh_limits where client_key='${key}';`);
 console.log(
   "PostgreSQL: repeatable migration, RLS/permissions, retention, bounded RPCs and 12-way limiter concurrency passed.",
