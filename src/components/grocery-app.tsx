@@ -707,7 +707,7 @@ export function GroceryApp({
     }
     if (refreshing) return;
     setRefreshing(true);
-    setStatus("Checking public promotion pages…");
+    setStatus("Searching for fresh promotions…");
     const controller = new AbortController();
     refreshController.current = controller;
     const timeout = setTimeout(() => controller.abort(), 115_000);
@@ -715,12 +715,18 @@ export function GroceryApp({
       const response = await fetch("/api/refresh", { method: "POST", signal: controller.signal });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "We couldn't refresh right now.");
-      const next = result as OffersResponse;
+      const next = parseOffers(result);
+      if (!next) throw new Error("The promotion update couldn't be read. Please try again.");
       setData(next);
       setNow(Date.now());
       const unavailable = next.checks.filter((check) => check.status === "unavailable").length;
       const partial = next.checks.some((check) => check.message);
       const found = next.newOfferIds.length;
+      if (result.reused === true) {
+        setStatus("Latest promotions loaded. Sources were checked recently.");
+        showToast("You're up to date with the latest scan.");
+        return;
+      }
       setStatus(
         `${found ? `${found} new ${found === 1 ? "offer" : "offers"} found.` : "Search complete. No new confirmed offers."}${unavailable ? ` ${unavailable} ${unavailable === 1 ? "store was" : "stores were"} unavailable.` : partial ? " Some pages were unavailable." : ""}`,
       );

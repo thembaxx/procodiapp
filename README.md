@@ -68,7 +68,7 @@ The attached prototype contains placeholder coupon codes. **None of those codes 
 
 The initial snapshot includes Checkers Xtra Savings Plus delivery, Woolworths MyDifference PLUS online delivery, and Makro's senior food discount. Woolworths online delivery is not presented as confirmed Dash free delivery. Offers requiring membership show that requirement. Stores without a confirmed offer remain visible at the bottom.
 
-**Without API keys:** refresh checks configured public retailer pages, revalidates the known recurring benefits when their evidence is found, and records which sources could be read. This mode does not perform broad internet search or extract arbitrary new coupon codes. Retailer anti-bot protections, JavaScript-only pages and robots restrictions can make a source unavailable. Partial results retain still-fresh listings without extending their freshness deadline.
+**Without API keys:** browsing remains available, but browser Refresh and scheduled discovery fail explicitly instead of claiming a web search occurred. The low-level public-page checker remains available to development fixtures; it does not discover arbitrary codes. Retailer anti-bot protections, JavaScript-only pages and robots restrictions can make a source unavailable. Partial results retain still-fresh listings without extending their freshness deadline.
 
 **To discover new offers across the web**, configure both search and extraction:
 
@@ -85,12 +85,12 @@ All discovered codes are marked **not tested at checkout**. The app never genera
 
 ## API
 
-| Endpoint                                | Behaviour                                                                                                                                                                                                               |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/offers?filter=all&q=checkers` | Fresh, unexpired offers. Filters: `all`, `free_delivery`, `discount`. Search matches retailer and loyalty names.                                                                                                        |
-| `POST /api/refresh`                     | Checks public sources and optionally web-search candidates. Returns offers, new IDs and per-store source status. Client and shared discovery limits apply; concurrent server discovery within a process shares one job. |
-| `POST /api/report`                      | Saves a report for an existing listing. Body: `{ "offerId": "...", "reason": "The code didn't work" }`. Also accepts `The offer has ended` and `The terms are different`.                                               |
-| `GET /api/cron`                         | Authenticated discovery. Header: `Authorization: Bearer <CRON_SECRET>`.                                                                                                                                                 |
+| Endpoint                                | Behaviour                                                                                                                                                                      |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/offers?filter=all&q=checkers` | Fresh, unexpired offers. Filters: `all`, `free_delivery`, `discount`. Search matches retailer and loyalty names.                                                               |
+| `POST /api/refresh`                     | Searches the web and updates shared offers, or loads a recent completed scan. Requires search/extraction configuration. Client and shared limits apply; busy scans return 429. |
+| `POST /api/report`                      | Saves a report for an existing listing. Body: `{ "offerId": "...", "reason": "The code didn't work" }`. Also accepts `The offer has ended` and `The terms are different`.      |
+| `GET /api/cron`                         | Authenticated discovery. Header: `Authorization: Bearer <CRON_SECRET>`.                                                                                                        |
 
 Refresh and reports validate browser origin. Set `TRUST_PROXY=true` only when the deployment ingress overwrites `x-forwarded-for`; otherwise all local clients share a conservative refresh bucket. No raw IP addresses are stored by the app. Set a separate `RATE_LIMIT_SECRET` (32+ random characters) in production; address identifiers use daily rotating HMACs. Public discovery has a shared ten-minute cooldown. Reports are removed after 30 days during the next report write or scheduled cleanup, using the updated service-role-only Supabase RPCs. Apply the current `supabase/schema.sql` before enabling writes. The single-node development limiter is in memory; Supabase provides an atomic distributed limiter.
 
@@ -113,7 +113,7 @@ This stores the shared offer cache, reports and rate limits in Postgres through 
 
 A Dockerfile is included for a Node deployment. Mount `/app/.data` on a persistent volume, or configure Supabase. Provide discovery secrets at runtime, not during the build. A static-only host cannot run the discovery APIs.
 
-The GitHub discovery workflow runs every six hours after you set repository variable `APP_URL` to the deployed origin and secret `CRON_SECRET` to the same value used by the server. It is skipped while `APP_URL` is unset. You can also schedule the authenticated endpoint with your hosting provider. No hosting account or provider API keys are bundled in this repository.
+The GitHub discovery workflow runs daily at **06:17 SAST** and supports manual dispatch on main. It uses the same scan/update service as Refresh and writes directly to shared Supabase storage. Configure secrets using the [daily discovery guide](docs/promotion-discovery.md); `APP_URL` and `CRON_SECRET` are not needed for this worker. Run it against your configured shared storage with `pnpm discover`. No hosting account or provider keys are bundled in the repository.
 
 ## Quality checks
 

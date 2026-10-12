@@ -35,6 +35,8 @@ export const sourceCheckSchema = z.object({
   storeId: z.enum(["checkers", "pnp", "woolworths", "shoprite", "spar", "makro"]),
   status: z.enum(["checked", "unavailable"]),
   pages: z.number().int().min(0).max(5),
+  searched: z.boolean().optional(),
+  extractedPages: z.number().int().min(0).max(5).optional(),
   message: z.string().max(250).optional(),
 });
 export const cacheSchema = z.object({
@@ -102,6 +104,9 @@ export function expiryLabel(offer: Offer, now = new Date()) {
 // A date-only expiry means the end of that calendar day in South Africa (UTC+2).
 export function normaliseExpiry(value: string | null): string | null {
   if (!value) return null;
+  const calendar = value.slice(0, 10);
+  const day = new Date(`${calendar}T12:00:00Z`);
+  if (!Number.isFinite(day.getTime()) || day.toISOString().slice(0, 10) !== calendar) return null;
   const candidate = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T23:59:59.999+02:00` : value;
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(candidate))
     return null;
