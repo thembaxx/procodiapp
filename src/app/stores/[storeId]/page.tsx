@@ -150,9 +150,9 @@ export default async function StorePage({ params }: Props) {
       <section className="content-section">
         <h2>Where these listings come from</h2>
         <p>
-          We review accessible public retailer pages and, when configured, search for further
-          evidence. Expired, unknown-expiry and stale listings are excluded. A recurring membership
-          benefit can have no published end date, but still needs a fresh review.
+          We check accessible public retailer pages and, when configured, an affiliate offer feed.
+          Expired, unknown-expiry and stale listings are excluded. A recurring membership benefit
+          can have no published end date, but still needs a fresh review.
         </p>
         <a className="content-link" href="/about">
           How we check offers <Icon icon={ArrowUpRight01Icon} size={16} />

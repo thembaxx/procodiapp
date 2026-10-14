@@ -6,18 +6,19 @@ The repository includes application code, tests and deployment assets. A public 
 
 Set these server environment variables before public launch:
 
-| Variable                                              | Requirement                                                                                                                              |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `SITE_URL`                                            | The canonical public HTTPS origin, with no subpath, credentials, query or fragment. Do not use a preview hostname.                       |
-| `INDEXING_ENABLED`                                    | `true` on the public production deployment; `false` on previews and staging.                                                             |
-| `OPERATOR_NAME`                                       | The real operator/responsible party displayed on the privacy page.                                                                       |
-| `RATE_LIMIT_SECRET`                                   | A separate random server-only secret of at least 32 characters, identical across replicas. Required for keyed rate limits in production. |
-| `CONTACT_EMAIL`                                       | The operator's support/privacy email, displayed on the privacy page.                                                                     |
-| `CRON_SECRET`                                         | Optional for the alternative HTTP scheduler: use 32+ random characters. The direct daily worker does not need it.                        |
-| `DATA_DIR`                                            | An absolute path on a persistent volume for exactly one Node instance. Docker defaults to `/app/.data`; mount it.                        |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`           | Use instead of local storage for multiple instances or serverless. Run `supabase/schema.sql` first. Credentials are server-only.         |
-| `SEARCH_PROVIDER`, `TAVILY_API_KEY`, `OPENAI_API_KEY` | Set `SEARCH_PROVIDER=tavily` and both keys for live discovery. Without them, Refresh and scheduled scanning fail explicitly.             |
-| `TRUST_PROXY`                                         | Enable only when a trusted ingress overwrites `x-forwarded-for`.                                                                         |
+| Variable                                          | Requirement                                                                                                                              |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `SITE_URL`                                        | The canonical public HTTPS origin, with no subpath, credentials, query or fragment. Do not use a preview hostname.                       |
+| `INDEXING_ENABLED`                                | `true` on the public production deployment; `false` on previews and staging.                                                             |
+| `OPERATOR_NAME`                                   | The real operator/responsible party displayed on the privacy page.                                                                       |
+| `RATE_LIMIT_SECRET`                               | A separate random server-only secret of at least 32 characters, identical across replicas. Required for keyed rate limits in production. |
+| `CONTACT_EMAIL`                                   | The operator's support/privacy email, displayed on the privacy page.                                                                     |
+| `CRON_SECRET`                                     | Optional for the alternative HTTP scheduler: use 32+ random characters. The GitHub feed publisher does not need it.                      |
+| `DATA_DIR`                                        | An absolute path on a persistent volume for exactly one Node instance. Docker defaults to `/app/.data`; mount it.                        |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`       | Use instead of local storage for multiple instances or serverless. Run `supabase/schema.sql` first. Credentials are server-only.         |
+| `PROMOTION_FEED`, `PROMOTION_FEED_REPOSITORY`     | Use `github` after the scheduled feed is published; `local` runs collection against persistent/shared storage.                           |
+| `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_ADVERTISERS` | Optional free publisher fallback. Set together on the collector only; leave unset for credential-free official sources.                  |
+| `TRUST_PROXY`                                     | Enable only when a trusted ingress overwrites `x-forwarded-for`.                                                                         |
 
 Metadata for public pages, robots and sitemap use runtime configuration. The static offline shell is always excluded from indexing. Set the same public configuration during build and runtime when possible, and rebuild after changing branding or metadata defaults. Never put provider keys into `NEXT_PUBLIC_*` variables or the container image.
 
@@ -29,13 +30,13 @@ pnpm build
 pnpm start
 ```
 
-`check:production` reports missing or inconsistent configuration without printing credentials. A successful check does not validate provider access, volume persistence, DNS, TLS or your ingress configuration. Real browser/scheduled discovery requires Tavily and OpenAI; public-page fixtures do not establish broad discovery of new codes.
+`check:production` reports missing or inconsistent configuration without printing credentials. A successful check does not validate provider access, volume persistence, DNS, TLS or your ingress configuration. Primary collection requires no search or model key. Live source reachability and optional authenticated CJ access still need verification; fixtures do not establish retailer coverage or checkout validity.
 
 ## Verify the running host
 
 1. Use a managed HTTPS ingress with HTTP-to-HTTPS redirection, connection/request deadlines and request-body limits. Forward the original host correctly and overwrite forwarding headers before trusting them. The app recognises its configured canonical origin behind an internal host.
 2. Check `GET /api/health`. It returns `200 {"status":"ready"}` when storage is accessible and `503` when unavailable. It exposes no environment variables, paths or credentials. This is storage readiness, not proof of fresh offers or working external providers.
-3. Configure [daily discovery](promotion-discovery.md) with shared Supabase/provider secrets, then dispatch **Discover promotions** on main. It runs at 06:17 SAST and uses the same update service as Refresh. Confirm the stored cache and per-store search/extraction checks update. Authenticated `GET /api/cron` with `Authorization: Bearer <CRON_SECRET>` remains an alternative entrypoint; the direct worker does not need `APP_URL` or `CRON_SECRET`.
+3. Run [scheduled collection](promotion-discovery.md) on main, confirm the `promotion-data` branch, then set `PROMOTION_FEED=github` and redeploy the app. It runs every six hours without model/search secrets. Verify `/api/offers` mode, successful timestamp and per-store parsed/fallback checks. Optional CJ credentials belong on Actions. Authenticated `/api/cron` remains an alternative for a persistent local/shared-database collector.
 4. Restart/redeploy and verify the cache and reports survive. Back up the volume/database and rehearse restoration. Do not scale local-file storage across processes or replicas.
 5. Check the live canonical, `/robots.txt`, `/sitemap.xml`, `/llms.txt`, `/promotions.md` and `/share-image`. Canonicals must use the public domain, with no `localhost`, preview host or query variants. Submit the sitemap through Google Search Console and Bing Webmaster Tools using your own verified accounts.
 6. Install from the actual HTTPS origin on iOS and Android. Check the Ready offline state, close/reopen offline, reconnect and accept an app update. An app manifest check cannot substitute for actual device installation.
@@ -51,7 +52,7 @@ Structured data describes the website, free web application and store breadcrumb
 
 `/llms.txt` is a discovery hint that links to source policy, store pages and request-time Markdown listings. `/promotions.md` is not cached and excludes expired, stale and unknown-expiry offers. Each record includes criteria, source, checkout status, published expiry and review-valid-until. It is kept out of search indexes to avoid duplicating HTML pages. Search and answer engines primarily rely on accessible HTML and their own policies; this file does not guarantee inclusion or ranking. Do not use expired cached feed content to make savings claims.
 
-AI extraction uses strict JSON-schema output, a 4,000-token response limit, bounded source text, retailer-specific source boundaries, evidence validation and a 90-second overall discovery deadline. Requests are cancelled when the deadline expires, and still-fresh previous listings remain usable. This has automated mocked-provider coverage; validate actual Tavily/OpenAI credentials and model access on the deployment before enabling broad discovery. Structured output and quoted evidence reduce errors but do not prove checkout eligibility or eliminate semantic mistakes.
+Source-specific extraction uses declarative JSON/HTML, text PDFs and reviewed evidence, with byte limits, a five-page store budget and a 90-second overall scan deadline. The optional CJ adapter rejects unjoined, foreign, malformed or undated offers. Incomplete leads remain in a separate review file. The collector does not use a model or paid search. Source evidence is not proof of checkout eligibility.
 
 ## Security, privacy and operations
 
@@ -59,7 +60,7 @@ API responses are `no-store` and excluded from indexing. Browser refresh/report 
 
 The app ships HSTS for HTTPS hosts, framing protection, restrictive browser permissions and a CSP limiting assets/connections to the app. Inline scripts/styles remain allowed because Next's streamed hydration, the pre-paint appearance script and the static offline shell need them. This policy is not a nonce-based XSS guarantee. Inline event attributes are blocked with `script-src-attr none`; frames and media are disallowed. Production disallows `unsafe-eval` and Zod uses interpreted validation; escaped JSON-LD and React escaping protect generated source content. Re-test offline launch before adopting a nonce policy: per-request nonces are incompatible with simply replaying a static cached shell.
 
-The app has no accounts, ad cookies or analytics trackers. Saved preferences/bookmarks and offline snapshots stay on the device. Reports contain a promotion ID, enumerated reason and time; rate-limit records use secret-keyed identifiers rather than raw addresses. Identifiers are pseudonymous; address identifiers rotate daily and expired limiter rows are removed at the next limiter request or scheduled cleanup. Hosting logs, Supabase, search/extraction services and public source links have their own privacy implications.
+The app has no accounts, ad cookies or analytics trackers. Saved preferences/bookmarks and offline snapshots stay on the device. Reports contain a promotion ID, enumerated reason and time; rate-limit records use secret-keyed identifiers rather than raw addresses. Identifiers are pseudonymous; address identifiers rotate daily and expired limiter rows are removed at the next limiter request or scheduled cleanup. Hosting logs, Supabase, optional affiliate feeds and public source links have their own privacy implications.
 
 Before public launch, review the privacy page against the actual hosting region, log retention and service-provider arrangements, provide the real operator identity/private contact and document processor contracts, cross-border transfers and backup retention. Reports are eligible for deletion after 30 days; the next successful report submission or scheduled cleanup deletes them from active storage. Cleanup runs before authenticated scheduled discovery, even if sources subsequently fail. A stopped scheduler can delay deletion; backup deletion remains an operator responsibility. These safeguards do not establish POPIA compliance. Review reports through the private database/file and correct inaccurate listings. There is no admin dashboard.
 
@@ -71,4 +72,4 @@ Before enabling refresh/report writes, set a strong `RATE_LIMIT_SECRET`, run the
 
 Check `pnpm check:production`, `/api/health`, a real report, one refresh plus its rate-limit response, and one scheduled cleanup. SQL tests run against an isolated PostgreSQL service in CI. For a local isolated PostgreSQL container, run `DATABASE_CONTAINER=<test-container> pnpm test:database`; never point this fixture runner at production. It creates test roles and rows.
 
-The [privacy and security audit](security-audit.md) lists evidence, fixes, remaining launch blockers and controls that could not be inspected. In particular, configure edge request/connection limits and provider spending caps; application rate limits do not prevent volumetric traffic or guarantee a fixed provider bill.
+The [privacy and security audit](security-audit.md) lists evidence, fixes, remaining launch blockers and controls that could not be inspected. In particular, configure edge request/connection limits and source request limits; application rate limits do not prevent volumetric traffic or enforce hosting/storage quotas.

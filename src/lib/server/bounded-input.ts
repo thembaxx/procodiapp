@@ -5,13 +5,13 @@ export class InputLimit extends Error {
 }
 
 // A byte limit alone cannot stop a peer that never finishes sending its body.
-export async function boundedText(
+export async function boundedBytes(
   input: { body: ReadableStream<Uint8Array> | null; headers: Headers },
   maximumBytes: number,
   timeoutMs = 8000,
-): Promise<string> {
+): Promise<Uint8Array> {
   if (Number(input.headers.get("content-length") ?? 0) > maximumBytes) throw new InputLimit("size");
-  if (!input.body) return "";
+  if (!input.body) return new Uint8Array();
   const reader = input.body.getReader();
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -32,7 +32,7 @@ export async function boundedText(
           body.set(chunk, offset);
           offset += chunk.byteLength;
         }
-        return new TextDecoder("utf-8", { fatal: true }).decode(body);
+        return body;
       })(),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new InputLimit("timeout")), timeoutMs);
@@ -43,6 +43,16 @@ export async function boundedText(
     // Cancellation must not allow a hostile stream's cancel hook to hold the request open.
     void reader.cancel().catch(() => {});
   }
+}
+
+export async function boundedText(
+  input: { body: ReadableStream<Uint8Array> | null; headers: Headers },
+  maximumBytes: number,
+  timeoutMs = 8000,
+): Promise<string> {
+  return new TextDecoder("utf-8", { fatal: true }).decode(
+    await boundedBytes(input, maximumBytes, timeoutMs),
+  );
 }
 
 export async function boundedJson(response: Response, maximumBytes: number): Promise<unknown> {

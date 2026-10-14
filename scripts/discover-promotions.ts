@@ -1,31 +1,46 @@
 import { createRequire } from "node:module";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 const require = createRequire(import.meta.resolve("next/package.json"));
 require("@next/env").loadEnvConfig(process.cwd(), false);
 
 async function main() {
-  // A temporary Actions filesystem cannot be the app's shared promotion store.
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)
-    throw new Error("Scheduled discovery needs shared Supabase storage.");
-  if ((process.env.RATE_LIMIT_SECRET ?? "").length < 32)
+  const publish = process.argv.includes("--publish");
+  if (
+    publish &&
+    (process.env.PROMOTION_FEED === "github" || process.env.SUPABASE_URL || !process.env.DATA_DIR)
+  )
+    throw new Error("Feed publishing needs a local output directory.");
+  if (process.env.GITHUB_ACTIONS && !publish && !process.env.SUPABASE_URL)
+    throw new Error("An Actions runner must publish its feed or use shared storage.");
+  if (process.env.SUPABASE_URL && (process.env.RATE_LIMIT_SECRET ?? "").length < 32)
     throw new Error("Scheduled discovery needs the app's strong rate-limit secret.");
   const { cleanupExpiredData } = await import("../src/lib/server/storage");
-  const { requireWebDiscovery } = await import("../src/lib/server/discovery");
-  const { DiscoveryBusyError, hasWebDiscovery, refreshPromotions } =
+  const { requireDiscovery, discoverOffers, discoveryCandidates } =
+    await import("../src/lib/server/discovery");
+  const { DiscoveryBusyError, hasCompletedDiscovery, refreshPromotions } =
     await import("../src/lib/server/promotion-refresh");
   // Report retention still runs if search configuration or providers fail.
   await cleanupExpiredData();
-  requireWebDiscovery();
+  requireDiscovery();
   const deadline = Date.now() + 120_000;
   for (;;) {
     try {
-      const data = await refreshPromotions();
-      if (!hasWebDiscovery(data)) throw new Error("No web discovery completed.");
-      const checked = data.checks.filter(
-        (check) => check.searched && (check.extractedPages ?? 0) > 0,
-      ).length;
+      const data = publish
+        ? { ...(await discoverOffers()), reused: false }
+        : await refreshPromotions();
+      if (!hasCompletedDiscovery(data)) throw new Error("No source check completed.");
+      if (publish) {
+        await mkdir(process.env.DATA_DIR!, { recursive: true });
+        await writeFile(
+          path.join(process.env.DATA_DIR!, "candidates.json"),
+          JSON.stringify(discoveryCandidates(), null, 2),
+        );
+      }
+      const checked = data.checks.filter((check) => check.status === "checked").length;
       console.log(
-        `${data.reused ? "Loaded recent scan" : "Updated shared promotions"}: ${data.offers.length} active offers, ${data.newOfferIds.length} new, ${checked}/${data.checks.length} stores checked.`,
+        `${data.reused ? "Loaded recent scan" : publish ? "Prepared public feed" : "Updated shared promotions"}: ${data.offers.length} active offers, ${data.newOfferIds.length} new, ${checked}/${data.checks.length} stores checked.`,
       );
       if (checked < data.checks.length || data.checks.some((check) => check.message))
         console.warn(
@@ -44,7 +59,7 @@ try {
   await main();
 } catch {
   console.error(
-    "Promotion discovery failed. Check shared storage, RATE_LIMIT_SECRET, SEARCH_PROVIDER=tavily, TAVILY_API_KEY and OPENAI_API_KEY. Existing fresh data remains available; no credentials or source contents are logged.",
+    "Promotion discovery failed. Check public-source availability, storage/output configuration and any optional CJ fallback settings. Existing fresh data retains its original deadline; no credentials or source contents are logged.",
   );
   process.exitCode = 1;
 }

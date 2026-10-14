@@ -59,7 +59,7 @@ test("uses real refresh response to copy, save, and report a discovered code", a
         updatedAt: new Date().toISOString(),
         checks: [],
         newOfferIds: [testOffer.id],
-        mode: "web_search",
+        mode: "free_sources",
       },
     }),
   );
@@ -101,7 +101,7 @@ test("reports refresh limits without discarding offers", async ({ page }) => {
   await expect(page.locator(".store-card")).toHaveCount(6);
 });
 
-test("loads the latest daily scan when refresh reuses a recently checked result", async ({
+test("loads the latest scheduled scan when refresh reuses a recently checked result", async ({
   page,
 }) => {
   await page.route("**/api/refresh", (route) =>
@@ -111,7 +111,7 @@ test("loads the latest daily scan when refresh reuses a recently checked result"
         updatedAt: new Date().toISOString(),
         checks: [],
         newOfferIds: [],
-        mode: "web_search",
+        mode: "free_sources",
         reused: true,
       },
     }),

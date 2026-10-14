@@ -68,13 +68,14 @@ export default function PrivacyPage() {
       <section className="content-section">
         <h2>External services</h2>
         <p>
-          When configured, Tavily searches for retailer promotions and OpenAI extracts terms from
-          public source text. These server-side requests use retailer queries and page evidence,
-          rather than your bookmarks or personal search text. Supabase may store the shared offer
-          cache, report records and rate-limit hashes. Following a source link opens a retailer or
-          voucher website with its own privacy practices. These providers may process data outside
-          South Africa; their current terms and the operator's provider arrangements determine the
-          locations and retention. Browser searches and bookmarks are not sent to Tavily or OpenAI.
+          The scheduled collector reads public retailer pages and, when configured, a free affiliate
+          offer feed. It uses fixed retailer sources rather than your bookmarks or personal search
+          text. GitHub may host the public promotion feed and review candidates. Supabase may store
+          the shared offer cache, report records and rate-limit hashes. Following a source link
+          opens a retailer or voucher website with its own privacy practices. These providers may
+          process data outside South Africa; their current terms and the operator's provider
+          arrangements determine locations and retention. No AI model or paid search service is used
+          for collection.
         </p>
       </section>
       <section className="content-section">

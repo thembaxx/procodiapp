@@ -24,15 +24,15 @@ export default function AboutPage() {
       <section className="content-section">
         <h2>Evidence first</h2>
         <p>
-          We check accessible public retailer pages. When web search and extraction are configured,
-          we also look for additional promotions on supported public domains. Sources must permit
-          automated access. Every listing includes qualifying criteria, a source link and a review
-          time.
+          We check accessible public retailer pages and, when configured, an affiliate offer feed.
+          Incomplete coupon leads need supporting retailer terms before publication. Sources must
+          permit automated access. Every listing includes qualifying criteria, a source link and a
+          review time.
         </p>
         <p>
-          AI-assisted extraction treats source pages as untrusted data and checks quoted evidence
-          against the page. It can still misinterpret unusual terms. We do not invent codes,
-          guarantee checkout success or claim that source-listed offers have been tested.
+          Collection uses source-specific rules and checks reviewed evidence against the source.
+          Unclear conditions need further review. We do not invent codes, guarantee checkout success
+          or claim that source-listed offers have been tested.
         </p>
       </section>
       <section className="content-section">

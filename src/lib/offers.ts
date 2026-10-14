@@ -25,6 +25,7 @@ export const offerSchema = z
     validUntil: z.iso.datetime({ offset: true }),
     verified: z.boolean(),
     evidence: z.string().min(10).max(800),
+    collectionMethod: z.enum(["official_page", "reviewed_source", "affiliate_api"]).optional(),
   })
   .refine((offer) => {
     const store = stores.find((item) => item.id === offer.storeId);
@@ -37,13 +38,17 @@ export const sourceCheckSchema = z.object({
   pages: z.number().int().min(0).max(5),
   searched: z.boolean().optional(),
   extractedPages: z.number().int().min(0).max(5).optional(),
+  parsedPages: z.number().int().min(0).max(5).optional(),
+  fallback: z.enum(["not_needed", "unconfigured", "checked", "unavailable"]).optional(),
+  fallbackOffers: z.number().int().min(0).max(300).optional(),
+  candidates: z.number().int().min(0).max(100).optional(),
   message: z.string().max(250).optional(),
 });
 export const cacheSchema = z.object({
   offers: z.array(offerSchema).max(500),
   updatedAt: z.iso.datetime({ offset: true }).nullable(),
   checks: z.array(sourceCheckSchema).max(6),
-  mode: z.enum(["public_pages", "web_search"]),
+  mode: z.enum(["public_pages", "web_search", "free_sources"]),
 });
 export const offersResponseSchema = cacheSchema.extend({
   newOfferIds: z.array(z.string().min(1).max(180)).max(500),

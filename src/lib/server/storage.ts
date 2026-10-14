@@ -15,6 +15,7 @@ import { cacheSchema, type OffersResponse } from "../offers";
 import { sourceSnapshot } from "../snapshot";
 import { z } from "zod";
 import { boundedJson } from "./bounded-input";
+import { readGithubFeed, usesGithubFeed } from "./github-feed";
 
 export const PUBLIC_DISCOVERY_COOLDOWN_SECONDS = 600;
 export const REPORT_RETENTION_DAYS = 30;
@@ -64,6 +65,7 @@ async function database(endpoint: string, init: RequestInit = {}) {
 }
 
 export async function readCache(): Promise<Cache> {
+  if (usesGithubFeed()) return readGithubFeed();
   try {
     const raw = hasSupabase()
       ? (
@@ -85,6 +87,7 @@ export async function readCache(): Promise<Cache> {
 }
 
 export async function writeCache(data: Cache): Promise<void> {
+  if (usesGithubFeed()) throw new Error("The scheduled GitHub feed is read-only in the app.");
   data = cacheSchema.parse(data);
   if (hasSupabase()) {
     await database("promotion_cache?on_conflict=id", {
@@ -232,6 +235,7 @@ export async function saveReport(offerId: string, reason: string) {
 
 export async function checkStorage(): Promise<boolean> {
   try {
+    if (usesGithubFeed()) await readGithubFeed();
     if (hasSupabase()) await database("promotion_cache?select=id&limit=1");
     else {
       if (process.env.SUPABASE_URL || process.env.SUPABASE_SERVICE_ROLE_KEY) return false;

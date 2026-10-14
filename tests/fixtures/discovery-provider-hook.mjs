@@ -8,59 +8,35 @@ const retailers = [
   ["Makro", "makro.co.za"],
 ];
 const text =
-  "South African online grocery shoppers save R40 using WORKER40 on a basket of R400. This promotion ends on 2099-12-31. Delivery area exclusions and checkout eligibility apply.";
-let searches = 0;
+  "<article><h2>Worker fixture grocery promotion</h2><p>South African online groceries: save R40 using code WORKER40. Minimum spend R400. Expires on 2099-12-31. Delivery exclusions and checkout eligibility apply.</p></article>";
+const githubRequests = [];
 globalThis.fetch = async (target, options = {}) => {
   const url = String(target);
+  if (url.startsWith("https://api.github.com/repos/test/publisher/git/")) {
+    if (options.headers?.Authorization !== "Bearer publisher-test-only-token")
+      throw new Error("Unexpected publication authentication.");
+    const record = {
+      url,
+      method: options.method,
+      body: options.body ? JSON.parse(options.body) : null,
+    };
+    githubRequests.push(record);
+    await writeFile(process.env.DISCOVERY_GITHUB_OUTPUT, JSON.stringify(githubRequests));
+    if (url.endsWith("git/ref/heads/promotion-data"))
+      return new Response("Missing", { status: 404 });
+    return Response.json({ sha: String(githubRequests.length).padStart(40, "0") });
+  }
   if (url.startsWith("https://storage.example.invalid/rest/v1/")) {
     if (url.includes("rpc/cleanup_expired_data")) return Response.json(0);
     if (url.includes("rpc/take_refresh_slot")) return Response.json(0);
     if (options.method === "POST" && url.includes("promotion_cache")) {
       await writeFile(
         process.env.DISCOVERY_TEST_OUTPUT,
-        JSON.stringify({ searches, record: JSON.parse(options.body) }),
+        JSON.stringify({ record: JSON.parse(options.body) }),
       );
       return new Response(null, { status: 204 });
     }
     return Response.json([]);
-  }
-  if (url === "https://api.tavily.com/search") {
-    searches++;
-    const query = JSON.parse(options.body).query;
-    const retailer = retailers.find(([name]) => query.includes(name));
-    return Response.json({ results: [{ url: `https://www.${retailer[1]}/worker-promotion` }] });
-  }
-  if (url === "https://api.openai.com/v1/chat/completions") {
-    const page = JSON.parse(JSON.parse(options.body).messages[1].content).sourceUrl;
-    return Response.json({
-      choices: [
-        {
-          message: {
-            content: JSON.stringify({
-              offers: page.endsWith("/worker-promotion")
-                ? [
-                    {
-                      code: "WORKER40",
-                      type: "discount",
-                      title: "Worker fixture grocery promotion",
-                      criteria:
-                        "South African online groceries; minimum basket R400; delivery area exclusions and checkout eligibility apply.",
-                      expiresAt: "2099-12-31",
-                      ongoing: false,
-                      evidence:
-                        "South African online grocery shoppers save R40 using WORKER40 on a basket of R400.",
-                      expiryEvidence: "This promotion ends on 2099-12-31.",
-                      codeEvidence: "save R40 using WORKER40 on a basket of R400.",
-                      minBasketZar: 400,
-                      newCustomersOnly: false,
-                    },
-                  ]
-                : [],
-            }),
-          },
-        },
-      ],
-    });
   }
   if (url.endsWith("/robots.txt"))
     return new Response("User-agent: *\nAllow: /", { headers: { "Content-Type": "text/plain" } });
@@ -70,5 +46,6 @@ globalThis.fetch = async (target, options = {}) => {
     )
   )
     return new Response(text, { headers: { "Content-Type": "text/html" } });
+  if (url.includes("wethrift.com")) return new Response("Unavailable", { status: 503 });
   throw new Error("Fixture blocked an unexpected network request.");
 };
