@@ -1,36 +1,55 @@
-# Daily and on-demand promotion discovery
+# Free promotion collection and fallback
 
-**Discover promotions** runs daily at **04:17 UTC / 06:17 SAST** and supports manual dispatch on [GitHub Actions](https://github.com/thembaxx/procodiapp/actions/workflows/discovery.yml). GitHub can queue scheduled runs; exact timing is not guaranteed.
+**Discover promotions** runs every six hours at `04:17, 10:17, 16:17, 22:17 UTC`, with manual dispatch on [GitHub Actions](https://github.com/thembaxx/procodiapp/actions/workflows/discovery.yml). Standard runners for this public repository are free. The collector makes no AI or paid-search requests. GitHub schedules may be delayed or dropped and can be disabled after 60 days without repository activity.
 
-The worker runs `pnpm discover` on Actions, searching Tavily for Checkers Sixty60, Pick n Pay asap!, Woolworths Dash, Shoprite, SPAR2U and Makro, then checking source pages and extracting offers with OpenAI. The app's **Refresh** button uses the same scan/update service. Both write to the same Supabase `promotion_cache` row. The workflow does not depend on `APP_URL` or a long-running Vercel request.
+## Primary collection
 
-## Activate
+The worker fetches approved official sources for the six South African grocery retailers, reads robots policies, and parses HTML promotion blocks, declarative JSON-LD, and text PDFs. Reviewed benefit evidence is checked without cutting away the end of long terms pages. Approved campaign/terms links share a five-page budget per store. Source requests reject redirects, retain byte/time limits, and never bypass login or CAPTCHA.
 
-1. Configure Supabase and apply the current `supabase/schema.sql` to the intended project, including its wall-clock cooldown correction. Use the server-only service-role key, never the anonymous key.
-2. Add these [GitHub Actions secrets](https://github.com/thembaxx/procodiapp/settings/secrets/actions), either at repository level or in the `discovery` environment:
+Only dated offers with source-listed codes and online grocery eligibility become live offers. The country, shopping channel, basket requirement, first-order limits and exclusions matter. Source-listed is not tested at checkout. A reviewed recurring membership benefit can have no listed end date; it still expires from the app after 24 hours without confirmation.
 
-   - `TAVILY_API_KEY`
-   - `OPENAI_API_KEY`
-   - `SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `RATE_LIMIT_SECRET` — the same separate random 32+ character value as the app
+The Pick n Pay Wethrift page supplies **review leads only** by parsing its embedded public JSON. Retired entries are excluded. Scores and posting dates do not establish expiry. Picodi and Wethrift SPAR are not automatic publication sources.
 
-3. Set the same values on the production app host, plus `SEARCH_PROVIDER=tavily`, then redeploy. Set `EXTRACTION_MODEL` on the server and optionally as a repository variable; the default is `gpt-4.1-mini`. Keep the other [production configuration](production.md).
-4. Restrict the `discovery` environment to trusted main deployments and [protect main](repository-automation.md). The workflow rejects other refs and receives provider/database secrets only after dependency installation. Its repository token is read-only.
-5. Select **Run workflow → main**. Check the success summary, then `/api/offers`: `mode` should be `web_search`, `updatedAt` should advance, and per-store checks should include `searched: true` and successful `extractedPages`. Zero offers can be a legitimate successful result. Press Refresh in the app to verify it loads the shared data.
+## Optional second path: CJ Affiliate
 
-Never paste keys in chat/issues, commit environment files, or use `NEXT_PUBLIC_*` for server credentials. Owner setup remains necessary: the current connection returns HTTP 403 for secret administration and live storage has been unavailable. Committed configuration and mock-provider tests do not establish successful live discovery.
+The fallback uses CJ's documented [Link Search API](https://developers.cj.com/docs/rest-apis/link-search). [Publisher signup is free](https://www.cj.com/support); the user must have an approved property and participating South African advertiser programmes. This repository does not assume that all six stores are in CJ.
 
-## Validation and updates
+Configure these in the GitHub `discovery` environment or repository:
 
-- Queries use the current South African date and online grocery/free delivery/discount terms. Search results, current-code pages and official sources share a bounded page budget.
-- URLs use exact approved hosts. Aggregator paths must identify the retailer; Picodi pages must be South African. Robots policies, redirects, byte caps and deadlines still apply. Login/CAPTCHA and inaccessible app-only campaigns are not bypassed.
-- Codes require quoted source/code evidence and a published, parseable, unexpired expiry. Unknown expiry and impossible calendar dates are rejected. Explicit recurring membership benefits may have no expiry and show **No code needed**, with their fees/criteria.
-- A completed source evaluation supersedes its old listings. Ended or no-longer-confirmed codes are removed. Source/extraction failures retain only still-fresh previous listings without extending their deadlines. Stale/expired records are pruned. Total failure does not advance the successful scan timestamp.
-- Deduplicated listings retain retailer, code, criteria, minimum basket, source, expiry and review/freshness times. Pages, filters, copying and offline snapshots use this data. Evidence establishes a source-listed promotion, not checkout success; codes stay marked **not tested at checkout**.
-- All triggers share the atomic ten-minute discovery budget; browser clients also have a one-minute limit. Recent completed scans return immediately. Busy scans without a fresh result return 429; the worker waits briefly for the active scan rather than launching another paid search. Failed attempts cool down too. Configure provider spending caps and alerts.
-- Scheduled cleanup removes expired limit rows and reports eligible after 30 days before searching. Logs contain only counts and generic failures, never keys, coupon contents, source bodies or private report data. Missing configuration and total provider/search failure fail the job explicitly.
+- Secret `CJ_API_TOKEN`: a publisher personal access token.
+- Variable `CJ_WEBSITE_ID`: the numeric property/PID registered with that token.
+- Variable `CJ_ADVERTISERS`: JSON mapping store IDs to approved advertiser ID strings, such as `{"pnp":["12345"]}`. The example ID is illustrative; select the real South African programme IDs from your account.
 
-Inspect safe `checks[].message` for unavailable stores and retry later. Alert on failed daily jobs and a successful scan timestamp older than 24 hours. Refresh needs connectivity; offline mode retains its expiry/freshness rules.
+Leave all three unset to run only primary collection. A partially configured fallback fails explicitly. CJ is queried for a store only when official checks fail or produce no eligible coupon code. No fallback subscription is installed.
 
-The authenticated `GET /api/cron` remains an alternative scheduler entrypoint using `CRON_SECRET` and the same shared budget. `scripts/run-discovery.mjs` is an optional HTTPS caller; GitHub uses the direct worker. No SQL migration or account setup is performed automatically.
+The adapter requires `joined` status, a configured advertiser ID, explicit `ZA` targeting, an approved official merchant destination, online grocery terms, and valid promotion dates. It never follows affiliate tracking redirects. CJ timestamps documented as UTC keep UTC; retailer date-only expiry ends at 23:59:59.999 SAST. Responses have a bounded three-page budget; a truncated or failed response cannot remove prior affiliate listings. Credentials go only to the fixed CJ endpoint and are never included in the public feed or logs.
+
+## Activate the GitHub feed
+
+1. Merge the implementation onto `main`, then manually run **Discover promotions → main**. The trusted-main job uses its scoped `GITHUB_TOKEN` to create/update the separate `promotion-data` branch. The primary collector needs no manually configured API or database secret.
+2. Confirm the job succeeds and the branch contains `offers.json` and `candidates.json`. Publication only occurs after at least one official source or configured CJ source completes. Zero coupons is a valid result; total source failure fails the job and leaves the published branch unchanged.
+3. Set `PROMOTION_FEED=github` on the app and redeploy. `PROMOTION_FEED_REPOSITORY` defaults to `thembaxx/procodiapp`; change it for a fork. This setting is server-only. The public feed is fetched from a fixed GitHub raw-content origin, validated and cached for at most a minute during normal operation.
+4. Check `/api/offers`: `mode` is `free_sources`, with a real `updatedAt`, `parsedPages` and per-store `fallback` status. Refresh reads the latest feed; it does not run collection in the browser. An old feed or failed scan is not reported as fresh. Existing offline expiry checks remain active.
+
+The publisher loads the previous feed so failed sources retain still-fresh prior listings with their original deadlines. Successful source evaluations remove unconfirmed prior listings. Expired/stale offers are pruned. Publication is a non-force update and concurrency prevents overlapping jobs. The data branch does not rebuild the application on each scan.
+
+The app's private reports and rate limits still need a persistent local directory for one Node instance, or the existing Supabase storage for serverless/multiple instances. GitHub offer publication does not replace those private records. If the existing Supabase URL and service-role key are configured as Actions secrets, optional private cleanup runs after the collection/publication steps, even when they fail. Otherwise local report retention runs on writes. No SQL migration is needed.
+
+## Review incomplete coupons
+
+Inspect `candidates.json` on the data branch. Candidates are never returned as live offers. Reasons include missing expiry, unclear eligibility and foreign region. A reviewer must find supporting public retailer terms; review cannot invent an end date or make a foreign campaign South African.
+
+Add a qualifying dated record to `data/reviewed-promotions.json` through a reviewed PR. Each record contains `storeId`, approved official `sourceUrl`, `code` (or null), `title`, `criteriaEvidence`, `expiresAt`, `expiryEvidence` and `codeEvidence` (or null). Evidence fields are exact source quotes. `expiryEvidence` needs an explicit date phrase such as “Expires on 31 December 2026.” At every scan, all evidence must still exist in the source, the expiry must match, and the criteria must support online groceries. Do not put personal, single-use or account-specific vouchers in the repository.
+
+## Local or shared-database collection
+
+Keep `PROMOTION_FEED=local` and run `pnpm discover`. It uses existing persistent file storage or Supabase and the same source/fallback adapters as Refresh and authenticated `/api/cron`. Keep the existing production rate-limit secret and storage requirements. CJ settings, if wanted in this mode, belong only on the server.
+
+For a filesystem publication trial, use `DATA_DIR=/absolute/output/path PROMOTION_FEED=local pnpm discover --publish`. This writes `offers.json` and a separate review file without requiring model, search, or database keys. A GitHub runner without publication or shared storage is rejected because its filesystem is temporary.
+
+## Operational checks
+
+- Monitor failed jobs, unavailable stores, and `updatedAt` older than 24 hours. A successful fetch does not guarantee a working coupon.
+- Keep source URLs and parsers current. Primary pages can be blocked, use JavaScript, change layout, or only advertise in-store specials. CJ coverage remains account-specific.
+- Keep Actions artifacts/cache within their free allowances. No scraping proxy, hosted model or paid-search dependency is required.
+- Roll back to the previous application commit if needed; switch back to `PROMOTION_FEED=local` with persistent/shared storage to use local collection. The old AI settings are ignored by the new collector.

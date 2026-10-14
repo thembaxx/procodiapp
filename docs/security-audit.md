@@ -1,5 +1,7 @@
 # Little Less privacy and security audit
 
+Collection update (14 October 2026): the current implementation replaces Tavily/OpenAI with deterministic official sources and an optional CJ publisher fallback. Public offer/review facts may be published on `promotion-data`; private reports remain in their existing storage. The audit observations below describe the original deployment, not a completed audit of the new collector.
+
 Audit date: **9 October 2026 (UTC)**. Baseline: `c7d79922ff379c2ed63340f74f2fdf0149b2f76c`. Public deployment: <https://procodiapp.vercel.app>. The remediation is recorded in the Git commit containing this report.
 
 **The application has stronger safeguards after this audit, but public-launch readiness remains blocked by unavailable live storage and missing operator/private-contact configuration.** No critical exploitable issue was identified within the reviewed scope. This is a code review and targeted technical audit, not a legal compliance certification or exhaustive penetration test.

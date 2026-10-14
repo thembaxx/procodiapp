@@ -77,12 +77,39 @@ if (!supabase) {
     "Use exactly one Node instance with local storage. Multiple instances require Supabase. A writable directory does not verify persistence across redeploys.",
   );
 }
-if (
-  process.env.SEARCH_PROVIDER !== "tavily" ||
-  !process.env.TAVILY_API_KEY ||
-  !process.env.OPENAI_API_KEY
-)
-  issues.push("Live discovery needs SEARCH_PROVIDER=tavily, TAVILY_API_KEY and OPENAI_API_KEY.");
+if (!["local", "github"].includes(process.env.PROMOTION_FEED || "local"))
+  issues.push("PROMOTION_FEED must be local or github.");
+if (process.env.PROMOTION_FEED === "github")
+  notes.push(
+    "Offers come from the promotion-data branch. Run the discovery workflow successfully before enabling this mode. Reports and rate limits still need local storage or Supabase.",
+  );
+const cj = [process.env.CJ_API_TOKEN, process.env.CJ_WEBSITE_ID, process.env.CJ_ADVERTISERS];
+if (process.env.PROMOTION_FEED !== "github" && cj.some(Boolean)) {
+  if (!cj.every(Boolean) || !/^[1-9]\d{0,15}$/.test(process.env.CJ_WEBSITE_ID || ""))
+    issues.push(
+      "Optional CJ fallback needs its token, numeric website ID and advertiser mapping together.",
+    );
+  try {
+    const advertisers = JSON.parse(process.env.CJ_ADVERTISERS || "{}");
+    if (
+      !advertisers ||
+      Array.isArray(advertisers) ||
+      typeof advertisers !== "object" ||
+      Object.entries(advertisers).some(
+        ([store, ids]) =>
+          !["checkers", "pnp", "woolworths", "shoprite", "spar", "makro"].includes(store) ||
+          !Array.isArray(ids) ||
+          ids.length > 5 ||
+          ids.some((id) => typeof id !== "string" || !/^[1-9]\d{0,15}$/.test(id)),
+      )
+    )
+      throw new Error("Invalid mapping");
+  } catch {
+    issues.push(
+      "CJ_ADVERTISERS must map supported store IDs to arrays of approved advertiser IDs.",
+    );
+  }
+}
 if (process.env.TRUST_PROXY === "true")
   notes.push(
     "Verify that your ingress overwrites x-forwarded-for; never trust client-supplied forwarding headers.",

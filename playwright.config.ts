@@ -12,6 +12,7 @@ const chromiumLaunchOptions = {
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  testIgnore: "feed.spec.ts",
   globalSetup: "./tests/e2e/setup.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
@@ -23,6 +24,12 @@ export default defineConfig({
     serviceWorkers: "block",
   },
   projects: [
+    {
+      name: "feed",
+      testMatch: "feed.spec.ts",
+      testIgnore: [],
+      use: { viewport: { width: 1440, height: 1000 }, ...chromiumLaunchOptions },
+    },
     {
       name: "mobile",
       use: { ...devices["iPhone 13"], defaultBrowserType: "chromium", ...chromiumLaunchOptions },
@@ -49,7 +56,10 @@ export default defineConfig({
       SITE_URL: "https://grocery.example",
       INDEXING_ENABLED: "true",
       CONTACT_EMAIL: "privacy@grocery.example",
-      SEARCH_PROVIDER: "none",
+      PROMOTION_FEED: "local",
+      CJ_API_TOKEN: "",
+      CJ_WEBSITE_ID: "",
+      CJ_ADVERTISERS: "",
       SUPABASE_URL: "",
       SUPABASE_SERVICE_ROLE_KEY: "",
       CRON_SECRET: "",

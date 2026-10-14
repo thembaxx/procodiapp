@@ -728,7 +728,7 @@ export function GroceryApp({
         return;
       }
       setStatus(
-        `${found ? `${found} new ${found === 1 ? "offer" : "offers"} found.` : "Search complete. No new confirmed offers."}${unavailable ? ` ${unavailable} ${unavailable === 1 ? "store was" : "stores were"} unavailable.` : partial ? " Some pages were unavailable." : ""}`,
+        `${found ? `${found} new ${found === 1 ? "offer" : "offers"} found.` : "Source check complete. No new confirmed offers."}${unavailable ? ` ${unavailable} ${unavailable === 1 ? "store was" : "stores were"} unavailable.` : partial ? " Some pages were unavailable." : ""}`,
       );
       showToast(
         found
@@ -739,7 +739,7 @@ export function GroceryApp({
       );
     } catch (error) {
       const message = controller.signal.aborted
-        ? "The search took too long. Try again in a moment."
+        ? "The source check took too long. Try again in a moment."
         : error instanceof Error
           ? error.message
           : "We couldn't refresh right now.";
@@ -799,7 +799,7 @@ export function GroceryApp({
     timeZone: "Africa/Johannesburg",
   });
   const initialStatus = data.updatedAt
-    ? `Last search ${new Date(data.updatedAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" })} SAST · ${data.mode === "web_search" ? "Web search & public sources" : "Public promotion pages"}`
+    ? `Last check ${new Date(data.updatedAt).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" })} SAST · ${data.mode === "free_sources" ? "Public sources & free feeds" : "Public promotion pages"}`
     : "Source-backed listings · refresh to check for something new";
 
   return (

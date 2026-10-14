@@ -68,29 +68,24 @@ The attached prototype contains placeholder coupon codes. **None of those codes 
 
 The initial snapshot includes Checkers Xtra Savings Plus delivery, Woolworths MyDifference PLUS online delivery, and Makro's senior food discount. Woolworths online delivery is not presented as confirmed Dash free delivery. Offers requiring membership show that requirement. Stores without a confirmed offer remain visible at the bottom.
 
-**Without API keys:** browsing remains available, but browser Refresh and scheduled discovery fail explicitly instead of claiming a web search occurred. The low-level public-page checker remains available to development fixtures; it does not discover arbitrary codes. Retailer anti-bot protections, JavaScript-only pages and robots restrictions can make a source unavailable. Partial results retain still-fresh listings without extending their freshness deadline.
+**Free collection:** official HTML promotion blocks, JSON-LD, text PDFs and reviewed evidence are parsed without model or paid-search keys. Approved campaign links share a bounded page budget. Retailer protections and JavaScript-only pages can make a source unavailable. Partial failures retain only still-fresh listings with their original deadlines.
 
-**To discover new offers across the web**, configure both search and extraction:
+**Optional free fallback:** CJ Affiliate Link Search is queried when a store's official sources fail or yield no eligible coupon. It needs a free publisher account, an approved property, and approved South African advertiser IDs. Coverage is not assumed. Configure `CJ_API_TOKEN`, `CJ_WEBSITE_ID` and `CJ_ADVERTISERS` together, or leave all unset. The adapter validates advertiser identity, joined status, ZA targeting, merchant destination, eligibility and expiry. It uses bounded requests and does not follow tracking redirects.
 
-```dotenv
-SEARCH_PROVIDER=tavily
-TAVILY_API_KEY=your_server_only_key
-OPENAI_API_KEY=your_server_only_key
-EXTRACTION_MODEL=gpt-4.1-mini
-```
+**Shared feed without a database subscription:** the Actions workflow publishes validated `offers.json` and unconfirmed `candidates.json` on a separate `promotion-data` branch. Set `PROMOTION_FEED=github` on the app after the first successful scan. Browser Refresh loads the scheduled feed. Private reports/rate limits still need the existing persistent file or Supabase storage. `PROMOTION_FEED=local` keeps local/shared-database collection available.
 
-The pipeline queries Tavily for each store, checks candidate URLs against the supported retailer/voucher-domain list, honours robots rules, and reads accessible public pages with timeouts and size limits. OpenAI extracts strict JSON-schema offers with a 4,000-token response cap; Zod validates them. Discovery has a 90-second overall deadline propagated to source and provider requests. Verbatim evidence must exist in the fetched page, a coupon must appear in its code evidence, and expiry must be supported. Unknown-expiry promotions and expired offers are excluded. An explicitly recurring membership benefit may have a null expiry. LLM extraction is evidence-checked but still requires human review for unusual terms; it does not test checkout.
+Pick n Pay's public coupon-site JSON supplies review leads only. Unknown-expiry leads are not live offers. A reviewer can add exact retailer evidence to `data/reviewed-promotions.json`; every later scan rechecks it. Explicit recurring membership benefits can have no listed expiry, with fees and eligibility preserved. Read the [collection and fallback guide](docs/promotion-discovery.md) for setup and limits.
 
 All discovered codes are marked **not tested at checkout**. The app never generates or silently guesses a coupon code. Date-only expiry is interpreted as 23:59:59.999 in `Africa/Johannesburg` (UTC+2). Offers are deduplicated by retailer plus code or title. Every listing links to its source, shows its last review time, and supports reporting a problem.
 
 ## API
 
-| Endpoint                                | Behaviour                                                                                                                                                                      |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET /api/offers?filter=all&q=checkers` | Fresh, unexpired offers. Filters: `all`, `free_delivery`, `discount`. Search matches retailer and loyalty names.                                                               |
-| `POST /api/refresh`                     | Searches the web and updates shared offers, or loads a recent completed scan. Requires search/extraction configuration. Client and shared limits apply; busy scans return 429. |
-| `POST /api/report`                      | Saves a report for an existing listing. Body: `{ "offerId": "...", "reason": "The code didn't work" }`. Also accepts `The offer has ended` and `The terms are different`.      |
-| `GET /api/cron`                         | Authenticated discovery. Header: `Authorization: Bearer <CRON_SECRET>`.                                                                                                        |
+| Endpoint                                | Behaviour                                                                                                                                                                 |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/offers?filter=all&q=checkers` | Fresh, unexpired offers. Filters: `all`, `free_delivery`, `discount`. Search matches retailer and loyalty names.                                                          |
+| `POST /api/refresh`                     | Checks public sources or loads the scheduled GitHub feed. No model or search key is required. Client and shared limits apply; busy scans return 429.                      |
+| `POST /api/report`                      | Saves a report for an existing listing. Body: `{ "offerId": "...", "reason": "The code didn't work" }`. Also accepts `The offer has ended` and `The terms are different`. |
+| `GET /api/cron`                         | Authenticated collection/feed check. Header: `Authorization: Bearer <CRON_SECRET>`.                                                                                       |
 
 Refresh and reports validate browser origin. Set `TRUST_PROXY=true` only when the deployment ingress overwrites `x-forwarded-for`; otherwise all local clients share a conservative refresh bucket. No raw IP addresses are stored by the app. Set a separate `RATE_LIMIT_SECRET` (32+ random characters) in production; address identifiers use daily rotating HMACs. Public discovery has a shared ten-minute cooldown. Reports are removed after 30 days during the next report write or scheduled cleanup, using the updated service-role-only Supabase RPCs. Apply the current `supabase/schema.sql` before enabling writes. The single-node development limiter is in memory; Supabase provides an atomic distributed limiter.
 
@@ -113,7 +108,7 @@ This stores the shared offer cache, reports and rate limits in Postgres through 
 
 A Dockerfile is included for a Node deployment. Mount `/app/.data` on a persistent volume, or configure Supabase. Provide discovery secrets at runtime, not during the build. A static-only host cannot run the discovery APIs.
 
-The GitHub discovery workflow runs daily at **06:17 SAST** and supports manual dispatch on main. It uses the same scan/update service as Refresh and writes directly to shared Supabase storage. Configure secrets using the [daily discovery guide](docs/promotion-discovery.md); `APP_URL` and `CRON_SECRET` are not needed for this worker. Run it against your configured shared storage with `pnpm discover`. No hosting account or provider keys are bundled in the repository.
+The GitHub collector runs every six hours and supports manual dispatch on main. The primary path needs no model, paid search or database key. It publishes a separate data branch; optional CJ credentials enable the fallback. A successful scan requires at least one source evaluation, not a positive coupon count. See the [setup guide](docs/promotion-discovery.md).
 
 ## Quality checks
 

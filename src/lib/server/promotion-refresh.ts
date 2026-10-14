@@ -1,4 +1,5 @@
-import { discoverOffers, requireWebDiscovery } from "./discovery";
+import { discoverOffers, requireDiscovery } from "./discovery";
+import { readGithubFeed, usesGithubFeed } from "./github-feed";
 import { readCache, takeRefreshSlot, PUBLIC_DISCOVERY_COOLDOWN_SECONDS } from "./storage";
 import { filterOffers, type OffersResponse } from "../offers";
 
@@ -8,21 +9,34 @@ export class DiscoveryBusyError extends Error {
   }
 }
 
-export function hasWebDiscovery(data: Pick<OffersResponse, "mode" | "checks">): boolean {
+export function hasCompletedDiscovery(
+  data: Pick<OffersResponse, "mode" | "checks" | "updatedAt">,
+): boolean {
   return (
-    data.mode === "web_search" &&
-    data.checks.some((check) => check.searched && (check.extractedPages ?? 0) > 0)
+    data.mode === "free_sources" &&
+    !!data.updatedAt &&
+    Date.now() - Date.parse(data.updatedAt) >= -60_000 &&
+    Date.now() - Date.parse(data.updatedAt) < 86400_000 &&
+    data.checks.some(
+      (check) =>
+        check.status === "checked" &&
+        ((check.parsedPages ?? 0) > 0 || check.fallback === "checked"),
+    )
   );
 }
 
 export async function refreshPromotions(): Promise<OffersResponse & { reused: boolean }> {
-  requireWebDiscovery();
+  if (usesGithubFeed()) {
+    const data = await readGithubFeed(true);
+    return { ...data, offers: filterOffers(data.offers), newOfferIds: [], reused: true };
+  }
+  requireDiscovery();
   // Daily workers, cron and browsers share the same atomic database budget.
   const retryAfter = await takeRefreshSlot("discovery:global", PUBLIC_DISCOVERY_COOLDOWN_SECONDS);
   if (retryAfter) {
     const cache = await readCache();
     const age = cache.updatedAt ? Date.now() - Date.parse(cache.updatedAt) : Infinity;
-    if (hasWebDiscovery(cache) && age >= 0 && age < PUBLIC_DISCOVERY_COOLDOWN_SECONDS * 1000)
+    if (hasCompletedDiscovery(cache) && age >= 0 && age < PUBLIC_DISCOVERY_COOLDOWN_SECONDS * 1000)
       return { ...cache, offers: filterOffers(cache.offers), newOfferIds: [], reused: true };
     throw new DiscoveryBusyError(retryAfter);
   }

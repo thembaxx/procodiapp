@@ -1,12 +1,12 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { discoverOffers, requireWebDiscovery } from "../../src/lib/server/discovery";
+import { discoverOffers, requireDiscovery } from "../../src/lib/server/discovery";
 import { readCache, takeRefreshSlot } from "../../src/lib/server/storage";
 import { DiscoveryBusyError, refreshPromotions } from "../../src/lib/server/promotion-refresh";
 import { sourceSnapshot } from "../../src/lib/snapshot";
 
 vi.mock("../../src/lib/server/discovery", () => ({
   discoverOffers: vi.fn(),
-  requireWebDiscovery: vi.fn(),
+  requireDiscovery: vi.fn(),
 }));
 vi.mock("../../src/lib/server/storage", () => ({
   readCache: vi.fn(),
@@ -27,14 +27,13 @@ function recentCache() {
       },
     ],
     updatedAt: new Date().toISOString(),
-    mode: "web_search" as const,
+    mode: "free_sources" as const,
     checks: [
       {
         storeId: "checkers" as const,
         status: "checked" as const,
         pages: 1,
-        searched: true,
-        extractedPages: 1,
+        parsedPages: 1,
       },
     ],
   };
@@ -48,7 +47,7 @@ it("runs the scanner only after acquiring the shared cross-instance budget", asy
   expect(discoverOffers).toHaveBeenCalledOnce();
 });
 
-it("loads a recently completed daily scan on refresh instead of spending on another search", async () => {
+it("loads a recently completed scheduled scan without launching another collector", async () => {
   vi.mocked(takeRefreshSlot).mockResolvedValue(400);
   const cache = recentCache();
   vi.mocked(readCache).mockResolvedValue(cache);
@@ -56,7 +55,7 @@ it("loads a recently completed daily scan on refresh instead of spending on anot
   expect(discoverOffers).not.toHaveBeenCalled();
 });
 
-it("does not claim an old snapshot or incomplete extraction is an already completed scan", async () => {
+it("does not claim an old snapshot or incomplete check is an already completed scan", async () => {
   vi.mocked(takeRefreshSlot).mockResolvedValue(400);
   vi.mocked(readCache).mockResolvedValue({ ...recentCache(), updatedAt: null });
   await expect(refreshPromotions()).rejects.toBeInstanceOf(DiscoveryBusyError);
@@ -65,8 +64,8 @@ it("does not claim an old snapshot or incomplete extraction is an already comple
   expect(discoverOffers).not.toHaveBeenCalled();
 });
 
-it("fails missing provider configuration before consuming the budget", async () => {
-  vi.mocked(requireWebDiscovery).mockImplementation(() => {
+it("fails incomplete optional fallback configuration before consuming the budget", async () => {
+  vi.mocked(requireDiscovery).mockImplementation(() => {
     throw new Error("Not configured");
   });
   await expect(refreshPromotions()).rejects.toThrow("Not configured");

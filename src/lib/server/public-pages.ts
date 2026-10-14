@@ -1,5 +1,6 @@
 import { allowedUrl } from "../source-urls";
-import { boundedText } from "./bounded-input";
+import { boundedBytes, boundedText } from "./bounded-input";
+import { load } from "cheerio";
 export { allowedUrl, allowedStoreUrl } from "../source-urls";
 
 const agent = "LittleLess";
@@ -79,7 +80,12 @@ async function fetchBounded(
 }
 
 const policies = new Map<string, { text: string; until: number }>();
-export async function readPublicPage(url: string, signal?: AbortSignal): Promise<string> {
+export type PublicDocument = { url: string; text: string; html: string | null };
+
+export async function readPublicDocument(
+  url: string,
+  signal?: AbortSignal,
+): Promise<PublicDocument> {
   if (!allowedUrl(url)) throw new Error("Unsupported source.");
   const parsed = new URL(url);
   let policy = policies.get(parsed.origin);
@@ -96,21 +102,48 @@ export async function readPublicPage(url: string, signal?: AbortSignal): Promise
     throw new Error("Source does not permit automated access.");
   const response = await fetchBounded(url, false, signal);
   if (!response.ok) throw new Error("Source could not be checked.");
-  if (
-    !/(text\/html|application\/json|text\/plain)/.test(response.headers.get("content-type") ?? "")
-  )
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/pdf")) {
+    const bytes = await boundedBytes(response, 2_500_000);
+    signal?.throwIfAborted();
+    const { getDocumentProxy, extractText } = await import("unpdf");
+    const options = { isEvalSupported: false, maxImageSize: 1_000_000, verbosity: 0 };
+    const pdf = await getDocumentProxy(bytes, options);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      if (pdf.numPages > 40) throw new Error("Source PDF is too long.");
+      const result = await Promise.race([
+        extractText(pdf, { mergePages: true }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("Source PDF deadline exceeded.")), 5000);
+        }),
+      ]);
+      signal?.throwIfAborted();
+      return { url, text: result.text.replace(/\s+/g, " ").trim(), html: null };
+    } finally {
+      clearTimeout(timer);
+      await pdf.loadingTask.destroy();
+    }
+  }
+  if (!/(text\/html|application\/json|text\/plain)/.test(contentType))
     throw new Error("Source is not a supported public page.");
-  return stripHtml(await boundedText(response, 1_500_000)).slice(0, 55_000);
+  const html = await boundedText(response, 2_500_000);
+  const text = stripHtml(html);
+  if (
+    text.length < 100 ||
+    /enable javascript to continue|access denied|verify you are human/i.test(text)
+  )
+    throw new Error("Public page could not be read.");
+  return { url, html, text };
+}
+
+export async function readPublicPage(url: string, signal?: AbortSignal): Promise<string> {
+  return (await readPublicDocument(url, signal)).text;
 }
 
 export function stripHtml(html: string): string {
-  return html
-    .replace(/<(script|style|nav|footer)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;|&#160;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
+  const $ = load(html);
+  $("script, style, nav, footer, noscript").remove();
+  $("p, div, section, article, li, h1, h2, h3, br, td, tr").prepend(" ").append(" ");
+  return $.root().text().replace(/\s+/g, " ").trim();
 }

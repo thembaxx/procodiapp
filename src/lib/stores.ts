@@ -10,7 +10,11 @@ export const stores = [
     ink: "#ffffff",
     url: "https://www.sixty60.co.za",
     domains: ["sixty60.co.za", "checkers.co.za", "shopriteholdings.co.za", "termsconditions.co.za"],
-    sources: ["https://www.sixty60.co.za", "https://www.checkers.co.za/xtra-savings-plus"],
+    sources: [
+      "https://www.sixty60.co.za",
+      "https://www.checkers.co.za/xtra-savings-plus",
+      "https://www.termsconditions.co.za/docs/Xtra-Savings-Plus.pdf",
+    ],
   },
   {
     id: "pnp",
@@ -65,7 +69,7 @@ export const stores = [
     ink: "#ffffff",
     url: "https://www.spar.co.za/spar2u",
     domains: ["spar.co.za", "spar2u.co.za"],
-    sources: ["https://www.spar.co.za/spar2u", "https://www.spar.co.za/promotions"],
+    sources: ["https://www.spar.co.za/spar2u", "https://www.spar.co.za/SPAR-Rewards"],
   },
   {
     id: "makro",

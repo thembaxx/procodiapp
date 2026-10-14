@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
   DiscoveryBusyError,
-  hasWebDiscovery,
+  hasCompletedDiscovery,
   refreshPromotions,
 } from "@/lib/server/promotion-refresh";
 import { cleanupExpiredData } from "@/lib/server/storage";
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     await cleanupExpiredData();
     const data = await refreshPromotions();
-    const unavailable = !hasWebDiscovery(data);
+    const unavailable = !hasCompletedDiscovery(data);
     return NextResponse.json(
       { ...data, ...(unavailable ? { error: "No promotion source could be checked." } : {}) },
       { status: unavailable ? 503 : 200 },

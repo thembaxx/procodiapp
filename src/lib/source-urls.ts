@@ -27,6 +27,8 @@ export function allowedStoreUrl(value: string, store: Store): boolean {
   const url = new URL(value);
   if (approvedHost(url.hostname, store.domains)) return true;
   if (!approvedHost(url.hostname, voucherDomains)) return false;
+  if (approvedHost(url.hostname, ["wethrift.com"]) && url.pathname.startsWith("/codes/"))
+    return url.pathname === `/codes/${store.id === "pnp" ? "pnp.co.za" : store.domains[0]}`;
   // Aggregators cover many unrelated merchants and countries. A search hit
   // must point to this retailer, not simply to an approved aggregator hostname.
   const merchants = {
