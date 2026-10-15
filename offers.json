@@ -13,8 +13,8 @@
       "sourceName": "Woolworths",
       "sourceUrl": "https://www.woolworths.co.za/content/look/mydifference-plus-joinplus/_/A-cmp216901",
       "foundAt": "2026-10-08T20:30:00.000Z",
-      "checkedAt": "2026-10-15T00:34:06.000Z",
-      "validUntil": "2026-10-16T00:34:06.000Z",
+      "checkedAt": "2026-10-15T09:11:48.375Z",
+      "validUntil": "2026-10-16T09:11:48.375Z",
       "verified": false,
       "evidence": "Get free delivery when you shop Woolies online",
       "collectionMethod": "reviewed_source"
@@ -32,14 +32,14 @@
       "sourceName": "Makro terms of use",
       "sourceUrl": "https://www.makro.co.za/pages/terms-of-use",
       "foundAt": "2026-10-08T20:30:00.000Z",
-      "checkedAt": "2026-10-15T00:34:03.586Z",
-      "validUntil": "2026-10-16T00:34:03.586Z",
+      "checkedAt": "2026-10-15T09:11:45.125Z",
+      "validUntil": "2026-10-16T09:11:45.125Z",
       "verified": false,
       "evidence": "a discount of up to 5% (five percent) applies to selected food items",
       "collectionMethod": "reviewed_source"
     }
   ],
-  "updatedAt": "2026-10-15T00:34:09.984Z",
+  "updatedAt": "2026-10-15T09:11:52.945Z",
   "checks": [
     {
       "storeId": "checkers",
