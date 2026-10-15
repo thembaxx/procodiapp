@@ -1,6 +1,25 @@
 {
   "offers": [
     {
+      "id": "makro-senior-food",
+      "storeId": "makro",
+      "code": null,
+      "type": "discount",
+      "title": "Up to 5% off selected food for seniors",
+      "criteria": "Age 60+ with a valid Makro mSenior Citizens Card and South African ID or passport. Log in with your registered mSenior Citizens profile. Selected food only; excludes promotions, marketplace sellers, liquor, tobacco, baby formula and delivery fees. Applies automatically at checkout; personal purchases only.",
+      "expiresAt": null,
+      "expiryKnown": true,
+      "ongoing": true,
+      "sourceName": "Makro terms of use",
+      "sourceUrl": "https://www.makro.co.za/pages/terms-of-use",
+      "foundAt": "2026-10-08T20:30:00.000Z",
+      "checkedAt": "2026-10-15T19:54:58.145Z",
+      "validUntil": "2026-10-16T19:54:58.145Z",
+      "verified": false,
+      "evidence": "a discount of up to 5% (five percent) applies to selected food items",
+      "collectionMethod": "reviewed_source"
+    },
+    {
       "id": "woolworths-plus-delivery",
       "storeId": "woolworths",
       "code": null,
@@ -18,28 +37,9 @@
       "verified": false,
       "evidence": "Get free delivery when you shop Woolies online",
       "collectionMethod": "reviewed_source"
-    },
-    {
-      "id": "makro-senior-food",
-      "storeId": "makro",
-      "code": null,
-      "type": "discount",
-      "title": "Up to 5% off selected food for seniors",
-      "criteria": "Age 60+ with a valid Makro mSenior Citizens Card and South African ID or passport. Log in with your registered mSenior Citizens profile. Selected food only; excludes promotions, marketplace sellers, liquor, tobacco, baby formula and delivery fees. Applies automatically at checkout; personal purchases only.",
-      "expiresAt": null,
-      "expiryKnown": true,
-      "ongoing": true,
-      "sourceName": "Makro terms of use",
-      "sourceUrl": "https://www.makro.co.za/pages/terms-of-use",
-      "foundAt": "2026-10-08T20:30:00.000Z",
-      "checkedAt": "2026-10-15T15:05:48.583Z",
-      "validUntil": "2026-10-16T15:05:48.583Z",
-      "verified": false,
-      "evidence": "a discount of up to 5% (five percent) applies to selected food items",
-      "collectionMethod": "reviewed_source"
     }
   ],
-  "updatedAt": "2026-10-15T15:05:57.248Z",
+  "updatedAt": "2026-10-15T19:55:05.239Z",
   "checks": [
     {
       "storeId": "checkers",
@@ -68,10 +68,10 @@
     {
       "storeId": "woolworths",
       "status": "checked",
-      "pages": 2,
+      "pages": 1,
       "searched": false,
       "extractedPages": 0,
-      "parsedPages": 2,
+      "parsedPages": 1,
       "fallback": "unconfigured",
       "fallbackOffers": 0,
       "candidates": 0,
