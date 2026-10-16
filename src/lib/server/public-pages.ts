@@ -137,7 +137,7 @@ export async function readPublicDocument(
   if (/access denied|verify you are human|captcha/i.test(text))
     throw new Error("Public source denied automated access.");
   if (text.length < 100 || /enable javascript to continue/i.test(text))
-    throw new BrowserRequiredError("Page needs JavaScript rendering.");
+    throw new BrowserRequiredError("Public page could not be read without JavaScript rendering.");
   return { url, html, text };
 }
 
