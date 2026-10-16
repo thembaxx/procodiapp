@@ -14,7 +14,12 @@ export const candidateSchema = z.object({
   title: z.string().max(160),
   sourceUrl: z.url().max(2000),
   evidence: z.string().max(800),
-  reason: z.enum(["missing_expiry", "unclear_eligibility", "foreign_region"]),
+  reason: z.enum([
+    "missing_expiry",
+    "unclear_eligibility",
+    "foreign_region",
+    "unverified_third_party",
+  ]),
   foundAt: z.iso.datetime({ offset: true }),
 });
 export type Candidate = z.infer<typeof candidateSchema>;

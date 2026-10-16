@@ -1,9 +1,18 @@
 name: Discover promotions
 on:
   schedule:
-    # Every six hours, away from the start-of-hour queue.
-    - cron: "17 4,10,16,22 * * *"
+    # 06:17 and 18:17 South African Standard Time (UTC+2).
+    - cron: "17 4,16 * * *"
   workflow_dispatch:
+    inputs:
+      source:
+        description: "Where the scan was requested"
+        required: false
+        default: manual
+        type: choice
+        options:
+          - manual
+          - user_refresh
 permissions:
   contents: read
 concurrency:
@@ -13,7 +22,7 @@ jobs:
   refresh:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     environment: discovery
     permissions:
       contents: write
@@ -33,10 +42,15 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install Chromium for permitted JavaScript-rendered sources
+        run: pnpm exec playwright install --with-deps chromium
       - name: Load last published feed
         run: pnpm exec tsx scripts/load-promotion-feed.ts
       - name: Check official sources and use the optional free fallback
         env:
+          BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
+          DISCOVERY_SEARCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.source == 'user_refresh' && 'none' || 'brave' }}
+          PROMOTION_BROWSER_FALLBACK: "true"
           CJ_API_TOKEN: ${{ secrets.CJ_API_TOKEN }}
           CJ_WEBSITE_ID: ${{ vars.CJ_WEBSITE_ID }}
           CJ_ADVERTISERS: ${{ vars.CJ_ADVERTISERS }}

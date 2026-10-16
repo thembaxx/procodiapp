@@ -7,6 +7,8 @@ import { cjConfiguration, collectCjFallback } from "./cj-fallback";
 import { checkReviewedPromotions, reviewedPromotions } from "./reviewed-promotions";
 import { parseOfficialDocument, promotionLinks, type Candidate } from "./promotion-parser";
 import { parseCouponLeads } from "./coupon-leads";
+import { searchPromotions, parseAggregatorLeads } from "./search-discovery";
+import { BrowserRequiredError } from "./public-pages";
 export { containsEvidence } from "./promotion-parser";
 
 let inFlight: Promise<Cache & { newOfferIds: string[] }> | undefined;
@@ -50,13 +52,23 @@ async function runDiscovery(signal: AbortSignal) {
         offers: Offer[] = [],
         candidates: Candidate[] = [],
         errors: string[] = [];
+      let renderedPages = 0;
+      const search = await searchPromotions(store, signal).catch(() => ({
+        searched: false,
+        officialUrls: [] as string[],
+        aggregatorUrls: [] as string[],
+        candidates: [] as Candidate[],
+        warning: "Web search was unavailable.",
+      }));
+      candidates.push(...search.candidates);
+      if (search.warning) errors.push(search.warning);
       const selected = [
         ...reviewedPromotions
           .filter((item) => item.storeId === store.id)
           .map((item) => item.sourceUrl),
         ...sourceSnapshot.filter((item) => item.storeId === store.id).map((item) => item.sourceUrl),
       ];
-      const queue = discoveryUrls(store, selected, previous.offers),
+      const queue = discoveryUrls(store, [...search.officialUrls, ...selected], previous.offers),
         attempted = new Set<string>();
       for (let index = 0; index < queue.length && attempted.size < 5; index++) {
         const url = queue[index];
@@ -67,7 +79,23 @@ async function runDiscovery(signal: AbortSignal) {
           break;
         }
         try {
-          const document = await readPublicDocument(url, signal);
+          const document = await (async () => {
+            try {
+              return await readPublicDocument(url, signal);
+            } catch (error) {
+              if (
+                !(error instanceof BrowserRequiredError) ||
+                process.env.PROMOTION_BROWSER_FALLBACK !== "true" ||
+                renderedPages >= 1
+              )
+                throw error;
+              // Robots were checked before determining a browser was needed.
+              const { readBrowserDocument } = await import("./browser-pages");
+              const browserResult = await readBrowserDocument(url, signal);
+              renderedPages++;
+              return browserResult;
+            }
+          })();
           const parsed = parseOfficialDocument(store, document);
           offers.push(...checkReviewedPromotions(store, document), ...parsed.offers);
           candidates.push(...parsed.candidates);
@@ -80,17 +108,27 @@ async function runDiscovery(signal: AbortSignal) {
           errors.push("Some official promotion sources could not be checked.");
         }
       }
-      // Only Pick n Pay has an established local lead page. Never publish these leads automatically.
-      if (store.id === "pnp" && !signal.aborted) {
+      // Coupon aggregators are only reviewed leads; never publish their content directly.
+      const aggregateUrls = [
+        ...new Set([
+          ...(store.id === "pnp" ? ["https://www.wethrift.com/codes/pnp.co.za"] : []),
+          ...search.aggregatorUrls,
+        ]),
+      ].slice(0, 2);
+      for (const leadUrl of aggregateUrls) {
+        if (signal.aborted) break;
         try {
-          candidates.push(
-            ...parseCouponLeads(
-              store,
-              await readPublicDocument("https://www.wethrift.com/codes/pnp.co.za", signal),
-            ),
-          );
+          const document = await readPublicDocument(leadUrl, signal);
+          if (store.id === "pnp" && leadUrl === "https://www.wethrift.com/codes/pnp.co.za") {
+            try {
+              candidates.push(...parseCouponLeads(store, document));
+            } catch {
+              /* Other layouts */
+            }
+          }
+          candidates.push(...parseAggregatorLeads(store, document));
         } catch {
-          errors.push("The optional coupon lead page could not be checked.");
+          errors.push("An optional coupon review source could not be checked.");
         }
       }
       let fallback: NonNullable<SourceCheck["fallback"]> = "not_needed",
@@ -114,8 +152,8 @@ async function runDiscovery(signal: AbortSignal) {
         status: pages || fallback === "checked" ? "checked" : "unavailable",
         pages,
         parsedPages: pages,
-        searched: false,
-        extractedPages: 0,
+        searched: search.searched,
+        extractedPages: renderedPages,
         fallback,
         fallbackOffers,
         candidates: Math.min(candidates.length, 100),

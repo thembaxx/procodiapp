@@ -81,11 +81,9 @@ async function fetchBounded(
 
 const policies = new Map<string, { text: string; until: number }>();
 export type PublicDocument = { url: string; text: string; html: string | null };
+export class BrowserRequiredError extends Error {}
 
-export async function readPublicDocument(
-  url: string,
-  signal?: AbortSignal,
-): Promise<PublicDocument> {
+export async function ensureRobotsAllowed(url: string, signal?: AbortSignal): Promise<void> {
   if (!allowedUrl(url)) throw new Error("Unsupported source.");
   const parsed = new URL(url);
   let policy = policies.get(parsed.origin);
@@ -100,6 +98,13 @@ export async function readPublicDocument(
   }
   if (!robotsAllows(policy.text, `${parsed.pathname}${parsed.search}`))
     throw new Error("Source does not permit automated access.");
+}
+
+export async function readPublicDocument(
+  url: string,
+  signal?: AbortSignal,
+): Promise<PublicDocument> {
+  await ensureRobotsAllowed(url, signal);
   const response = await fetchBounded(url, false, signal);
   if (!response.ok) throw new Error("Source could not be checked.");
   const contentType = response.headers.get("content-type") ?? "";
@@ -129,11 +134,10 @@ export async function readPublicDocument(
     throw new Error("Source is not a supported public page.");
   const html = await boundedText(response, 2_500_000);
   const text = stripHtml(html);
-  if (
-    text.length < 100 ||
-    /enable javascript to continue|access denied|verify you are human/i.test(text)
-  )
-    throw new Error("Public page could not be read.");
+  if (/access denied|verify you are human|captcha/i.test(text))
+    throw new Error("Public source denied automated access.");
+  if (text.length < 100 || /enable javascript to continue/i.test(text))
+    throw new BrowserRequiredError("Public page could not be read without JavaScript rendering.");
   return { url, html, text };
 }
 
