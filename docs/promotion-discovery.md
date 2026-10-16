@@ -1,14 +1,14 @@
 # Free promotion collection and fallback
 
-**Discover promotions** runs every six hours at `04:17, 10:17, 16:17, 22:17 UTC`, with manual dispatch on [GitHub Actions](https://github.com/thembaxx/procodiapp/actions/workflows/discovery.yml). Standard runners for this public repository are free. The collector makes no AI or paid-search requests. GitHub schedules may be delayed or dropped and can be disabled after 60 days without repository activity.
+**Discover promotions** runs twice daily at `04:17, 16:17 UTC` (06:17 and 18:17 SAST), with manual dispatch on [GitHub Actions](https://github.com/thembaxx/procodiapp/actions/workflows/discovery.yml). Standard runners for this public repository are free. The collector uses no AI models. It can optionally use Brave Search (within your plan's allowance) to discover additional official retailer pages and pre-approved coupon-review pages. GitHub schedules may be delayed or dropped and can be disabled after 60 days without repository activity.
 
 ## Primary collection
 
-The worker fetches approved official sources for the six South African grocery retailers, reads robots policies, and parses HTML promotion blocks, declarative JSON-LD, and text PDFs. Reviewed benefit evidence is checked without cutting away the end of long terms pages. Approved campaign/terms links share a five-page budget per store. Source requests reject redirects, retain byte/time limits, and never bypass login or CAPTCHA.
+The worker fetches approved official sources for the six South African grocery retailers, reads robots policies, and parses HTML promotion blocks, declarative JSON-LD, and text PDFs. Optional Brave Search identifies more approved URLs, and a bounded Playwright fallback renders allowed JavaScript-only pages on GitHub Actions. Authentication, CAPTCHA, blocks and disallowed robots paths are never bypassed. Reviewed benefit evidence is checked without cutting away the end of long terms pages. Approved campaign/terms links share a five-page budget per store. Source requests reject redirects, retain byte/time limits, and never bypass login or CAPTCHA.
 
 Only dated offers with source-listed codes and online grocery eligibility become live offers. The country, shopping channel, basket requirement, first-order limits and exclusions matter. Source-listed is not tested at checkout. A reviewed recurring membership benefit can have no listed end date; it still expires from the app after 24 hours without confirmation.
 
-The Pick n Pay Wethrift page supplies **review leads only** by parsing its embedded public JSON. Retired entries are excluded. Scores and posting dates do not establish expiry. Picodi and Wethrift SPAR are not automatic publication sources.
+Permitted Wethrift/Picodi retailer-specific pages supply **review leads only**. Pick n Pay Wethrift can also use its embedded public JSON. Retired entries are excluded. Scores and posting dates do not establish expiry. Picodi and Wethrift SPAR are not automatic publication sources.
 
 ## Optional second path: CJ Affiliate
 
@@ -29,7 +29,7 @@ The adapter requires `joined` status, a configured advertiser ID, explicit `ZA` 
 1. Merge the implementation onto `main`, then manually run **Discover promotions → main**. The trusted-main job uses its scoped `GITHUB_TOKEN` to create/update the separate `promotion-data` branch. The primary collector needs no manually configured API or database secret.
 2. Confirm the job succeeds and the branch contains `offers.json` and `candidates.json`. Publication only occurs after at least one official source or configured CJ source completes. Zero coupons is a valid result; total source failure fails the job and leaves the published branch unchanged.
 3. Set `PROMOTION_FEED=github` on the app and redeploy. `PROMOTION_FEED_REPOSITORY` defaults to `thembaxx/procodiapp`; change it for a fork. This setting is server-only. The public feed is fetched from a fixed GitHub raw-content origin, validated and cached for at most a minute during normal operation.
-4. Check `/api/offers`: `mode` is `free_sources`, with a real `updatedAt`, `parsedPages` and per-store `fallback` status. Refresh reads the latest feed; it does not run collection in the browser. An old feed or failed scan is not reported as fresh. Existing offline expiry checks remain active.
+4. Check `/api/offers`: `mode` is `free_sources`, with a real `updatedAt`, `parsedPages` and per-store `fallback` status. Refresh immediately reads the latest feed. If `GITHUB_DISPATCH_TOKEN` is configured server-side, it may also queue an asynchronous Actions scan (only if the existing feed is at least ten minutes old, with a shared ten-minute cooldown). The browser never crawls websites and new results appear after publication, not immediately. An old feed or failed scan is not reported as fresh. Existing offline expiry checks remain active.
 
 The publisher loads the previous feed so failed sources retain still-fresh prior listings with their original deadlines. Successful source evaluations remove unconfirmed prior listings. Expired/stale offers are pruned. Publication is a non-force update and concurrency prevents overlapping jobs. The data branch does not rebuild the application on each scan.
 
@@ -53,3 +53,14 @@ For a filesystem publication trial, use `DATA_DIR=/absolute/output/path PROMOTIO
 - Keep source URLs and parsers current. Primary pages can be blocked, use JavaScript, change layout, or only advertise in-store specials. CJ coverage remains account-specific.
 - Keep Actions artifacts/cache within their free allowances. No scraping proxy, hosted model or paid-search dependency is required.
 - Roll back to the previous application commit if needed; switch back to `PROMOTION_FEED=local` with persistent/shared storage to use local collection. The old AI settings are ignored by the new collector.
+
+## Optional current-web discovery and rendering
+
+- Set **BRAVE_SEARCH_API_KEY** as an Actions secret in the `discovery` environment. Search remains disabled without it. The collector performs at most **two queries per retailer** (12 per run), uses a shared conservative request pace, and searches both the official retailer site and South African coupon listings.
+- Current search results are used **transiently** to discover URLs, not persisted as search-provider snippets. This is important because Brave may require additional storage rights for storing API responses. Only allowlisted retailer pages and store-specific Wethrift/Picodi pages may be fetched; arbitrary search hits cannot turn into live offers.
+- Candidate details from permitted third-party pages remain in `candidates.json` with **unverified_third_party**. Only independently confirmed retailer or eligible CJ evidence may be published to `offers.json`.
+- The Actions job sets `PROMOTION_BROWSER_FALLBACK=true`, installs Chromium, and runs headless Playwright for up to one JavaScript-only official page per store per scan. This is not a CAPTCHA or anti-bot bypass. The Next.js/Vercel app does not enable this fallback.
+- Optional on-demand scans require **GITHUB_DISPATCH_TOKEN** as a **server-only** variable on the app deployment. Use a fine-grained token restricted to this repository with **Actions: write**; it is not the Brave key or the Actions job's built-in `GITHUB_TOKEN`. Never use `NEXT_PUBLIC_` for this secret. The refresh response includes `scan.status` (`queued`, `recent`, `cooldown`, `not_configured`, or `failed`). A queued scan does **not** guarantee an offer.
+- No new database schema is required. For globally enforced cooldowns on serverless instances, use the already supported Supabase rate-limit storage; local in-memory limits do not synchronize across replicas.
+
+Brave's search credit and limits can change; review your current [API pricing](https://brave.com/search/api/) and [storage rights](https://brave.com/search/api/). A successful search query is not retailer evidence, and no scraping protection is circumvented.
