@@ -22,7 +22,11 @@ describe("search-backed coupon discovery", () => {
 
   it("never saves web-search snippets as coupon evidence", () => {
     const result = classifySearchResults(pnp, [
-      { title: "Voucher code SAVE15", description: "From web search", url: "https://unknown.example/coupon" },
+      {
+        title: "Voucher code SAVE15",
+        description: "From web search",
+        url: "https://unknown.example/coupon",
+      },
     ]);
     expect(result.candidates).toEqual([]);
   });
@@ -42,10 +46,12 @@ describe("search-backed coupon discovery", () => {
   it("does not allow unrelated or unsafe sources", () => {
     expect(searchLead(pnp, { title: "PNP rewards", url: "https://example.com/a" })).toBeNull();
     expect(searchLead(pnp, { title: "Use code SAVE15", url: "file:///etc/passwd" })).toBeNull();
-    expect(parseAggregatorLeads(pnp, {
-      url: "https://unapproved.example/pnp",
-      text: "Use code SAVE15",
-      html: "<article>Use code SAVE15</article>",
-    })).toEqual([]);
+    expect(
+      parseAggregatorLeads(pnp, {
+        url: "https://unapproved.example/pnp",
+        text: "Use code SAVE15",
+        html: "<article>Use code SAVE15</article>",
+      }),
+    ).toEqual([]);
   });
 });
