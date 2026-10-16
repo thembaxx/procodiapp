@@ -193,7 +193,13 @@ export function parseAggregatorLeads(store: Store, document: PublicDocument): Ca
     .toArray()
     .slice(0, 35)) {
     const block = $(element);
-    const text = tidy(block.text()).slice(0, 600);
+    const text = tidy(
+      block
+        .find("h1,h2,h3,h4,p,li,span")
+        .toArray()
+        .map((item) => $(item).text())
+        .join(" ") || block.text(),
+    ).slice(0, 600);
     const title = tidy(block.find("h1,h2,h3,h4").first().text()).slice(0, 160);
     const code = block.attr("data-code") ?? block.attr("data-coupon-code");
     const snippet = code ? `Use code ${code}. ${text}` : text;
