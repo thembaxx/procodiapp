@@ -56,7 +56,7 @@ For a filesystem publication trial, use `DATA_DIR=/absolute/output/path PROMOTIO
 
 ## Optional current-web discovery and rendering
 
-- Set **BRAVE_SEARCH_API_KEY** as an Actions secret in the `discovery` environment. Search remains disabled without it. The collector performs at most **two queries per retailer** (12 per run), uses a shared conservative request pace, and searches both the official retailer site and South African coupon listings.
+- Set **BRAVE_SEARCH_API_KEY** as an Actions secret in the `discovery` environment. Search remains disabled without it. Scheduled and manually launched full scans perform at most **two queries per retailer** (12 per run), use shared conservative request pacing, and search both the official retailer site and South African coupon listings. A user-refresh-triggered run **rechecks known sources without Brave queries** to protect the monthly free search credit.
 - Current search results are used **transiently** to discover URLs, not persisted as search-provider snippets. This is important because Brave may require additional storage rights for storing API responses. Only allowlisted retailer pages and store-specific Wethrift/Picodi pages may be fetched; arbitrary search hits cannot turn into live offers.
 - Candidate details from permitted third-party pages remain in `candidates.json` with **unverified_third_party**. Only independently confirmed retailer or eligible CJ evidence may be published to `offers.json`.
 - The Actions job sets `PROMOTION_BROWSER_FALLBACK=true`, installs Chromium, and runs headless Playwright for up to one JavaScript-only official page per store per scan. This is not a CAPTCHA or anti-bot bypass. The Next.js/Vercel app does not enable this fallback.
