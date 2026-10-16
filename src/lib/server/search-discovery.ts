@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { load } from "cheerio";
+import type { PublicDocument } from "./public-pages";
 import type { Store } from "../stores";
 import { allowedStoreUrl } from "../source-urls";
 import { boundedJson } from "./bounded-input";
@@ -118,4 +120,29 @@ export async function searchPromotions(store: Store, signal: AbortSignal): Promi
   const grouped = classifySearchResults(store, items);
   return { searched: successful > 0, ...grouped,
     ...(successful !== queries.length ? { warning: "Some web-search queries were unavailable." } : {}) };
+}
+
+/** Parse permitted coupon aggregators only. Never publish their claims as offers. */
+export function parseAggregatorLeads(store: Store, document: PublicDocument): Candidate[] {
+  if (!allowedStoreUrl(document.url, store) || !document.html) return [];
+  const host = new URL(document.url).hostname;
+  if (!["wethrift.com", "www.wethrift.com", "picodi.com", "www.picodi.com"].includes(host))
+    return [];
+  const $ = load(document.html);
+  $("script,style,nav,footer,noscript").remove();
+  const results: Candidate[] = [];
+  for (const element of $("[data-code],[data-coupon-code],.coupon,article,.offer").toArray().slice(0, 35)) {
+    const block = $(element);
+    const text = tidy(block.text()).slice(0, 600);
+    const title = tidy(block.find("h1,h2,h3,h4").first().text()).slice(0, 160);
+    const code = block.attr("data-code") ?? block.attr("data-coupon-code");
+    const snippet = code ? `Use code ${code}. ${text}` : text;
+    const lead = searchLead(store, {
+      url: document.url,
+      title: title || `${store.shortName} coupon candidate`,
+      description: snippet,
+    });
+    if (lead) results.push(lead);
+  }
+  return [...new Map(results.map((item) => [item.id, item])).values()].slice(0, 20);
 }
