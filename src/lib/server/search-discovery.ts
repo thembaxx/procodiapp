@@ -128,9 +128,10 @@ export async function searchPromotions(
   store: Store,
   signal: AbortSignal,
 ): Promise<SearchDiscovery> {
-  const apiKey = process.env.DISCOVERY_SEARCH_MODE === "none"
-    ? undefined
-    : process.env.BRAVE_SEARCH_API_KEY?.trim();
+  const apiKey =
+    process.env.DISCOVERY_SEARCH_MODE === "none"
+      ? undefined
+      : process.env.BRAVE_SEARCH_API_KEY?.trim();
   if (!apiKey) return { searched: false, officialUrls: [], aggregatorUrls: [], candidates: [] };
   const month = new Intl.DateTimeFormat("en-ZA", {
     timeZone: "Africa/Johannesburg",
