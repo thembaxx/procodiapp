@@ -11,9 +11,9 @@ const braveResults = z.object({
     results: z.array(z.object({
       title: z.string(),
       url: z.string(),
-      description: z.string().optional(),
+      description: z.string().nullish(),
     }).passthrough()).max(30).optional(),
-  }).optional(),
+  }).nullish(),
 }).passthrough();
 
 const CODE = /(?:promo(?:tion)?|voucher|coupon|discount)\s*code\s*[:–-]?\s*["']?([A-Z0-9][A-Z0-9_-]{2,31})\b|\buse\s+code\s+["']?([A-Z0-9][A-Z0-9_-]{2,31})\b/i;
@@ -66,6 +66,8 @@ export function classifySearchResults(
 ): Omit<SearchDiscovery, "searched"> {
   const officialUrls = new Set<string>();
   const aggregatorUrls = new Set<string>();
+  // Search API snippets are transient routing signals, not stored content.
+  // Save evidence only after independently fetching permitted source pages.
   const candidates: Candidate[] = [];
   for (const item of items.slice(0, 16)) {
     if (allowedStoreUrl(item.url, store)) {
@@ -73,16 +75,28 @@ export function classifySearchResults(
       if (store.domains.some((domain) => host === domain || host === `www.${domain}`))
         officialUrls.add(item.url);
       else aggregatorUrls.add(item.url);
-    } else {
-      const candidate = searchLead(store, item, now);
-      if (candidate) candidates.push(candidate);
     }
   }
+  void now;
   return {
     officialUrls: [...officialUrls].slice(0, 3),
     aggregatorUrls: [...aggregatorUrls].slice(0, 2),
     candidates: [...new Map(candidates.map((candidate) => [candidate.id, candidate])).values()].slice(0, 20),
   };
+}
+
+// Respect conservative one-request-per-second plans across parallel retailers.
+let searchTurn: Promise<void> = Promise.resolve();
+let lastQueryAt = 0;
+async function paceQueries(signal: AbortSignal): Promise<void> {
+  const turn = searchTurn.then(async () => {
+    const wait = Math.max(0, lastQueryAt + 1100 - Date.now());
+    if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+    signal.throwIfAborted();
+    lastQueryAt = Date.now();
+  });
+  searchTurn = turn.catch(() => {});
+  await turn;
 }
 
 export async function searchPromotions(store: Store, signal: AbortSignal): Promise<SearchDiscovery> {
@@ -98,6 +112,7 @@ export async function searchPromotions(store: Store, signal: AbortSignal): Promi
   for (const query of queries) {
     signal.throwIfAborted();
     try {
+      await paceQueries(signal);
       const url = new URL("https://api.search.brave.com/res/v1/web/search");
       url.searchParams.set("q", query);
       url.searchParams.set("count", "8");
@@ -111,7 +126,10 @@ export async function searchPromotions(store: Store, signal: AbortSignal): Promi
       });
       if (!response.ok) throw new Error("Search service unavailable.");
       const parsed = braveResults.parse(await boundedJson(response, 150_000));
-      items.push(...(parsed.web?.results ?? []));
+      items.push(...(parsed.web?.results ?? []).map((item) => ({
+        title: item.title, url: item.url,
+        ...(item.description ? { description: item.description } : {}),
+      })));
       successful++;
     } catch {
       if (signal.aborted) throw new Error("Discovery deadline reached.");
