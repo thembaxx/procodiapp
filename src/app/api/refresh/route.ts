@@ -28,18 +28,20 @@ export async function POST(request: NextRequest) {
         { status: 429, headers: { "Retry-After": String(retryAfter) } },
       );
     const data = await refreshPromotions();
-    if (!hasCompletedDiscovery(data))
+    const githubFeed = usesGithubFeed();
+    // A stale GitHub feed must still be able to request recovery. Offers are
+    // already filtered by their individual expiry and 24-hour freshness limits.
+    const scan = githubFeed
+      ? await queuePromotionDiscovery(data.updatedAt).catch(() => ({ status: "failed" as const }))
+      : undefined;
+    const recent = hasCompletedDiscovery(data);
+    if (!recent && !githubFeed)
       return NextResponse.json(
         { error: "We couldn't check promotion sources right now. Please try again later." },
         { status: 503 },
       );
-    // With the published feed, refresh returns current offers immediately while
-    // optionally queuing a new scan on the Actions runner. Do not block the UI.
-    const scan = usesGithubFeed()
-      ? await queuePromotionDiscovery(data.updatedAt).catch(() => ({ status: "failed" as const }))
-      : undefined;
     return NextResponse.json(
-      { ...data, ...(scan ? { scan } : {}) },
+      { ...data, ...(scan ? { scan, stale: !recent } : {}) },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
