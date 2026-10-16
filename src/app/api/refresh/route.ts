@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireDiscovery } from "@/lib/server/discovery";
 import { usesGithubFeed } from "@/lib/server/github-feed";
+import { queuePromotionDiscovery } from "@/lib/server/github-dispatch";
 import { takeRefreshSlot } from "@/lib/server/storage";
 import {
   DiscoveryBusyError,
@@ -32,7 +33,13 @@ export async function POST(request: NextRequest) {
         { error: "We couldn't check promotion sources right now. Please try again later." },
         { status: 503 },
       );
-    return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
+    // With the published feed, refresh returns current offers immediately while
+    // optionally queuing a new scan on the Actions runner. Do not block the UI.
+    const scan = usesGithubFeed()
+      ? await queuePromotionDiscovery(data.updatedAt).catch(() => ({ status: "failed" as const }))
+      : undefined;
+    return NextResponse.json({ ...data, ...(scan ? { scan } : {}) },
+      { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof DiscoveryBusyError)
       return NextResponse.json(
