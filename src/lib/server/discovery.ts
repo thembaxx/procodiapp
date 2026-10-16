@@ -54,8 +54,11 @@ async function runDiscovery(signal: AbortSignal) {
         errors: string[] = [];
       let renderedPages = 0;
       const search = await searchPromotions(store, signal).catch(() => ({
-        searched: false, officialUrls: [] as string[], aggregatorUrls: [] as string[],
-        candidates: [] as Candidate[], warning: "Web search was unavailable.",
+        searched: false,
+        officialUrls: [] as string[],
+        aggregatorUrls: [] as string[],
+        candidates: [] as Candidate[],
+        warning: "Web search was unavailable.",
       }));
       candidates.push(...search.candidates);
       if (search.warning) errors.push(search.warning);
@@ -80,8 +83,11 @@ async function runDiscovery(signal: AbortSignal) {
             try {
               return await readPublicDocument(url, signal);
             } catch (error) {
-              if (!(error instanceof BrowserRequiredError) ||
-                  process.env.PROMOTION_BROWSER_FALLBACK !== "true" || renderedPages >= 1)
+              if (
+                !(error instanceof BrowserRequiredError) ||
+                process.env.PROMOTION_BROWSER_FALLBACK !== "true" ||
+                renderedPages >= 1
+              )
                 throw error;
               // Robots were checked before determining a browser was needed.
               const { readBrowserDocument } = await import("./browser-pages");
@@ -103,16 +109,22 @@ async function runDiscovery(signal: AbortSignal) {
         }
       }
       // Coupon aggregators are only reviewed leads; never publish their content directly.
-      const aggregateUrls = [...new Set([
-        ...(store.id === "pnp" ? ["https://www.wethrift.com/codes/pnp.co.za"] : []),
-        ...search.aggregatorUrls,
-      ])].slice(0, 2);
+      const aggregateUrls = [
+        ...new Set([
+          ...(store.id === "pnp" ? ["https://www.wethrift.com/codes/pnp.co.za"] : []),
+          ...search.aggregatorUrls,
+        ]),
+      ].slice(0, 2);
       for (const leadUrl of aggregateUrls) {
         if (signal.aborted) break;
         try {
           const document = await readPublicDocument(leadUrl, signal);
           if (store.id === "pnp" && leadUrl === "https://www.wethrift.com/codes/pnp.co.za") {
-            try { candidates.push(...parseCouponLeads(store, document)); } catch { /* Other layouts */ }
+            try {
+              candidates.push(...parseCouponLeads(store, document));
+            } catch {
+              /* Other layouts */
+            }
           }
           candidates.push(...parseAggregatorLeads(store, document));
         } catch {

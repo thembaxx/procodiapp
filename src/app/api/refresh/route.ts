@@ -38,8 +38,10 @@ export async function POST(request: NextRequest) {
     const scan = usesGithubFeed()
       ? await queuePromotionDiscovery(data.updatedAt).catch(() => ({ status: "failed" as const }))
       : undefined;
-    return NextResponse.json({ ...data, ...(scan ? { scan } : {}) },
-      { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { ...data, ...(scan ? { scan } : {}) },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     if (error instanceof DiscoveryBusyError)
       return NextResponse.json(

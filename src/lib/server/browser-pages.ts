@@ -6,7 +6,10 @@ import { ensureRobotsAllowed, stripHtml, type PublicDocument } from "./public-pa
  * Deliberately not a stealth browser. Only used on explicitly permitted public
  * retailer pages that need JavaScript to render. Never bypass a challenge.
  */
-export async function readBrowserDocument(url: string, signal: AbortSignal): Promise<PublicDocument> {
+export async function readBrowserDocument(
+  url: string,
+  signal: AbortSignal,
+): Promise<PublicDocument> {
   if (!allowedUrl(url)) throw new Error("Unsupported browser source.");
   await ensureRobotsAllowed(url, signal);
   signal.throwIfAborted();
@@ -16,8 +19,10 @@ export async function readBrowserDocument(url: string, signal: AbortSignal): Pro
     await page.route("**/*", async (route) => {
       const request = route.request();
       const destination = request.url();
-      if (/^(?:file|ftp|data|javascript):/i.test(destination) ||
-        ["image", "font", "media"].includes(request.resourceType())) {
+      if (
+        /^(?:file|ftp|data|javascript):/i.test(destination) ||
+        ["image", "font", "media"].includes(request.resourceType())
+      ) {
         await route.abort();
       } else {
         await route.continue();
@@ -32,7 +37,10 @@ export async function readBrowserDocument(url: string, signal: AbortSignal): Pro
     if (Buffer.byteLength(html, "utf8") > 2_500_000)
       throw new Error("Browser page exceeded the size limit.");
     const text = stripHtml(html);
-    if (text.length < 100 || /access denied|verify you are human|captcha|enable javascript to continue/i.test(text))
+    if (
+      text.length < 100 ||
+      /access denied|verify you are human|captcha|enable javascript to continue/i.test(text)
+    )
       throw new Error("Browser did not yield a readable public page.");
     return { url, text, html };
   } finally {

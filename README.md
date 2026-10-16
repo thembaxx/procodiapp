@@ -80,12 +80,12 @@ All discovered codes are marked **not tested at checkout**. The app never genera
 
 ## API
 
-| Endpoint                                | Behaviour                                                                                                                                                                 |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/offers?filter=all&q=checkers` | Fresh, unexpired offers. Filters: `all`, `free_delivery`, `discount`. Search matches retailer and loyalty names.                                                          |
-| `POST /api/refresh`                     | Checks public sources or reads the scheduled GitHub feed. With a configured dispatch token, GitHub mode also queues a rate-limited background scan; the response includes `scan.status`. No model key is required.                      |
-| `POST /api/report`                      | Saves a report for an existing listing. Body: `{ "offerId": "...", "reason": "The code didn't work" }`. Also accepts `The offer has ended` and `The terms are different`. |
-| `GET /api/cron`                         | Authenticated collection/feed check. Header: `Authorization: Bearer <CRON_SECRET>`.                                                                                       |
+| Endpoint                                | Behaviour                                                                                                                                                                                                          |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/offers?filter=all&q=checkers` | Fresh, unexpired offers. Filters: `all`, `free_delivery`, `discount`. Search matches retailer and loyalty names.                                                                                                   |
+| `POST /api/refresh`                     | Checks public sources or reads the scheduled GitHub feed. With a configured dispatch token, GitHub mode also queues a rate-limited background scan; the response includes `scan.status`. No model key is required. |
+| `POST /api/report`                      | Saves a report for an existing listing. Body: `{ "offerId": "...", "reason": "The code didn't work" }`. Also accepts `The offer has ended` and `The terms are different`.                                          |
+| `GET /api/cron`                         | Authenticated collection/feed check. Header: `Authorization: Bearer <CRON_SECRET>`.                                                                                                                                |
 
 Refresh and reports validate browser origin. Set `TRUST_PROXY=true` only when the deployment ingress overwrites `x-forwarded-for`; otherwise all local clients share a conservative refresh bucket. No raw IP addresses are stored by the app. Set a separate `RATE_LIMIT_SECRET` (32+ random characters) in production; address identifiers use daily rotating HMACs. Public discovery has a shared ten-minute cooldown. Reports are removed after 30 days during the next report write or scheduled cleanup, using the updated service-role-only Supabase RPCs. Apply the current `supabase/schema.sql` before enabling writes. The single-node development limiter is in memory; Supabase provides an atomic distributed limiter.
 

@@ -11,16 +11,18 @@ export type DispatchStatus =
 export async function queuePromotionDiscovery(updatedAt: string | null): Promise<DispatchStatus> {
   const token = process.env.GITHUB_DISPATCH_TOKEN;
   if (!token) return { status: "not_configured" };
-  if (updatedAt && Number.isFinite(Date.parse(updatedAt)) &&
-      Date.now() - Date.parse(updatedAt) >= 0 &&
-      Date.now() - Date.parse(updatedAt) < 600_000)
+  if (
+    updatedAt &&
+    Number.isFinite(Date.parse(updatedAt)) &&
+    Date.now() - Date.parse(updatedAt) >= 0 &&
+    Date.now() - Date.parse(updatedAt) < 600_000
+  )
     return { status: "recent" };
   const retryAfter = await takeRefreshSlot("discovery:global", 600);
   if (retryAfter) return { status: "cooldown", retryAfter };
 
   const repository = process.env.PROMOTION_FEED_REPOSITORY || "thembaxx/procodiapp";
-  if (!/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(repository))
-    return { status: "failed" };
+  if (!/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(repository)) return { status: "failed" };
   try {
     const response = await fetch(
       `https://api.github.com/repos/${repository}/actions/workflows/discovery.yml/dispatches`,

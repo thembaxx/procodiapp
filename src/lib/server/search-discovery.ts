@@ -6,17 +6,29 @@ import { allowedStoreUrl } from "../source-urls";
 import { boundedJson } from "./bounded-input";
 import { candidateSchema, promotionId, tidy, type Candidate } from "./promotion-parser";
 
-const braveResults = z.object({
-  web: z.object({
-    results: z.array(z.object({
-      title: z.string(),
-      url: z.string(),
-      description: z.string().nullish(),
-    }).passthrough()).max(30).optional(),
-  }).nullish(),
-}).passthrough();
+const braveResults = z
+  .object({
+    web: z
+      .object({
+        results: z
+          .array(
+            z
+              .object({
+                title: z.string(),
+                url: z.string(),
+                description: z.string().nullish(),
+              })
+              .passthrough(),
+          )
+          .max(30)
+          .optional(),
+      })
+      .nullish(),
+  })
+  .passthrough();
 
-const CODE = /(?:promo(?:tion)?|voucher|coupon|discount)\s*code\s*[:–-]?\s*["']?([A-Z0-9][A-Z0-9_-]{2,31})\b|\buse\s+code\s+["']?([A-Z0-9][A-Z0-9_-]{2,31})\b/i;
+const CODE =
+  /(?:promo(?:tion)?|voucher|coupon|discount)\s*code\s*[:–-]?\s*["']?([A-Z0-9][A-Z0-9_-]{2,31})\b|\buse\s+code\s+["']?([A-Z0-9][A-Z0-9_-]{2,31})\b/i;
 
 export type SearchDiscovery = {
   searched: boolean;
@@ -39,13 +51,24 @@ export function searchLead(
   }
   // Never fetch arbitrary web-search hits. Only approved retailer / aggregator
   // URLs may later be crawled; these third-party snippets are review leads.
-  if (url.protocol !== "https:" || url.username || url.password || (url.port && url.port !== "443") ||
-    item.url.length > 2000 || !/^[a-z0-9.-]+$/i.test(url.hostname)) return null;
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    (url.port && url.port !== "443") ||
+    item.url.length > 2000 ||
+    !/^[a-z0-9.-]+$/i.test(url.hostname)
+  )
+    return null;
   const combined = tidy(`${item.title} ${item.description ?? ""}`).slice(0, 800);
   const match = combined.match(CODE);
   const code = match?.[1] ?? match?.[2];
-  if (!code || allowedStoreUrl(item.url, store) &&
-    store.domains.some((host) => url.hostname === host || url.hostname === `www.${host}`)) return null;
+  if (
+    !code ||
+    (allowedStoreUrl(item.url, store) &&
+      store.domains.some((host) => url.hostname === host || url.hostname === `www.${host}`))
+  )
+    return null;
   const result = candidateSchema.safeParse({
     id: promotionId(store.id, `${item.url}:${code}`),
     storeId: store.id,
@@ -81,7 +104,9 @@ export function classifySearchResults(
   return {
     officialUrls: [...officialUrls].slice(0, 3),
     aggregatorUrls: [...aggregatorUrls].slice(0, 2),
-    candidates: [...new Map(candidates.map((candidate) => [candidate.id, candidate])).values()].slice(0, 20),
+    candidates: [
+      ...new Map(candidates.map((candidate) => [candidate.id, candidate])).values(),
+    ].slice(0, 20),
   };
 }
 
@@ -99,10 +124,17 @@ async function paceQueries(signal: AbortSignal): Promise<void> {
   await turn;
 }
 
-export async function searchPromotions(store: Store, signal: AbortSignal): Promise<SearchDiscovery> {
+export async function searchPromotions(
+  store: Store,
+  signal: AbortSignal,
+): Promise<SearchDiscovery> {
   const apiKey = process.env.BRAVE_SEARCH_API_KEY?.trim();
   if (!apiKey) return { searched: false, officialUrls: [], aggregatorUrls: [], candidates: [] };
-  const month = new Intl.DateTimeFormat("en-ZA", { timeZone: "Africa/Johannesburg", month: "long", year: "numeric" }).format(new Date());
+  const month = new Intl.DateTimeFormat("en-ZA", {
+    timeZone: "Africa/Johannesburg",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
   const queries = [
     `site:${store.domains[0]} ("promo code" OR "voucher" OR "free delivery")`,
     `"${store.shortName}" grocery delivery coupon South Africa ${month}`,
@@ -126,18 +158,26 @@ export async function searchPromotions(store: Store, signal: AbortSignal): Promi
       });
       if (!response.ok) throw new Error("Search service unavailable.");
       const parsed = braveResults.parse(await boundedJson(response, 150_000));
-      items.push(...(parsed.web?.results ?? []).map((item) => ({
-        title: item.title, url: item.url,
-        ...(item.description ? { description: item.description } : {}),
-      })));
+      items.push(
+        ...(parsed.web?.results ?? []).map((item) => ({
+          title: item.title,
+          url: item.url,
+          ...(item.description ? { description: item.description } : {}),
+        })),
+      );
       successful++;
     } catch {
       if (signal.aborted) throw new Error("Discovery deadline reached.");
     }
   }
   const grouped = classifySearchResults(store, items);
-  return { searched: successful > 0, ...grouped,
-    ...(successful !== queries.length ? { warning: "Some web-search queries were unavailable." } : {}) };
+  return {
+    searched: successful > 0,
+    ...grouped,
+    ...(successful !== queries.length
+      ? { warning: "Some web-search queries were unavailable." }
+      : {}),
+  };
 }
 
 /** Parse permitted coupon aggregators only. Never publish their claims as offers. */
@@ -149,7 +189,9 @@ export function parseAggregatorLeads(store: Store, document: PublicDocument): Ca
   const $ = load(document.html);
   $("script,style,nav,footer,noscript").remove();
   const results: Candidate[] = [];
-  for (const element of $("[data-code],[data-coupon-code],.coupon,article,.offer").toArray().slice(0, 35)) {
+  for (const element of $("[data-code],[data-coupon-code],.coupon,article,.offer")
+    .toArray()
+    .slice(0, 35)) {
     const block = $(element);
     const text = tidy(block.text()).slice(0, 600);
     const title = tidy(block.find("h1,h2,h3,h4").first().text()).slice(0, 160);

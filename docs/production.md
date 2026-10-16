@@ -17,9 +17,9 @@ Set these server environment variables before public launch:
 | `DATA_DIR`                                        | An absolute path on a persistent volume for exactly one Node instance. Docker defaults to `/app/.data`; mount it.                        |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`       | Use instead of local storage for multiple instances or serverless. Run `supabase/schema.sql` first. Credentials are server-only.         |
 | `PROMOTION_FEED`, `PROMOTION_FEED_REPOSITORY`     | Use `github` after the scheduled feed is published; `local` runs collection against persistent/shared storage.                           |
-| `BRAVE_SEARCH_API_KEY`                       | Optional Actions-only web discovery key. Do not expose it to the browser.                                     |
-| `GITHUB_DISPATCH_TOKEN`                       | Optional server-only fine-grained Actions-write token for on-demand scans in GitHub feed mode.              |
-| `PROMOTION_BROWSER_FALLBACK`                  | Enable only in the Actions collector with installed Chromium; keep disabled in the deployed app.            |
+| `BRAVE_SEARCH_API_KEY`                            | Optional Actions-only web discovery key. Do not expose it to the browser.                                                                |
+| `GITHUB_DISPATCH_TOKEN`                           | Optional server-only fine-grained Actions-write token for on-demand scans in GitHub feed mode.                                           |
+| `PROMOTION_BROWSER_FALLBACK`                      | Enable only in the Actions collector with installed Chromium; keep disabled in the deployed app.                                         |
 | `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_ADVERTISERS` | Optional free publisher fallback. Set together on the collector only; leave unset for credential-free official sources.                  |
 | `TRUST_PROXY`                                     | Enable only when a trusted ingress overwrites `x-forwarded-for`.                                                                         |
 
