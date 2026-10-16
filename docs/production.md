@@ -17,6 +17,9 @@ Set these server environment variables before public launch:
 | `DATA_DIR`                                        | An absolute path on a persistent volume for exactly one Node instance. Docker defaults to `/app/.data`; mount it.                        |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`       | Use instead of local storage for multiple instances or serverless. Run `supabase/schema.sql` first. Credentials are server-only.         |
 | `PROMOTION_FEED`, `PROMOTION_FEED_REPOSITORY`     | Use `github` after the scheduled feed is published; `local` runs collection against persistent/shared storage.                           |
+| `BRAVE_SEARCH_API_KEY`                       | Optional Actions-only web discovery key. Do not expose it to the browser.                                     |
+| `GITHUB_DISPATCH_TOKEN`                       | Optional server-only fine-grained Actions-write token for on-demand scans in GitHub feed mode.              |
+| `PROMOTION_BROWSER_FALLBACK`                  | Enable only in the Actions collector with installed Chromium; keep disabled in the deployed app.            |
 | `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_ADVERTISERS` | Optional free publisher fallback. Set together on the collector only; leave unset for credential-free official sources.                  |
 | `TRUST_PROXY`                                     | Enable only when a trusted ingress overwrites `x-forwarded-for`.                                                                         |
 
@@ -36,7 +39,7 @@ pnpm start
 
 1. Use a managed HTTPS ingress with HTTP-to-HTTPS redirection, connection/request deadlines and request-body limits. Forward the original host correctly and overwrite forwarding headers before trusting them. The app recognises its configured canonical origin behind an internal host.
 2. Check `GET /api/health`. It returns `200 {"status":"ready"}` when storage is accessible and `503` when unavailable. It exposes no environment variables, paths or credentials. This is storage readiness, not proof of fresh offers or working external providers.
-3. Run [scheduled collection](promotion-discovery.md) on main, confirm the `promotion-data` branch, then set `PROMOTION_FEED=github` and redeploy the app. It runs every six hours without model/search secrets. Verify `/api/offers` mode, successful timestamp and per-store parsed/fallback checks. Optional CJ credentials belong on Actions. Authenticated `/api/cron` remains an alternative for a persistent local/shared-database collector.
+3. Run [scheduled collection](promotion-discovery.md) on main, confirm the `promotion-data` branch, then set `PROMOTION_FEED=github` and redeploy the app. It runs twice daily without model/search secrets (optional Brave search improves discovery). Verify `/api/offers` mode, successful timestamp and per-store parsed/fallback checks. Optional CJ credentials belong on Actions. Authenticated `/api/cron` remains an alternative for a persistent local/shared-database collector.
 4. Restart/redeploy and verify the cache and reports survive. Back up the volume/database and rehearse restoration. Do not scale local-file storage across processes or replicas.
 5. Check the live canonical, `/robots.txt`, `/sitemap.xml`, `/llms.txt`, `/promotions.md` and `/share-image`. Canonicals must use the public domain, with no `localhost`, preview host or query variants. Submit the sitemap through Google Search Console and Bing Webmaster Tools using your own verified accounts.
 6. Install from the actual HTTPS origin on iOS and Android. Check the Ready offline state, close/reopen offline, reconnect and accept an app update. An app manifest check cannot substitute for actual device installation.
@@ -52,7 +55,7 @@ Structured data describes the website, free web application and store breadcrumb
 
 `/llms.txt` is a discovery hint that links to source policy, store pages and request-time Markdown listings. `/promotions.md` is not cached and excludes expired, stale and unknown-expiry offers. Each record includes criteria, source, checkout status, published expiry and review-valid-until. It is kept out of search indexes to avoid duplicating HTML pages. Search and answer engines primarily rely on accessible HTML and their own policies; this file does not guarantee inclusion or ranking. Do not use expired cached feed content to make savings claims.
 
-Source-specific extraction uses declarative JSON/HTML, text PDFs and reviewed evidence, with byte limits, a five-page store budget and a 90-second overall scan deadline. The optional CJ adapter rejects unjoined, foreign, malformed or undated offers. Incomplete leads remain in a separate review file. The collector does not use a model or paid search. Source evidence is not proof of checkout eligibility.
+Source-specific extraction uses declarative JSON/HTML, text PDFs and reviewed evidence, with byte limits, a five-page store budget and a 90-second overall scan deadline. The Actions runner can optionally render one permitted JavaScript-only page per store with Playwright; the Vercel app should not launch a browser. The optional CJ adapter rejects unjoined, foreign, malformed or undated offers. Incomplete leads remain in a separate review file. The collector does not use a model or paid search. Source evidence is not proof of checkout eligibility.
 
 ## Security, privacy and operations
 
@@ -73,3 +76,5 @@ Before enabling refresh/report writes, set a strong `RATE_LIMIT_SECRET`, run the
 Check `pnpm check:production`, `/api/health`, a real report, one refresh plus its rate-limit response, and one scheduled cleanup. SQL tests run against an isolated PostgreSQL service in CI. For a local isolated PostgreSQL container, run `DATABASE_CONTAINER=<test-container> pnpm test:database`; never point this fixture runner at production. It creates test roles and rows.
 
 The [privacy and security audit](security-audit.md) lists evidence, fixes, remaining launch blockers and controls that could not be inspected. In particular, configure edge request/connection limits and source request limits; application rate limits do not prevent volumetric traffic or enforce hosting/storage quotas.
+
+Optional on-demand GitHub Actions dispatch needs a dedicated server-only fine-grained token with Actions write access. The existing rate-limit storage should be Supabase on multi-instance Vercel deployments. A user refresh immediately returns the current feed, with an additional `scan.status` field indicating whether a background run was queued.
