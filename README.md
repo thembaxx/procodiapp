@@ -70,6 +70,13 @@ The initial snapshot includes Checkers Xtra Savings Plus delivery, Woolworths My
 
 **Free collection:** official HTML promotion blocks, JSON-LD, text PDFs and reviewed evidence are parsed without AI models or mandatory search fees. Optional Brave Search discovers additional approved URLs. The GitHub collector can render permitted JavaScript-only pages using Playwright; coupon-site claims remain review candidates. Approved campaign links share a bounded page budget. Retailer protections and JavaScript-only pages can make a source unavailable. Partial failures retain only still-fresh listings with their original deadlines.
 
+**Optional web-search pilot:** Treg Web Access can augment Brave Search with a
+per-call cost ceiling and shared per-run budget, without changing the existing
+source-validation rules. It requires a server-only `TREG_TOKEN` secret in the
+Actions `discovery` environment; user-triggered refreshes never invoke paid
+search. Optional Treg page extraction only creates unverified review
+candidates, never live offers. See [Treg integration and limits](docs/promotion-discovery.md#optional-treg-web-access-pilot).
+
 **Optional free fallback:** CJ Affiliate Link Search is queried when a store's official sources fail or yield no eligible coupon. It needs a free publisher account, an approved property, and approved South African advertiser IDs. Coverage is not assumed. Configure `CJ_API_TOKEN`, `CJ_WEBSITE_ID` and `CJ_ADVERTISERS` together, or leave all unset. The adapter validates advertiser identity, joined status, ZA targeting, merchant destination, eligibility and expiry. It uses bounded requests and does not follow tracking redirects.
 
 **Shared feed without a database subscription:** the twice-daily Actions workflow publishes validated `offers.json` and unconfirmed `candidates.json` on a separate `promotion-data` branch. Set `PROMOTION_FEED=github` on the app after the first successful scan. Browser Refresh loads the scheduled feed immediately and can optionally queue a rate-limited Actions scan when a server-only GitHub dispatch token is configured. Private reports/rate limits still need the existing persistent file or Supabase storage. `PROMOTION_FEED=local` keeps local/shared-database collection available.
