@@ -90,11 +90,13 @@ export async function callTreg(
   }
 }
 
-const rowSchema = z.object({
-  title: z.string().max(300),
-  url: z.string().max(2000),
-  description: z.string().max(1200).optional(),
-}).passthrough();
+const rowSchema = z
+  .object({
+    title: z.string().max(300),
+    url: z.string().max(2000),
+    description: z.string().max(1200).optional(),
+  })
+  .passthrough();
 
 function object(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -108,8 +110,9 @@ export function tregSearchRows(output: unknown) {
   const data = object(root?.data);
   const items = Array.isArray(output)
     ? output
-    : [root?.results, root?.organic, root?.organic_results, web?.results, data?.results]
-        .find(Array.isArray) ?? [];
+    : ([root?.results, root?.organic, root?.organic_results, web?.results, data?.results].find(
+        Array.isArray,
+      ) ?? []);
   const rows: z.infer<typeof rowSchema>[] = [];
   for (const item of items.slice(0, 20)) {
     const candidate = object(item);
@@ -128,8 +131,9 @@ export function tregSearchRows(output: unknown) {
 export function tregExtractedText(output: unknown): string | null {
   const root = object(output);
   const data = object(root?.data);
-  const candidate = [root?.markdown, root?.text, root?.content, data?.markdown, data?.text]
-    .find((value) => typeof value === "string");
+  const candidate = [root?.markdown, root?.text, root?.content, data?.markdown, data?.text].find(
+    (value) => typeof value === "string",
+  );
   if (typeof candidate !== "string") return null;
   const clean = candidate.replace(/\s+/g, " ").trim();
   return clean.length >= 100 && clean.length <= 50_000 ? clean : null;
