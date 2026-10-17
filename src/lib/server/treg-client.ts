@@ -7,13 +7,6 @@ const ENDPOINT = "https://treg.to/call/";
 const resultSchema = z
   .object({
     output: z.unknown().optional(),
-    _treg: z
-      .object({
-        outcome: z.string().optional(),
-        served_by: z.string().optional(),
-      })
-      .passthrough()
-      .optional(),
   })
   .passthrough();
 
@@ -75,9 +68,10 @@ export async function callTreg(
     if (response.status === 202) throw new Error("Treg job is pending; no retry.");
     if (!response.ok) throw new Error("Treg provider unavailable.");
     const raw = resultSchema.parse(await boundedJson(response, 200_000));
-    if (raw._treg?.outcome === "pending") throw new Error("Treg job is pending; no retry.");
+    if (object(raw["_treg"])?.outcome === "pending") throw new Error("Treg job is pending; no retry.");
     // The billed amount comes from the response HEADER, never from a provider's body.
-    const billed = Number(response.headers.get("X-Treg-Cost-Micro"));
+    const headerCost = response.headers.get("X-Treg-Cost-Micro");
+    const billed = headerCost === null ? NaN : Number(headerCost);
     const actual = Number.isSafeInteger(billed) && billed >= 0 ? billed : reserve;
     committedMicro += actual;
     settled = true;
