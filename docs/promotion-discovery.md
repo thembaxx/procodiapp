@@ -2,6 +2,49 @@
 
 **Discover promotions** runs twice daily at `04:17, 16:17 UTC` (06:17 and 18:17 SAST), with manual dispatch on [GitHub Actions](https://github.com/thembaxx/procodiapp/actions/workflows/discovery.yml). Standard runners for this public repository are free. The collector uses no AI models. It can optionally use Brave Search (within your plan's allowance) to discover additional official retailer pages and pre-approved coupon-review pages. GitHub schedules may be delayed or dropped and can be disabled after 60 days without repository activity.
 
+## Optional Treg Web Access pilot
+
+The scheduled collector can search with [Treg Web Access](https://treg.to/web-access) in
+addition to (or instead of) Brave Search. The integration is **off until a token
+is configured**. No browser token is ever used. Set the following in the GitHub
+Actions `discovery` environment:
+
+1. Add secret **`TREG_TOKEN`** (Treg team-scoped token). Identity tokens may
+   additionally need the `TREG_ORG` environment variable.
+2. With the token present, the Actions workflow uses
+   `DISCOVERY_SEARCH_MODE=both` for scheduled/manual scans: one Treg search
+   and two Brave queries per retailer. Without it, it stays `brave`.
+   `user_refresh` scans use `none`, so users cannot cause search charges.
+3. The workflow sets `TREG_MAX_COST_USD=0.01`,
+   `TREG_SCAN_BUDGET_USD=0.12` and `TREG_MAX_CALLS_PER_SCAN=12`.
+   These are per-call and **per-run** limits; they are not a durable daily
+   budget or a guarantee of monthly cost. Monitor the Treg ledger and set
+   an account/org-level budget to prevent repeated workflow runs from
+   overspending. Treg waterfall providers can charge even for misses.
+4. To enable optional extraction, add the Actions environment variable
+   **`PROMOTION_TREG_EXTRACT_FALLBACK=true`**. Extraction is attempted only
+   for approved official URLs whose robots policy passed but whose public
+   response requires JavaScript and whose Playwright render failed or was
+   disabled. The extracted text is treated as **unverified leads only**,
+   never as evidence that automatically publishes an offer.
+
+`DISCOVERY_SEARCH_MODE` accepts `none`, `brave`, `treg`, or `both`
+when running locally. Treg results are passed through the same retailer
+allowlists as Brave results: URLs are only discovery hints. A Treg failure,
+budget refusal or pending asynchronous response never makes a record live;
+the ordinary free public-source collection proceeds. Codes extracted from
+Treg are quarantined as `unverified_third_party` candidates until independently
+confirmed against retailer evidence.
+
+The Treg client calls `POST https://treg.to/call/treg.web.search` or
+`treg.web.extract` with a server-only `X-Treg-Token`, bounded response
+size, timeouts and `X-Treg-Route-Max-Cost`. It reads
+`X-Treg-Cost-Micro` to report run usage without exposing credentials.
+The `treg.web.search` adapter intentionally supports only conservative
+common result shapes; confirm the current contract in Treg's catalog
+before enabling production billing. No paid live request is performed
+by the automated tests.
+
 ## Primary collection
 
 The worker fetches approved official sources for the six South African grocery retailers, reads robots policies, and parses HTML promotion blocks, declarative JSON-LD, and text PDFs. Optional Brave Search identifies more approved URLs, and a bounded Playwright fallback renders allowed JavaScript-only pages on GitHub Actions. Authentication, CAPTCHA, blocks and disallowed robots paths are never bypassed. Reviewed benefit evidence is checked without cutting away the end of long terms pages. Approved campaign/terms links share a five-page budget per store. Source requests reject redirects, retain byte/time limits, and never bypass login or CAPTCHA.

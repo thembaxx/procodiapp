@@ -49,7 +49,15 @@ jobs:
       - name: Check official sources and use the optional free fallback
         env:
           BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
-          DISCOVERY_SEARCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.source == 'user_refresh' && 'none' || 'brave' }}
+          # No paid searching on end-user refresh. Default to Brave until a
+          # Treg token is configured, then compare both providers side by side.
+          DISCOVERY_SEARCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.source == 'user_refresh' && 'none' || (secrets.TREG_TOKEN != '' && 'both' || 'brave') }}
+          TREG_TOKEN: ${{ secrets.TREG_TOKEN }}
+          TREG_ORG: ${{ vars.TREG_ORG }}
+          TREG_MAX_COST_USD: "0.01"
+          TREG_SCAN_BUDGET_USD: "0.12"
+          TREG_MAX_CALLS_PER_SCAN: "12"
+          PROMOTION_TREG_EXTRACT_FALLBACK: ${{ github.event_name == 'workflow_dispatch' && inputs.source == 'user_refresh' && 'false' || vars.PROMOTION_TREG_EXTRACT_FALLBACK || 'false' }}
           PROMOTION_BROWSER_FALLBACK: "true"
           CJ_API_TOKEN: ${{ secrets.CJ_API_TOKEN }}
           CJ_WEBSITE_ID: ${{ vars.CJ_WEBSITE_ID }}

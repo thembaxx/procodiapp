@@ -38,6 +38,12 @@ async function main() {
           JSON.stringify(discoveryCandidates(), null, 2),
         );
       }
+      const { tregUsage } = await import("../src/lib/server/treg-client");
+      const usage = tregUsage();
+      if (usage.calls)
+        console.log(
+          `Treg used ${usage.calls} calls; charged or conservatively reserved $ ${(usage.chargedMicro / 1_000_000).toFixed(6)}. Review the Treg ledger for final settlement.`,
+        );
       const checked = data.checks.filter((check) => check.status === "checked").length;
       console.log(
         `${data.reused ? "Loaded recent scan" : publish ? "Prepared public feed" : "Updated shared promotions"}: ${data.offers.length} active offers, ${data.newOfferIds.length} new, ${checked}/${data.checks.length} stores checked.`,
