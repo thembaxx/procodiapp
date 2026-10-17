@@ -9,6 +9,8 @@ import { parseOfficialDocument, promotionLinks, type Candidate } from "./promoti
 import { parseCouponLeads } from "./coupon-leads";
 import { searchPromotions, parseAggregatorLeads } from "./search-discovery";
 import { BrowserRequiredError } from "./public-pages";
+import { callTreg, tregConfigured, tregExtractedText } from "./treg-client";
+import { extractedCouponLeads } from "./treg-review-leads";
 export { containsEvidence } from "./promotion-parser";
 
 let inFlight: Promise<Cache & { newOfferIds: string[] }> | undefined;
@@ -91,9 +93,15 @@ async function runDiscovery(signal: AbortSignal) {
                 throw error;
               // Robots were checked before determining a browser was needed.
               const { readBrowserDocument } = await import("./browser-pages");
-              const browserResult = await readBrowserDocument(url, signal);
-              renderedPages++;
-              return browserResult;
+              try {
+                const browserResult = await readBrowserDocument(url, signal);
+                renderedPages++;
+                return browserResult;
+              } catch {
+                // Preserve the original classification for the optional Treg
+                // review-only fallback below. It has already passed robots.
+                throw error;
+              }
             }
           })();
           const parsed = parseOfficialDocument(store, document);
@@ -104,7 +112,22 @@ async function runDiscovery(signal: AbortSignal) {
           for (const link of promotionLinks(store, document)) {
             if (!queue.includes(link) && queue.length < 5) queue.push(link);
           }
-        } catch {
+        } catch (error) {
+          if (
+            error instanceof BrowserRequiredError &&
+            process.env.PROMOTION_TREG_EXTRACT_FALLBACK === "true" &&
+            tregConfigured() &&
+            !signal.aborted
+          ) {
+            try {
+              const extracted = tregExtractedText(
+                await callTreg("treg.web.extract", { url }, signal),
+              );
+              if (extracted) candidates.push(...extractedCouponLeads(store, url, extracted));
+            } catch {
+              errors.push("Optional Treg extraction was unavailable.");
+            }
+          }
           errors.push("Some official promotion sources could not be checked.");
         }
       }
