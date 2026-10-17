@@ -28,14 +28,22 @@ describe("Treg integration", () => {
   });
 
   it("uses the routed API with credentials, a fixed cost ceiling and measured charge", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({ output: { results: [{ title: "Store", url: "https://www.pnp.co.za/asap" }] } }),
-        { status: 200, headers: { "X-Treg-Cost-Micro": "700" } },
-      ),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            output: { results: [{ title: "Store", url: "https://www.pnp.co.za/asap" }] },
+          }),
+          { status: 200, headers: { "X-Treg-Cost-Micro": "700" } },
+        ),
+      );
     vi.stubGlobal("fetch", fetchMock);
-    const output = await callTreg("treg.web.search", { query: "Pick n Pay coupon South Africa" }, signal);
+    const output = await callTreg(
+      "treg.web.search",
+      { query: "Pick n Pay coupon South Africa" },
+      signal,
+    );
     expect(tregSearchRows(output)).toHaveLength(1);
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe("https://treg.to/call/treg.web.search");
@@ -47,22 +55,29 @@ describe("Treg integration", () => {
 
   it("does not issue calls once the scan reservation limit is exhausted", async () => {
     process.env.TREG_SCAN_BUDGET_USD = "0.01";
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ output: [] }), { status: 200 }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ output: [] }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     await callTreg("treg.web.search", { query: "test" }, signal);
-    await expect(callTreg("treg.web.search", { query: "test again" }, signal))
-      .rejects.toThrow("budget");
+    await expect(callTreg("treg.web.search", { query: "test again" }, signal)).rejects.toThrow(
+      "budget",
+    );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not treat an asynchronous pending job as a completed source", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(
-      JSON.stringify({ _treg: { outcome: "pending" } }), { status: 202 },
-    )));
-    await expect(callTreg("treg.web.extract", { url: "https://www.pnp.co.za/asap" }, signal))
-      .rejects.toThrow("pending");
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ _treg: { outcome: "pending" } }), { status: 202 }),
+        ),
+    );
+    await expect(
+      callTreg("treg.web.extract", { url: "https://www.pnp.co.za/asap" }, signal),
+    ).rejects.toThrow("pending");
   });
 
   it("accepts normalized search fields while retailer allowlists reject unrelated sites", () => {
@@ -80,7 +95,8 @@ describe("Treg integration", () => {
   });
 
   it("quarantines extracted coupon codes as candidates rather than publishable offers", () => {
-    const text = "This is a promotion at Pick n Pay online: use code SAVE50 for eligible grocery orders, " +
+    const text =
+      "This is a promotion at Pick n Pay online: use code SAVE50 for eligible grocery orders, " +
       "subject to store terms, exclusions and a minimum basket. ".repeat(3);
     const extracted = tregExtractedText({ markdown: text });
     expect(extracted).not.toBeNull();
@@ -88,7 +104,6 @@ describe("Treg integration", () => {
     expect(result).toHaveLength(1);
     expect(result[0].code).toBe("SAVE50");
     expect(result[0].reason).toBe("unverified_third_party");
-    expect(extractedCouponLeads(stores[1], "https://evil.example/offers", extracted!))
-      .toEqual([]);
+    expect(extractedCouponLeads(stores[1], "https://evil.example/offers", extracted!)).toEqual([]);
   });
 });
