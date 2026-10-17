@@ -1,9 +1,28 @@
-# Little Less
+# Little Less · ProcodiApp
 
-> **Portfolio project** · [Live application](https://procodiapp.vercel.app/?design=wallet) · [GitHub source](https://github.com/thembaxx/procodiapp)
->
-> Built with a focus on intuitive interfaces, responsive design and practical product engineering. Explore the live experience or review the implementation below.
+A South African grocery-promotion explorer with offer terms, saved offers and three switchable interface designs.
 
+**[Explore the live application](https://procodiapp.vercel.app/?design=wallet)** · [Browse the source](https://github.com/thembaxx/procodiapp)
+
+## Engineering highlights
+
+Persistent local preferences, PWA build tooling and a promotion-discovery pipeline; source freshness and retailer validation remain important.
+
+## Technology
+
+Declared in [package.json](package.json): Next.js `16.4.0` · React `19.3.0` · TypeScript `^7.0.2` · Tailwind CSS `4.3.3` · Three.js `^0.186.1` · Motion `14.0.0` · Zod `^4.1.0`.
+
+**Quality tooling:** `lint`, `format:check`, `typecheck`, `test`, `test:e2e`, `check` scripts are available. See the setup guide below for prerequisites; this documentation pass does not assert that those checks were run.
+
+## Application preview
+
+![Little Less · ProcodiApp — desktop application](docs/screenshots/desktop.jpg)
+
+Captured from the live application on 17 October 2026. [Capture details and limitations](docs/screenshots/README.md).
+
+---
+
+## Project guide
 
 **A little less at checkout.**
 
