@@ -68,7 +68,8 @@ export async function callTreg(
     if (response.status === 202) throw new Error("Treg job is pending; no retry.");
     if (!response.ok) throw new Error("Treg provider unavailable.");
     const raw = resultSchema.parse(await boundedJson(response, 200_000));
-    if (object(raw["_treg"])?.outcome === "pending") throw new Error("Treg job is pending; no retry.");
+    if (object(raw["_treg"])?.outcome === "pending")
+      throw new Error("Treg job is pending; no retry.");
     // The billed amount comes from the response HEADER, never from a provider's body.
     const headerCost = response.headers.get("X-Treg-Cost-Micro");
     const billed = headerCost === null ? NaN : Number(headerCost);
