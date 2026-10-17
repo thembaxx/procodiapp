@@ -28,16 +28,14 @@ describe("Treg integration", () => {
   });
 
   it("uses the routed API with credentials, a fixed cost ceiling and measured charge", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            output: { results: [{ title: "Store", url: "https://www.pnp.co.za/asap" }] },
-          }),
-          { status: 200, headers: { "X-Treg-Cost-Micro": "700" } },
-        ),
-      );
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          output: { results: [{ title: "Store", url: "https://www.pnp.co.za/asap" }] },
+        }),
+        { status: 200, headers: { "X-Treg-Cost-Micro": "700" } },
+      ),
+    );
     vi.stubGlobal("fetch", fetchMock);
     const output = await callTreg(
       "treg.web.search",
