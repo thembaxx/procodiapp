@@ -29,6 +29,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Temporary formatter diagnostic
+        run: |
+          pnpm exec oxfmt src/lib/server/treg-client.ts tests/treg-client.test.ts
+          git diff -- src/lib/server/treg-client.ts tests/treg-client.test.ts
       - run: pnpm check
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
