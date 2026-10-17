@@ -1,5 +1,10 @@
 # Little Less
 
+> **Portfolio project** · [Live application](https://procodiapp.vercel.app/?design=wallet) · [GitHub source](https://github.com/thembaxx/procodiapp)
+>
+> Built with a focus on intuitive interfaces, responsive design and practical product engineering. Explore the live experience or review the implementation below.
+
+
 **A little less at checkout.**
 
 A mobile-first app for finding South African grocery promotions, reading the terms, and copying a code in one tap. Built with **Next.js 16, React 19, TypeScript, Tailwind CSS 4, Motion, Three.js, Hugeicons, oxlint, oxfmt and pnpm**.
