@@ -4,6 +4,7 @@ import type { PublicDocument } from "./public-pages";
 import type { Store } from "../stores";
 import { allowedStoreUrl } from "../source-urls";
 import { boundedJson } from "./bounded-input";
+import { callTreg, tregConfigured, tregSearchRows } from "./treg-client";
 import { candidateSchema, promotionId, tidy, type Candidate } from "./promotion-parser";
 
 const braveResults = z
@@ -128,57 +129,89 @@ export async function searchPromotions(
   store: Store,
   signal: AbortSignal,
 ): Promise<SearchDiscovery> {
-  const apiKey =
-    process.env.DISCOVERY_SEARCH_MODE === "none"
-      ? undefined
-      : process.env.BRAVE_SEARCH_API_KEY?.trim();
-  if (!apiKey) return { searched: false, officialUrls: [], aggregatorUrls: [], candidates: [] };
+  const mode = process.env.DISCOVERY_SEARCH_MODE ?? "brave";
+  if (mode === "none")
+    return { searched: false, officialUrls: [], aggregatorUrls: [], candidates: [] };
+
   const month = new Intl.DateTimeFormat("en-ZA", {
     timeZone: "Africa/Johannesburg",
     month: "long",
     year: "numeric",
   }).format(new Date());
-  const queries = [
-    `site:${store.domains[0]} ("promo code" OR "voucher" OR "free delivery")`,
-    `"${store.shortName}" grocery delivery coupon South Africa ${month}`,
-  ];
   const items: { title: string; url: string; description?: string }[] = [];
+  const warnings: string[] = [];
   let successful = 0;
-  for (const query of queries) {
-    signal.throwIfAborted();
-    try {
-      await paceQueries(signal);
-      const url = new URL("https://api.search.brave.com/res/v1/web/search");
-      url.searchParams.set("q", query);
-      url.searchParams.set("count", "8");
-      url.searchParams.set("country", "ZA");
-      url.searchParams.set("search_lang", "en");
-      const response = await fetch(url, {
-        headers: { "X-Subscription-Token": apiKey, Accept: "application/json" },
-        redirect: "error",
-        cache: "no-store",
-        signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
-      });
-      if (!response.ok) throw new Error("Search service unavailable.");
-      const parsed = braveResults.parse(await boundedJson(response, 150_000));
-      items.push(
-        ...(parsed.web?.results ?? []).map((item) => ({
-          title: item.title,
-          url: item.url,
-          ...(item.description ? { description: item.description } : {}),
-        })),
-      );
-      successful++;
-    } catch {
-      if (signal.aborted) throw new Error("Discovery deadline reached.");
+  let attempted = 0;
+
+  if (mode === "treg" || mode === "both") {
+    if (!tregConfigured()) {
+      warnings.push("Treg search is not configured.");
+    } else {
+      attempted++;
+      try {
+        // One broad South African query per store. Search results are URL hints only.
+        const output = await callTreg(
+          "treg.web.search",
+          { query: `"${store.name}" grocery promotion coupon free delivery South Africa ${month}` },
+          signal,
+        );
+        items.push(...tregSearchRows(output));
+        successful++;
+      } catch {
+        warnings.push("Treg web search was unavailable.");
+      }
     }
   }
+
+  if (mode === "brave" || mode === "both") {
+    const apiKey = process.env.BRAVE_SEARCH_API_KEY?.trim();
+    if (!apiKey) {
+      if (mode === "both") warnings.push("Brave web search is not configured.");
+    } else {
+      const queries = [
+        `site:${store.domains[0]} ("promo code" OR "voucher" OR "free delivery")`,
+        `"${store.shortName}" grocery delivery coupon South Africa ${month}`,
+      ];
+      for (const query of queries) {
+        signal.throwIfAborted();
+        attempted++;
+        try {
+          await paceQueries(signal);
+          const url = new URL("https://api.search.brave.com/res/v1/web/search");
+          url.searchParams.set("q", query);
+          url.searchParams.set("count", "8");
+          url.searchParams.set("country", "ZA");
+          url.searchParams.set("search_lang", "en");
+          const response = await fetch(url, {
+            headers: { "X-Subscription-Token": apiKey, Accept: "application/json" },
+            redirect: "error",
+            cache: "no-store",
+            signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+          });
+          if (!response.ok) throw new Error("Search service unavailable.");
+          const parsed = braveResults.parse(await boundedJson(response, 150_000));
+          items.push(
+            ...(parsed.web?.results ?? []).map((item) => ({
+              title: item.title,
+              url: item.url,
+              ...(item.description ? { description: item.description } : {}),
+            })),
+          );
+          successful++;
+        } catch {
+          if (signal.aborted) throw new Error("Discovery deadline reached.");
+          warnings.push("Some Brave web-search queries were unavailable.");
+        }
+      }
+    }
+  }
+
   const grouped = classifySearchResults(store, items);
   return {
     searched: successful > 0,
     ...grouped,
-    ...(successful !== queries.length
-      ? { warning: "Some web-search queries were unavailable." }
+    ...(warnings.length || (attempted > 0 && successful === 0)
+      ? { warning: [...new Set(warnings)].join(" ").slice(0, 250) || "Web search was unavailable." }
       : {}),
   };
 }
