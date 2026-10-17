@@ -34,6 +34,9 @@ jobs:
           pnpm exec oxfmt .
           git diff -- src/lib/server/treg-client.ts tests/treg-client.test.ts
       - run: pnpm check
+      # Stop the diagnostic run before long Playwright installation; the
+      # formatter diff above is needed to commit exact repository style.
+      - run: exit 1
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
       - run: pnpm test:e2e
