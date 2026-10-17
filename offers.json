@@ -13,8 +13,8 @@
       "sourceName": "Woolworths",
       "sourceUrl": "https://www.woolworths.co.za/content/look/mydifference-plus-joinplus/_/A-cmp216901",
       "foundAt": "2026-10-08T20:30:00.000Z",
-      "checkedAt": "2026-10-17T08:35:38.492Z",
-      "validUntil": "2026-10-18T08:35:38.492Z",
+      "checkedAt": "2026-10-17T08:38:56.506Z",
+      "validUntil": "2026-10-18T08:38:56.506Z",
       "verified": false,
       "evidence": "Get free delivery when you shop Woolies online",
       "collectionMethod": "reviewed_source"
@@ -32,14 +32,14 @@
       "sourceName": "Makro terms of use",
       "sourceUrl": "https://www.makro.co.za/pages/terms-of-use",
       "foundAt": "2026-10-08T20:30:00.000Z",
-      "checkedAt": "2026-10-17T08:35:34.568Z",
-      "validUntil": "2026-10-18T08:35:34.568Z",
+      "checkedAt": "2026-10-17T08:38:52.190Z",
+      "validUntil": "2026-10-18T08:38:52.190Z",
       "verified": false,
       "evidence": "a discount of up to 5% (five percent) applies to selected food items",
       "collectionMethod": "reviewed_source"
     }
   ],
-  "updatedAt": "2026-10-17T08:35:43.524Z",
+  "updatedAt": "2026-10-17T08:39:05.308Z",
   "checks": [
     {
       "storeId": "checkers",
@@ -68,14 +68,14 @@
     {
       "storeId": "woolworths",
       "status": "checked",
-      "pages": 3,
+      "pages": 2,
       "searched": false,
-      "extractedPages": 1,
-      "parsedPages": 3,
+      "extractedPages": 0,
+      "parsedPages": 2,
       "fallback": "unconfigured",
       "fallbackOffers": 0,
       "candidates": 0,
-      "message": "Treg web search was unavailable. Brave web search is not configured."
+      "message": "Treg web search was unavailable. Brave web search is not configured. Some official promotion sources could not be checked."
     },
     {
       "storeId": "shoprite",
