@@ -11,9 +11,11 @@ import {
 import { readCache, writeCache } from "../../src/lib/server/storage";
 import { sourceSnapshot } from "../../src/lib/snapshot";
 import { stores } from "../../src/lib/stores";
+import { resetTregUsage } from "../../src/lib/server/treg-client";
 
 let directory: string;
 beforeEach(async () => {
+  resetTregUsage();
   directory = await mkdtemp(path.join(os.tmpdir(), "littleless-free-discovery-"));
   for (const [name, value] of Object.entries({
     DATA_DIR: directory,
@@ -22,6 +24,13 @@ beforeEach(async () => {
     CJ_API_TOKEN: "",
     CJ_WEBSITE_ID: "",
     CJ_ADVERTISERS: "",
+    GEMINI_API_KEY: "",
+    BRAVE_SEARCH_API_KEY: "",
+    TREG_TOKEN: "",
+    TREG_MAX_COST_USD: "0.01",
+    TREG_SCAN_BUDGET_USD: "0.12",
+    TREG_MAX_CALLS_PER_SCAN: "12",
+    DISCOVERY_SEARCH_MODE: "brave",
     PROMOTION_FEED: "local",
   }))
     vi.stubEnv(name, value);
@@ -90,6 +99,108 @@ it("collects all retailers and persists evidenced codes without search or model 
   expect((await readCache()).offers).toEqual(result.offers);
   expect(discoveryCandidates()).toEqual([]);
 });
+it("shares one Gemini search across all stores and independently fetches its official sources", async () => {
+  vi.stubEnv("GEMINI_API_KEY", "gemini-test-only-key");
+  vi.stubEnv("DISCOVERY_SEARCH_MODE", "treg");
+  vi.stubEnv("TREG_TOKEN", "treg-test-only-key");
+  const fetchMock = mockSources();
+  const rows = stores.map((store) => ({
+    storeId: store.id,
+    title: "Use code INVENTED99",
+    url: `${store.url}/gemini-campaign`,
+  }));
+  fetchMock.mockImplementationOnce(async () =>
+    Response.json({
+      candidates: [
+        {
+          finishReason: "STOP",
+          content: { parts: [{ text: JSON.stringify({ results: rows }) }] },
+          groundingMetadata: {
+            webSearchQueries: ["South African grocery promotions"],
+            groundingChunks: [{ web: { uri: rows[0].url } }],
+          },
+        },
+      ],
+    }),
+  );
+  const result = await discoverOffers();
+  const requests = fetchMock.mock.calls.map(([url]) => String(url));
+  expect(
+    requests.filter((url) => new URL(url).origin === "https://generativelanguage.googleapis.com"),
+  ).toHaveLength(1);
+  expect(requests.some((url) => new URL(url).hostname === "treg.to")).toBe(false);
+  for (const row of rows) expect(requests).toContain(row.url);
+  expect(result.checks.every((check) => check.searched && check.status === "checked")).toBe(true);
+  expect(result.offers).toHaveLength(6);
+  expect(result.offers.every((offer) => offer.code === "WEB50")).toBe(true);
+  expect(discoveryCandidates()).toEqual([]);
+  expect(JSON.stringify(await readCache())).not.toMatch(/INVENTED99|gemini-test-only-key/);
+});
+it.each(["unavailable", "empty"])(
+  "uses configured fallback after Gemini pages are %s without exceeding the page budget",
+  async (kind) => {
+    vi.stubEnv("GEMINI_API_KEY", "gemini-test-only-key");
+    vi.stubEnv("DISCOVERY_SEARCH_MODE", "treg");
+    vi.stubEnv("TREG_TOKEN", "treg-test-only-key");
+    const fetchMock = mockSources({ empty: true });
+    const readSource = fetchMock.getMockImplementation()!;
+    const rows = stores.flatMap((store) =>
+      [0, 1, 2].map((index) => ({
+        storeId: store.id,
+        title: "Possible campaign",
+        url: new URL(`/gemini-campaign-${index}`, store.url).href,
+      })),
+    );
+    const fallbackRows = stores.map((store) => ({
+      title: "Fallback terms",
+      url: new URL("/fallback-promotion", store.url).href,
+    }));
+    fetchMock.mockImplementation(async (value, init) => {
+      const url = new URL(String(value));
+      if (url.origin === "https://generativelanguage.googleapis.com")
+        return Response.json({
+          candidates: [
+            {
+              finishReason: "STOP",
+              content: { parts: [{ text: JSON.stringify({ results: rows }) }] },
+              groundingMetadata: {
+                webSearchQueries: ["South African grocery promotions"],
+                groundingChunks: [{ web: { uri: rows[0].url } }],
+              },
+            },
+          ],
+        });
+      if (url.origin === "https://treg.to")
+        return Response.json({ output: { results: fallbackRows } });
+      if (url.pathname.startsWith("/gemini-campaign") && kind === "unavailable")
+        return new Response("Unavailable", { status: 503 });
+      if (url.pathname === "/fallback-promotion")
+        return new Response(
+          "<article><h2>Online grocery discount</h2><p>South African online groceries: save R50 using code FALLBACK50. Minimum spend R500. Expires on 2099-12-31. Delivery exclusions apply.</p></article>",
+          { headers: { "Content-Type": "text/html" } },
+        );
+      return readSource(value, init);
+    });
+    const result = await discoverOffers();
+    const requests = fetchMock.mock.calls.map(([url]) => new URL(String(url)));
+    expect(requests.filter((url) => url.origin === "https://treg.to")).toHaveLength(6);
+    expect(result.offers).toHaveLength(6);
+    expect(result.offers.every((offer) => offer.code === "FALLBACK50")).toBe(true);
+    for (const store of stores) {
+      const origin = new URL(store.url).origin;
+      const pages = requests.filter(
+        (url) => url.origin === origin && url.pathname !== "/robots.txt",
+      );
+      expect(pages.length).toBeLessThanOrEqual(5);
+      expect(pages.slice(0, 3).map((url) => url.pathname)).toEqual([
+        "/gemini-campaign-0",
+        "/gemini-campaign-1",
+        "/gemini-campaign-2",
+      ]);
+      expect(pages[3].pathname).toBe("/fallback-promotion");
+    }
+  },
+);
 it("removes a previous code after its successful source evaluation no longer confirms it", async () => {
   await previous();
   mockSources({ empty: true });
@@ -100,13 +211,29 @@ it("keeps still-fresh previous data on source failure without extending its dead
   mockSources({ empty: true, failedOldPage: true });
   expect((await discoverOffers()).offers).toEqual([offer]);
 });
-it("does not advance the successful scan timestamp on total source failure", async () => {
+it("does not advance the successful scan timestamp on total source failure, even after a Gemini search", async () => {
   const offer = await previous();
-  mockSources({ allFailed: true });
+  vi.stubEnv("GEMINI_API_KEY", "gemini-test-only-key");
+  const fetchMock = mockSources({ allFailed: true });
+  fetchMock.mockImplementationOnce(async () =>
+    Response.json({
+      candidates: [
+        {
+          finishReason: "STOP",
+          content: { parts: [{ text: JSON.stringify({ results: [] }) }] },
+          groundingMetadata: {
+            webSearchQueries: ["South African grocery promotions"],
+            groundingChunks: [{ web: { uri: stores[0].url } }],
+          },
+        },
+      ],
+    }),
+  );
   const result = await discoverOffers();
   expect(result.updatedAt).toBe(offer.checkedAt);
   expect(result.offers).toEqual([offer]);
   expect(result.checks.every((check) => check.status === "unavailable")).toBe(true);
+  expect(result.checks.every((check) => check.searched)).toBe(true);
 });
 it("does not resurrect stale data on source failure", async () => {
   const offer = oldOffer();

@@ -46,12 +46,13 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Load last published feed
         run: pnpm exec tsx scripts/load-promotion-feed.ts
-      - name: Check official sources and use the optional free fallback
+      - name: Search with Gemini first and check promotion sources
         env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
-          # No paid searching on end-user refresh. Default to Brave until a
-          # Treg token is configured, then compare both providers side by side.
-          DISCOVERY_SEARCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.source == 'user_refresh' && 'none' || (secrets.TREG_TOKEN != '' && 'both' || 'brave') }}
+          # Gemini uses one grounded batch per full scan. Refresh only rechecks known sources.
+          # Legacy search is a fallback; paid Treg search requires an explicit variable.
+          DISCOVERY_SEARCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.source == 'user_refresh' && 'none' || vars.DISCOVERY_SEARCH_MODE || 'brave' }}
           TREG_TOKEN: ${{ secrets.TREG_TOKEN }}
           TREG_ORG: ${{ vars.TREG_ORG }}
           TREG_MAX_COST_USD: "0.01"

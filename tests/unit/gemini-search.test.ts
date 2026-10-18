@@ -1,0 +1,155 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { searchGeminiPromotions } from "../../src/lib/server/gemini-search";
+import { searchPromotions } from "../../src/lib/server/search-discovery";
+import { resetTregUsage } from "../../src/lib/server/treg-client";
+import { stores } from "../../src/lib/stores";
+
+const signal = new AbortController().signal;
+const rows = [{ storeId: "pnp", title: "Coupon terms", url: "https://www.pnp.co.za/terms" }];
+function grounded(text = JSON.stringify({ results: rows })) {
+  return {
+    candidates: [
+      {
+        finishReason: "STOP",
+        content: { parts: [{ text }] },
+        groundingMetadata: {
+          webSearchQueries: ["Pick n Pay grocery delivery coupon South Africa"],
+          groundingChunks: [{ web: { uri: rows[0].url, title: "Terms" } }],
+        },
+      },
+    ],
+  };
+}
+
+beforeEach(() => {
+  vi.stubEnv("GEMINI_API_KEY", "gemini-test-only-key");
+  vi.stubEnv("DISCOVERY_SEARCH_MODE", "brave");
+  vi.stubEnv("BRAVE_SEARCH_API_KEY", "");
+  vi.stubEnv("TREG_TOKEN", "");
+  resetTregUsage();
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
+
+describe("Gemini primary promotion search", () => {
+  it("batches all retailers into one bounded grounded request without putting the key in a URL", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(grounded()));
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await searchGeminiPromotions(signal);
+    expect(result).toEqual({ searched: true, rows });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+    );
+    expect(options.headers["x-goog-api-key"]).toBe("gemini-test-only-key");
+    expect(options).toMatchObject({ method: "POST", redirect: "error", cache: "no-store" });
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+    const request = JSON.parse(options.body);
+    expect(request.tools).toEqual([{ google_search: {} }]);
+    for (const store of stores) expect(request.contents[0].parts[0].text).toContain(store.name);
+    expect(JSON.stringify(result)).not.toContain("gemini-test-only-key");
+  });
+
+  it("accepts JSON fences and ignores internal thinking text", async () => {
+    const response = grounded("```json\n" + JSON.stringify({ results: rows }) + "\n```");
+    response.candidates[0].content.parts.unshift({ text: "Internal reasoning" });
+    Object.assign(response.candidates[0].content.parts[0], { thought: true });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(response)));
+    expect((await searchGeminiPromotions(signal)).rows).toEqual(rows);
+  });
+
+  it("does not call a provider without a key or when search is disabled for user refresh", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("GEMINI_API_KEY", "  ");
+    expect(await searchGeminiPromotions(signal)).toEqual({ searched: false, rows: [] });
+    vi.stubEnv("GEMINI_API_KEY", "gemini-test-only-key");
+    vi.stubEnv("DISCOVERY_SEARCH_MODE", "none");
+    expect(await searchGeminiPromotions(signal)).toEqual({ searched: false, rows: [] });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 403, 429, 500])(
+    "falls back without retries or provider-body leaks on HTTP %i",
+    async (status) => {
+      const fetchMock = vi.fn().mockResolvedValue(new Response("gemini-test-only-key", { status }));
+      vi.stubGlobal("fetch", fetchMock);
+      const result = await searchGeminiPromotions(signal);
+      expect(result).toMatchObject({ searched: false, rows: [], warning: expect.any(String) });
+      if (status === 429) expect(result.warning).toContain("quota");
+      expect(JSON.stringify(result)).not.toContain("gemini-test-only-key");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(["ungrounded", "truncated", "malformed", "oversized"])(
+    "discards %s output instead of treating it as a completed search",
+    async (kind) => {
+      const response = grounded();
+      if (kind === "ungrounded") response.candidates[0].groundingMetadata.webSearchQueries = [];
+      if (kind === "truncated") response.candidates[0].finishReason = "MAX_TOKENS";
+      if (kind === "malformed") response.candidates[0].content.parts[0].text = "not JSON";
+      if (kind === "oversized") response.candidates[0].content.parts[0].text = "x".repeat(150_001);
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(response)));
+      expect(await searchGeminiPromotions(signal)).toMatchObject({
+        searched: false,
+        rows: [],
+        warning: expect.any(String),
+      });
+    },
+  );
+
+  it("does not issue a request after cancellation and sanitizes network failures", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("gemini-test-only-key"));
+    vi.stubGlobal("fetch", fetchMock);
+    await searchGeminiPromotions(AbortSignal.abort());
+    expect(fetchMock).not.toHaveBeenCalled();
+    const result = await searchGeminiPromotions(signal);
+    expect(result).toMatchObject({ searched: false, rows: [], warning: expect.any(String) });
+    expect(JSON.stringify(result)).not.toContain("gemini-test-only-key");
+  });
+
+  it("uses Gemini official URLs before configured legacy providers and never persists model claims", async () => {
+    vi.stubEnv("DISCOVERY_SEARCH_MODE", "both");
+    vi.stubEnv("TREG_TOKEN", "treg-test-only-key");
+    vi.stubEnv("BRAVE_SEARCH_API_KEY", "brave-test-only-key");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await searchPromotions(stores[1], signal, {
+      searched: true,
+      rows: [
+        { storeId: "pnp", title: "Invented use code FAKE99", url: rows[0].url },
+        { storeId: "pnp", title: "Unsafe", url: "https://127.0.0.1/private" },
+        { storeId: "pnp", title: "Other store", url: "https://www.makro.co.za/terms" },
+        { storeId: "makro", title: "Wrong retailer ID", url: "https://www.pnp.co.za/other" },
+      ],
+    });
+    expect(result.officialUrls).toEqual([rows[0].url]);
+    expect(result.candidates).toEqual([]);
+    expect(result.searched).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("tries the configured legacy search when Gemini finds no permitted official URL", async () => {
+    vi.stubEnv("DISCOVERY_SEARCH_MODE", "treg");
+    vi.stubEnv("TREG_TOKEN", "treg-test-only-key");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ output: { results: [{ title: "Terms", url: rows[0].url }] } }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await searchPromotions(stores[1], signal, {
+      searched: false,
+      rows: [],
+      warning: "Gemini free-tier quota was reached; using other sources.",
+    });
+    expect(result.officialUrls).toEqual([rows[0].url]);
+    expect(result.warning).toContain("Gemini");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://treg.to/call/treg.web.search");
+  });
+});

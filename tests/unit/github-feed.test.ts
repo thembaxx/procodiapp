@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { readGithubFeed } from "../../src/lib/server/github-feed";
+import { readGithubFeed, usesGithubFeed } from "../../src/lib/server/github-feed";
 import { readCache, writeCache } from "../../src/lib/server/storage";
 import { sourceSnapshot } from "../../src/lib/snapshot";
 import { hasCompletedDiscovery, refreshPromotions } from "../../src/lib/server/promotion-refresh";
@@ -25,10 +25,23 @@ function cache() {
     ],
   };
 }
+it("defaults Vercel production to the scheduled feed while respecting an explicit local override", () => {
+  vi.stubEnv("PROMOTION_FEED", undefined);
+  vi.stubEnv("VERCEL_ENV", "production");
+  expect(usesGithubFeed()).toBe(true);
+  vi.stubEnv("PROMOTION_FEED", "local");
+  expect(usesGithubFeed()).toBe(false);
+  vi.stubEnv("PROMOTION_FEED", undefined);
+  vi.stubEnv("VERCEL_ENV", "preview");
+  expect(usesGithubFeed()).toBe(false);
+  vi.stubEnv("VERCEL_ENV", undefined);
+  expect(usesGithubFeed()).toBe(false);
+});
 it("reads and refreshes the published feed without running discovery or forwarding keys", async () => {
   vi.stubEnv("PROMOTION_FEED", "github");
   vi.stubEnv("PROMOTION_FEED_REPOSITORY", "test/feed-success");
   vi.stubEnv("CJ_API_TOKEN", "must-not-be-forwarded");
+  vi.stubEnv("GEMINI_API_KEY", "must-not-be-forwarded");
   const data = cache(),
     fetch = vi.fn(async (url: string, init?: RequestInit) => {
       expect(url).toBe(

@@ -77,14 +77,16 @@ if (!supabase) {
     "Use exactly one Node instance with local storage. Multiple instances require Supabase. A writable directory does not verify persistence across redeploys.",
   );
 }
-if (!["local", "github"].includes(process.env.PROMOTION_FEED || "local"))
+const promotionFeed =
+  process.env.PROMOTION_FEED ?? (process.env.VERCEL_ENV === "production" ? "github" : "local");
+if (!["local", "github"].includes(promotionFeed))
   issues.push("PROMOTION_FEED must be local or github.");
-if (process.env.PROMOTION_FEED === "github")
+if (promotionFeed === "github")
   notes.push(
     "Offers come from the promotion-data branch. Run the discovery workflow successfully before enabling this mode. Reports and rate limits still need local storage or Supabase.",
   );
 const cj = [process.env.CJ_API_TOKEN, process.env.CJ_WEBSITE_ID, process.env.CJ_ADVERTISERS];
-if (process.env.PROMOTION_FEED !== "github" && cj.some(Boolean)) {
+if (promotionFeed !== "github" && cj.some(Boolean)) {
   if (!cj.every(Boolean) || !/^[1-9]\d{0,15}$/.test(process.env.CJ_WEBSITE_ID || ""))
     issues.push(
       "Optional CJ fallback needs its token, numeric website ID and advertiser mapping together.",
