@@ -22,6 +22,8 @@ function grounded(text = JSON.stringify({ results: rows })) {
 }
 
 beforeEach(() => {
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  vi.spyOn(console, "info").mockImplementation(() => {});
   vi.stubEnv("GEMINI_API_KEY", "gemini-test-only-key");
   vi.stubEnv("DISCOVERY_SEARCH_MODE", "brave");
   vi.stubEnv("BRAVE_SEARCH_API_KEY", "");
@@ -29,6 +31,7 @@ beforeEach(() => {
   resetTregUsage();
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
@@ -82,8 +85,33 @@ describe("Gemini primary promotion search", () => {
       if (status === 429) expect(result.warning).toContain("quota");
       expect(JSON.stringify(result)).not.toContain("gemini-test-only-key");
       expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain(
+        "gemini-test-only-key",
+      );
     },
   );
+
+  it("logs only fixed HTTP/error codes, never arbitrary provider error details", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json(
+          {
+            error: {
+              status: "INVALID_ARGUMENT",
+              message: "Secret gemini-test-only-key",
+              details: [{ reason: "API_KEY_INVALID" }, { reason: "gemini-test-only-key" }],
+            },
+          },
+          { status: 400 },
+        ),
+      ),
+    );
+    await searchGeminiPromotions(signal);
+    expect(console.warn).toHaveBeenCalledExactlyOnceWith(
+      "Gemini web search failed: HTTP 400 (INVALID_ARGUMENT, API_KEY_INVALID).",
+    );
+  });
 
   it.each(["ungrounded", "truncated", "malformed", "oversized"])(
     "discards %s output instead of treating it as a completed search",

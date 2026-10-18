@@ -33,6 +33,28 @@ const geminiResponse = z.object({
     )
     .max(1),
 });
+const googleError = z.object({
+  error: z.object({
+    status: z.string().optional(),
+    details: z.array(z.object({ reason: z.string().optional() })).optional(),
+  }),
+});
+const safeErrorCodes = new Set([
+  "INVALID_ARGUMENT",
+  "UNAUTHENTICATED",
+  "PERMISSION_DENIED",
+  "NOT_FOUND",
+  "RESOURCE_EXHAUSTED",
+  "UNAVAILABLE",
+  "INTERNAL",
+  "API_KEY_INVALID",
+  "API_KEY_SERVICE_BLOCKED",
+  "API_KEY_HTTP_REFERRER_BLOCKED",
+  "API_KEY_IP_ADDRESS_BLOCKED",
+  "SERVICE_DISABLED",
+  "BILLING_DISABLED",
+  "CONSUMER_INVALID",
+]);
 
 export type GeminiSearch = {
   searched: boolean;
@@ -50,6 +72,7 @@ export async function searchGeminiPromotions(signal: AbortSignal): Promise<Gemin
     timeZone: "Africa/Johannesburg",
     dateStyle: "long",
   }).format(new Date());
+  let phase = "request";
   try {
     signal.throwIfAborted();
     // Pin a model whose generation AND Google Search grounding have a free tier.
@@ -92,7 +115,18 @@ export async function searchGeminiPromotions(signal: AbortSignal): Promise<Gemin
       },
     );
     if (!response.ok) {
-      void response.body?.cancel().catch(() => {});
+      let codes: string[] = [];
+      try {
+        const { error } = googleError.parse(await boundedJson(response, 20_000));
+        codes = [error.status, ...(error.details ?? []).map((detail) => detail.reason)].filter(
+          (code): code is string => !!code && safeErrorCodes.has(code),
+        );
+      } catch {
+        /* Error content is optional and never logged. */
+      }
+      console.warn(
+        `Gemini web search failed: HTTP ${response.status}${codes.length ? ` (${[...new Set(codes)].join(", ")})` : ""}.`,
+      );
       return {
         ...empty,
         warning:
@@ -101,8 +135,10 @@ export async function searchGeminiPromotions(signal: AbortSignal): Promise<Gemin
             : "Gemini web search was unavailable; using other sources.",
       };
     }
+    phase = "response format";
     const parsed = geminiResponse.parse(await boundedJson(response, 150_000));
     const candidate = parsed.candidates[0];
+    phase = "search grounding";
     if (
       !candidate ||
       candidate.finishReason !== "STOP" ||
@@ -117,9 +153,13 @@ export async function searchGeminiPromotions(signal: AbortSignal): Promise<Gemin
       .trim()
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```$/, "");
-    return { searched: true, rows: searchRows.parse(JSON.parse(text)).results };
+    phase = "result format";
+    const rows = searchRows.parse(JSON.parse(text)).results;
+    console.info(`Gemini grounded search completed: ${rows.length} discovery URLs.`);
+    return { searched: true, rows };
   } catch {
     // Provider bodies/errors may contain credentials or generated claims. Never publish them.
+    console.warn(`Gemini web search failed during ${phase}.`);
     return { ...empty, warning: "Gemini web search was unavailable; using other sources." };
   }
 }
