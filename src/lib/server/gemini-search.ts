@@ -55,6 +55,16 @@ const safeErrorCodes = new Set([
   "BILLING_DISABLED",
   "CONSUMER_INVALID",
 ]);
+const modelList = z.object({
+  models: z
+    .array(
+      z.object({
+        name: z.string().max(200),
+        supportedGenerationMethods: z.array(z.string()).optional(),
+      }),
+    )
+    .max(100),
+});
 
 export type GeminiSearch = {
   searched: boolean;
@@ -77,43 +87,84 @@ export async function searchGeminiPromotions(signal: AbortSignal): Promise<Gemin
     signal.throwIfAborted();
     // Pin a model whose generation AND Google Search grounding have a free tier.
     // Billing is controlled by the operator's Google project, not by the API call.
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-      {
-        method: "POST",
-        headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: [
-                    `Use Google Search to find current South African online grocery promotions, coupon terms and free delivery offers as of ${date}.`,
-                    "Search each retailer below. Prefer specific official campaign and terms pages over homepages. Return at most three official pages and two South African Wethrift or Picodi retailer pages per store.",
-                    ...stores.map(
-                      (store) =>
-                        `${store.id}: ${store.name}; official domains: ${store.domains.join(", ")}`,
-                    ),
-                    'Return only JSON: {"results":[{"storeId":"pnp","title":"Page title","url":"https://www.pnp.co.za/exact-source-path"}]}.',
-                    "Use original HTTPS source URLs, not Google redirect links. Do not invent links or codes. Omit unavailable results. These URLs will be independently checked; model text is never coupon evidence.",
-                  ].join("\n"),
-                },
-              ],
-            },
-          ],
-          tools: [{ google_search: {} }],
-          generationConfig: {
-            temperature: 0,
-            maxOutputTokens: 4096,
-            thinkingConfig: { thinkingBudget: 0 },
+    const request: RequestInit = {
+      method: "POST",
+      headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: [
+                  `Use Google Search to find current South African online grocery promotions, coupon terms and free delivery offers as of ${date}.`,
+                  "Search each retailer below. Prefer specific official campaign and terms pages over homepages. Return at most three official pages and two South African Wethrift or Picodi retailer pages per store.",
+                  ...stores.map(
+                    (store) =>
+                      `${store.id}: ${store.name}; official domains: ${store.domains.join(", ")}`,
+                  ),
+                  'Return only JSON: {"results":[{"storeId":"pnp","title":"Page title","url":"https://www.pnp.co.za/exact-source-path"}]}.',
+                  "Use original HTTPS source URLs, not Google redirect links. Do not invent links or codes. Omit unavailable results. These URLs will be independently checked; model text is never coupon evidence.",
+                ].join("\n"),
+              },
+            ],
           },
-        }),
-        redirect: "error",
-        cache: "no-store",
-        signal: AbortSignal.any([signal, AbortSignal.timeout(25_000)]),
-      },
+        ],
+        tools: [{ google_search: {} }],
+        generationConfig: {
+          temperature: 0,
+          maxOutputTokens: 4096,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      }),
+      redirect: "error",
+      cache: "no-store",
+      signal: AbortSignal.any([signal, AbortSignal.timeout(25_000)]),
+    };
+    let response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+      request,
     );
+    if (response.status === 404) {
+      void response.body?.cancel().catch(() => {});
+      console.warn(
+        "Gemini 2.5 Flash is unavailable; checking the documented free-tier alternative.",
+      );
+      phase = "model availability";
+      const available = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models?pageSize=100&fields=models(name,supportedGenerationMethods)",
+        {
+          headers: { "x-goog-api-key": apiKey, Accept: "application/json" },
+          redirect: "error",
+          cache: "no-store",
+          signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+        },
+      );
+      if (available.ok) {
+        const models = modelList.parse(await boundedJson(available, 50_000));
+        if (
+          models.models.some(
+            (model) =>
+              model.name === "models/gemini-2.5-flash-lite" &&
+              model.supportedGenerationMethods?.includes("generateContent"),
+          )
+        ) {
+          console.info("Using Gemini 2.5 Flash-Lite with free-tier Google Search grounding.");
+          phase = "request";
+          response = await fetch(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+            request,
+          );
+        } else {
+          console.warn(
+            "No available configured alternative with documented free-tier search grounding.",
+          );
+        }
+      } else {
+        void available.body?.cancel().catch(() => {});
+        console.warn(`Gemini model availability check failed: HTTP ${available.status}.`);
+      }
+    }
     if (!response.ok) {
       let codes: string[] = [];
       try {
