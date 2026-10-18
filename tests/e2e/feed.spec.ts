@@ -58,7 +58,9 @@ test.beforeAll(async () => {
       SITE_URL: "",
       VERCEL_PROJECT_PRODUCTION_URL: "",
       INDEXING_ENABLED: "false",
-      PROMOTION_FEED: "github",
+      // Exercise the deployed production default without manual feed configuration.
+      PROMOTION_FEED: undefined,
+      VERCEL_ENV: "production",
       PROMOTION_FEED_REPOSITORY: "test/browser-feed",
       DATA_DIR: directory,
       DISCOVERY_FEED_FILE: path.join(directory, "offers.json"),
@@ -67,6 +69,7 @@ test.beforeAll(async () => {
       SUPABASE_SERVICE_ROLE_KEY: "",
       RATE_LIMIT_SECRET: "browser-feed-test-only-rate-limit-secret",
       CJ_API_TOKEN: "must-not-be-forwarded",
+      GEMINI_API_KEY: "must-not-be-forwarded",
       CJ_WEBSITE_ID: "",
       CJ_ADVERTISERS: "",
     },

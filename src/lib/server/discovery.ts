@@ -11,6 +11,7 @@ import { searchPromotions, parseAggregatorLeads } from "./search-discovery";
 import { BrowserRequiredError } from "./public-pages";
 import { callTreg, tregConfigured, tregExtractedText } from "./treg-client";
 import { extractedCouponLeads } from "./treg-review-leads";
+import { searchGeminiPromotions } from "./gemini-search";
 export { containsEvidence } from "./promotion-parser";
 
 let inFlight: Promise<Cache & { newOfferIds: string[] }> | undefined;
@@ -47,6 +48,7 @@ export function discoveryUrls(store: Store, candidates: string[], previous: Offe
 async function runDiscovery(signal: AbortSignal) {
   requireDiscovery();
   const previous = await readCache();
+  const gemini = await searchGeminiPromotions(signal);
   const results = await Promise.all(
     stores.map(async (store) => {
       let pages = 0;
@@ -55,7 +57,7 @@ async function runDiscovery(signal: AbortSignal) {
         candidates: Candidate[] = [],
         errors: string[] = [];
       let renderedPages = 0;
-      const search = await searchPromotions(store, signal).catch(() => ({
+      const search = await searchPromotions(store, signal, gemini).catch(() => ({
         searched: false,
         officialUrls: [] as string[],
         aggregatorUrls: [] as string[],

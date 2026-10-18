@@ -9,7 +9,11 @@ globalThis.fetch = async (value, options) => {
       headers: { "Content-Type": "application/json" },
     });
   }
-  if (/api\.openai\.com|api\.tavily\.com|link-search\.api\.cj\.com/.test(url))
+  if (
+    /api\.openai\.com|api\.tavily\.com|link-search\.api\.cj\.com|generativelanguage\.googleapis\.com/.test(
+      url,
+    )
+  )
     throw new Error("A feed reader must not contact collection providers.");
   return originalFetch(value, options);
 };

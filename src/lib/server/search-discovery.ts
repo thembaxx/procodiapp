@@ -6,6 +6,7 @@ import { allowedStoreUrl } from "../source-urls";
 import { boundedJson } from "./bounded-input";
 import { callTreg, tregConfigured, tregSearchRows } from "./treg-client";
 import { candidateSchema, promotionId, tidy, type Candidate } from "./promotion-parser";
+import type { GeminiSearch } from "./gemini-search";
 
 const braveResults = z
   .object({
@@ -128,19 +129,25 @@ async function paceQueries(signal: AbortSignal): Promise<void> {
 export async function searchPromotions(
   store: Store,
   signal: AbortSignal,
+  gemini?: GeminiSearch,
 ): Promise<SearchDiscovery> {
   const mode = process.env.DISCOVERY_SEARCH_MODE ?? "brave";
   if (mode === "none")
     return { searched: false, officialUrls: [], aggregatorUrls: [], candidates: [] };
+
+  const primaryRows = gemini?.rows.filter((row) => row.storeId === store.id) ?? [];
+  const primary = classifySearchResults(store, primaryRows);
+  // Only use legacy search when Gemini found no permitted official source for this store.
+  if (primary.officialUrls.length) return { searched: true, ...primary };
 
   const month = new Intl.DateTimeFormat("en-ZA", {
     timeZone: "Africa/Johannesburg",
     month: "long",
     year: "numeric",
   }).format(new Date());
-  const items: { title: string; url: string; description?: string }[] = [];
-  const warnings: string[] = [];
-  let successful = 0;
+  const items: { title: string; url: string; description?: string }[] = [...primaryRows];
+  const warnings: string[] = gemini?.warning ? [gemini.warning] : [];
+  let successful = gemini?.searched ? 1 : 0;
   let attempted = 0;
 
   if (mode === "treg" || mode === "both") {

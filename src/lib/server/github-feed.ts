@@ -6,7 +6,8 @@ const snapshots = new Map<string, { data: Cache; until: number }>();
 const pending = new Map<string, Promise<Cache>>();
 
 export function usesGithubFeed() {
-  const mode = process.env.PROMOTION_FEED ?? "local";
+  const mode =
+    process.env.PROMOTION_FEED ?? (process.env.VERCEL_ENV === "production" ? "github" : "local");
   if (!["local", "github"].includes(mode))
     throw new Error("PROMOTION_FEED must be local or github.");
   return mode === "github";

@@ -22,6 +22,10 @@ beforeEach(async () => {
     CJ_API_TOKEN: "",
     CJ_WEBSITE_ID: "",
     CJ_ADVERTISERS: "",
+    GEMINI_API_KEY: "",
+    BRAVE_SEARCH_API_KEY: "",
+    TREG_TOKEN: "",
+    DISCOVERY_SEARCH_MODE: "brave",
     PROMOTION_FEED: "local",
   }))
     vi.stubEnv(name, value);
@@ -90,6 +94,40 @@ it("collects all retailers and persists evidenced codes without search or model 
   expect((await readCache()).offers).toEqual(result.offers);
   expect(discoveryCandidates()).toEqual([]);
 });
+it("shares one Gemini search across all stores and independently fetches its official sources", async () => {
+  vi.stubEnv("GEMINI_API_KEY", "gemini-test-only-key");
+  const fetchMock = mockSources();
+  const rows = stores.map((store) => ({
+    storeId: store.id,
+    title: "Use code INVENTED99",
+    url: `${store.url}/gemini-campaign`,
+  }));
+  fetchMock.mockImplementationOnce(async () =>
+    Response.json({
+      candidates: [
+        {
+          finishReason: "STOP",
+          content: { parts: [{ text: JSON.stringify({ results: rows }) }] },
+          groundingMetadata: {
+            webSearchQueries: ["South African grocery promotions"],
+            groundingChunks: [{ web: { uri: rows[0].url } }],
+          },
+        },
+      ],
+    }),
+  );
+  const result = await discoverOffers();
+  const requests = fetchMock.mock.calls.map(([url]) => String(url));
+  expect(requests.filter((url) => url.includes("generativelanguage.googleapis.com"))).toHaveLength(
+    1,
+  );
+  for (const row of rows) expect(requests).toContain(row.url);
+  expect(result.checks.every((check) => check.searched && check.status === "checked")).toBe(true);
+  expect(result.offers).toHaveLength(6);
+  expect(result.offers.every((offer) => offer.code === "WEB50")).toBe(true);
+  expect(discoveryCandidates()).toEqual([]);
+  expect(JSON.stringify(await readCache())).not.toMatch(/INVENTED99|gemini-test-only-key/);
+});
 it("removes a previous code after its successful source evaluation no longer confirms it", async () => {
   await previous();
   mockSources({ empty: true });
@@ -100,13 +138,29 @@ it("keeps still-fresh previous data on source failure without extending its dead
   mockSources({ empty: true, failedOldPage: true });
   expect((await discoverOffers()).offers).toEqual([offer]);
 });
-it("does not advance the successful scan timestamp on total source failure", async () => {
+it("does not advance the successful scan timestamp on total source failure, even after a Gemini search", async () => {
   const offer = await previous();
-  mockSources({ allFailed: true });
+  vi.stubEnv("GEMINI_API_KEY", "gemini-test-only-key");
+  const fetchMock = mockSources({ allFailed: true });
+  fetchMock.mockImplementationOnce(async () =>
+    Response.json({
+      candidates: [
+        {
+          finishReason: "STOP",
+          content: { parts: [{ text: JSON.stringify({ results: [] }) }] },
+          groundingMetadata: {
+            webSearchQueries: ["South African grocery promotions"],
+            groundingChunks: [{ web: { uri: stores[0].url } }],
+          },
+        },
+      ],
+    }),
+  );
   const result = await discoverOffers();
   expect(result.updatedAt).toBe(offer.checkedAt);
   expect(result.offers).toEqual([offer]);
   expect(result.checks.every((check) => check.status === "unavailable")).toBe(true);
+  expect(result.checks.every((check) => check.searched)).toBe(true);
 });
 it("does not resurrect stale data on source failure", async () => {
   const offer = oldOffer();

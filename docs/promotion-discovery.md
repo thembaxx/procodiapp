@@ -1,19 +1,30 @@
 # Free promotion collection and fallback
 
-**Discover promotions** runs twice daily at `04:17, 16:17 UTC` (06:17 and 18:17 SAST), with manual dispatch on [GitHub Actions](https://github.com/thembaxx/procodiapp/actions/workflows/discovery.yml). Standard runners for this public repository are free. The collector uses no AI models. It can optionally use Brave Search (within your plan's allowance) to discover additional official retailer pages and pre-approved coupon-review pages. GitHub schedules may be delayed or dropped and can be disabled after 60 days without repository activity.
+**Discover promotions** runs twice daily at `04:17, 16:17 UTC` (06:17 and 18:17 SAST), with manual dispatch on [GitHub Actions](https://github.com/thembaxx/procodiapp/actions/workflows/discovery.yml). Standard runners for this public repository are free. When `GEMINI_API_KEY` is configured, Gemini searches first for current retailer pages. Optional Brave/Treg search and the existing official-source collector provide fallbacks. GitHub schedules may be delayed or dropped and can be disabled after 60 days without repository activity.
+
+## Primary search: Gemini free tier
+
+Add **`GEMINI_API_KEY`** as a repository secret or a secret in the GitHub **`discovery`** environment. The workflow passes it only to the collection step. For the deployed app using `PROMOTION_FEED=github`, the key stays in Actions; it does not belong in browser variables or the app build. For local collection, set it server-side in `.env.local`.
+
+The collector uses **`gemini-2.5-flash`** with **Google Search grounding**, making one request for all six retailers per scheduled/manual full scan. Google's [pricing](https://ai.google.dev/gemini-api/docs/pricing#gemini-2.5-flash) currently lists free-tier generation and up to 500 grounded requests per day, shared with Flash-Lite. Generation quotas also apply and may be lower. Use an AI Studio key in a **free-tier project**: the request cannot force free billing on a project with paid billing enabled. There is no automatic model upgrade or retry after quota exhaustion. The configured Google project determines billing.
+
+Gemini supplies URLs only. Completed responses must include search-grounding metadata; ungrounded, blocked, truncated, oversized or malformed responses are discarded. Existing retailer/store allowlists select fetchable URLs. The collector then independently reads permitted pages and applies the same evidence, expiry, online-grocery eligibility and freshness rules. Generated codes and snippets never become offers or review evidence. Retailer blocks can still prevent confirmation.
+
+If Gemini is missing, fails, reaches its quota, or finds no permitted official URL for a retailer, the configured legacy search runs for that retailer. `DISCOVERY_SEARCH_MODE` selects that fallback (`brave` by default, `treg` or `both` only when explicitly configured). A Treg token alone no longer activates paid search. `none` disables **all** search, including Gemini; user-refresh-triggered scans use this setting to conserve quotas and recheck known sources. The ordinary official-source/CJ paths still run.
+
+After merging, manually run **Discover promotions → main → source: manual** to use the secret immediately; later scheduled full scans use it automatically. Check the resulting feed's per-store `searched` flags and source status. Search success alone never advances the feed timestamp or counts as a confirmed source evaluation. The GitHub secret cannot be read back for local testing.
 
 ## Optional Treg Web Access pilot
 
 The scheduled collector can search with [Treg Web Access](https://treg.to/web-access) in
-addition to (or instead of) Brave Search. The integration is **off until a token
-is configured**. No browser token is ever used. Set the following in the GitHub
+addition to (or instead of) Brave Search when Gemini finds no official URL. The integration requires **a token and explicit opt-in**. No browser token is ever used. Set the following in the GitHub
 Actions `discovery` environment:
 
 1. Add secret **`TREG_TOKEN`** (Treg team-scoped token). Identity tokens may
    additionally need the `TREG_ORG` environment variable.
-2. With the token present, the Actions workflow uses
-   `DISCOVERY_SEARCH_MODE=both` for scheduled/manual scans: one Treg search
-   and two Brave queries per retailer. Without it, it stays `brave`.
+2. Set the Actions variable `DISCOVERY_SEARCH_MODE=treg` or `both` to opt in.
+   The latter permits one Treg search and two Brave queries per retailer
+   only when Gemini has no permitted official result. The default is `brave`.
    `user_refresh` scans use `none`, so users cannot cause search charges.
 3. The workflow sets `TREG_MAX_COST_USD=0.01`,
    `TREG_SCAN_BUDGET_USD=0.12` and `TREG_MAX_CALLS_PER_SCAN=12`.
@@ -29,7 +40,7 @@ Actions `discovery` environment:
    never as evidence that automatically publishes an offer.
 
 `DISCOVERY_SEARCH_MODE` accepts `none`, `brave`, `treg`, or `both`
-when running locally. Treg results are passed through the same retailer
+in Actions or when running locally. Treg results are passed through the same retailer
 allowlists as Brave results: URLs are only discovery hints. A Treg failure,
 budget refusal or pending asynchronous response never makes a record live;
 the ordinary free public-source collection proceeds. Codes extracted from
@@ -71,7 +82,7 @@ The adapter requires `joined` status, a configured advertiser ID, explicit `ZA` 
 
 1. Merge the implementation onto `main`, then manually run **Discover promotions → main**. The trusted-main job uses its scoped `GITHUB_TOKEN` to create/update the separate `promotion-data` branch. The primary collector needs no manually configured API or database secret.
 2. Confirm the job succeeds and the branch contains `offers.json` and `candidates.json`. Publication only occurs after at least one official source or configured CJ source completes. Zero coupons is a valid result; total source failure fails the job and leaves the published branch unchanged.
-3. Set `PROMOTION_FEED=github` on the app and redeploy. `PROMOTION_FEED_REPOSITORY` defaults to `thembaxx/procodiapp`; change it for a fork. This setting is server-only. The public feed is fetched from a fixed GitHub raw-content origin, validated and cached for at most a minute during normal operation.
+3. Vercel production defaults to the GitHub feed when `PROMOTION_FEED` is unset, so scheduled results reach the app without another configuration step. On other hosts, set `PROMOTION_FEED=github` and redeploy. Explicit `PROMOTION_FEED=local` overrides the production default; previews/local development also default to local. `PROMOTION_FEED_REPOSITORY` defaults to `thembaxx/procodiapp`; change it for a fork. These settings are server-only. The public feed is fetched from a fixed GitHub raw-content origin, validated and cached for at most a minute during normal operation.
 4. Check `/api/offers`: `mode` is `free_sources`, with a real `updatedAt`, `parsedPages` and per-store `fallback` status. Refresh immediately reads the latest feed. If `GITHUB_DISPATCH_TOKEN` is configured server-side, it may also queue an asynchronous Actions scan (only if the existing feed is at least ten minutes old, with a shared ten-minute cooldown). The browser never crawls websites and new results appear after publication, not immediately. An old feed or failed scan is not reported as fresh. Existing offline expiry checks remain active.
 
 The publisher loads the previous feed so failed sources retain still-fresh prior listings with their original deadlines. Successful source evaluations remove unconfirmed prior listings. Expired/stale offers are pruned. Publication is a non-force update and concurrency prevents overlapping jobs. The data branch does not rebuild the application on each scan.
@@ -95,11 +106,11 @@ For a filesystem publication trial, use `DATA_DIR=/absolute/output/path PROMOTIO
 - Monitor failed jobs, unavailable stores, and `updatedAt` older than 24 hours. A successful fetch does not guarantee a working coupon.
 - Keep source URLs and parsers current. Primary pages can be blocked, use JavaScript, change layout, or only advertise in-store specials. CJ coverage remains account-specific.
 - Keep Actions artifacts/cache within their free allowances. No scraping proxy, hosted model or paid-search dependency is required.
-- Roll back to the previous application commit if needed; switch back to `PROMOTION_FEED=local` with persistent/shared storage to use local collection. The old AI settings are ignored by the new collector.
+- To disable Gemini, remove `GEMINI_API_KEY`; existing collection and configured search fallbacks continue. Roll back to the previous application commit if needed, or switch to `PROMOTION_FEED=local` with persistent/shared storage for local collection.
 
 ## Optional current-web discovery and rendering
 
-- Set **BRAVE_SEARCH_API_KEY** as an Actions secret in the `discovery` environment. Search remains disabled without it. Scheduled and manually launched full scans perform at most **two queries per retailer** (12 per run), use shared conservative request pacing, and search both the official retailer site and South African coupon listings. A user-refresh-triggered run **rechecks known sources without Brave queries** to protect the monthly free search credit.
+- Set **BRAVE_SEARCH_API_KEY** as an Actions secret in the `discovery` environment to enable the optional fallback after Gemini. Scheduled and manually launched full scans perform at most **two Brave queries per retailer** (12 per run), use shared conservative request pacing, and search both the official retailer site and South African coupon listings. A user-refresh-triggered run **rechecks known sources without search queries** to protect allowances.
 - Current search results are used **transiently** to discover URLs, not persisted as search-provider snippets. This is important because Brave may require additional storage rights for storing API responses. Only allowlisted retailer pages and store-specific Wethrift/Picodi pages may be fetched; arbitrary search hits cannot turn into live offers.
 - Candidate details from permitted third-party pages remain in `candidates.json` with **unverified_third_party**. Only independently confirmed retailer or eligible CJ evidence may be published to `offers.json`.
 - The Actions job sets `PROMOTION_BROWSER_FALLBACK=true`, installs Chromium, and runs headless Playwright for up to one JavaScript-only official page per store per scan. This is not a CAPTCHA or anti-bot bypass. The Next.js/Vercel app does not enable this fallback.

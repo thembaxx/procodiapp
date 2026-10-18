@@ -92,18 +92,20 @@ The attached prototype contains placeholder coupon codes. **None of those codes 
 
 The initial snapshot includes Checkers Xtra Savings Plus delivery, Woolworths MyDifference PLUS online delivery, and Makro's senior food discount. Woolworths online delivery is not presented as confirmed Dash free delivery. Offers requiring membership show that requirement. Stores without a confirmed offer remain visible at the bottom.
 
-**Free collection:** official HTML promotion blocks, JSON-LD, text PDFs and reviewed evidence are parsed without AI models or mandatory search fees. Optional Brave Search discovers additional approved URLs. The GitHub collector can render permitted JavaScript-only pages using Playwright; coupon-site claims remain review candidates. Approved campaign links share a bounded page budget. Retailer protections and JavaScript-only pages can make a source unavailable. Partial failures retain only still-fresh listings with their original deadlines.
+**Gemini first:** set the GitHub secret `GEMINI_API_KEY` to use Gemini 2.5 Flash with Google Search grounding as the primary promotion search. One request covers all six stores per full scan. Use a free-tier AI Studio project; the API cannot force free billing on a paid project. Missing keys, quota limits and provider failures fall back to existing collection and configured legacy search. See [Gemini setup and limits](docs/promotion-discovery.md#primary-search-gemini-free-tier).
+
+**Free collection:** official HTML promotion blocks, JSON-LD, text PDFs and reviewed evidence are independently checked without mandatory search fees. Gemini supplies URLs only; generated codes or snippets are never published as evidence. Optional Brave Search discovers additional approved URLs when Gemini finds no official source. The GitHub collector can render permitted JavaScript-only pages using Playwright; coupon-site claims remain review candidates. Approved campaign links share a bounded page budget. Retailer protections and JavaScript-only pages can make a source unavailable. Partial failures retain only still-fresh listings with their original deadlines.
 
 **Optional web-search pilot:** Treg Web Access can augment Brave Search with a
 per-call cost ceiling and shared per-run budget, without changing the existing
 source-validation rules. It requires a server-only `TREG_TOKEN` secret in the
-Actions `discovery` environment; user-triggered refreshes never invoke paid
+Actions `discovery` environment and explicit `DISCOVERY_SEARCH_MODE=treg` or `both` opt-in; user-triggered refreshes never invoke paid
 search. Optional Treg page extraction only creates unverified review
 candidates, never live offers. See [Treg integration and limits](docs/promotion-discovery.md#optional-treg-web-access-pilot).
 
 **Optional free fallback:** CJ Affiliate Link Search is queried when a store's official sources fail or yield no eligible coupon. It needs a free publisher account, an approved property, and approved South African advertiser IDs. Coverage is not assumed. Configure `CJ_API_TOKEN`, `CJ_WEBSITE_ID` and `CJ_ADVERTISERS` together, or leave all unset. The adapter validates advertiser identity, joined status, ZA targeting, merchant destination, eligibility and expiry. It uses bounded requests and does not follow tracking redirects.
 
-**Shared feed without a database subscription:** the twice-daily Actions workflow publishes validated `offers.json` and unconfirmed `candidates.json` on a separate `promotion-data` branch. Set `PROMOTION_FEED=github` on the app after the first successful scan. Browser Refresh loads the scheduled feed immediately and can optionally queue a rate-limited Actions scan when a server-only GitHub dispatch token is configured. Private reports/rate limits still need the existing persistent file or Supabase storage. `PROMOTION_FEED=local` keeps local/shared-database collection available.
+**Shared feed without a database subscription:** the twice-daily Actions workflow publishes validated `offers.json` and unconfirmed `candidates.json` on a separate `promotion-data` branch. Vercel production reads this feed by default; on other hosts, set `PROMOTION_FEED=github` after the first successful scan. Browser Refresh loads the scheduled feed immediately and can optionally queue a rate-limited Actions scan when a server-only GitHub dispatch token is configured. Private reports/rate limits still need the existing persistent file or Supabase storage. Explicit `PROMOTION_FEED=local` keeps local/shared-database collection available.
 
 Pick n Pay's public coupon-site JSON supplies review leads only. Unknown-expiry leads are not live offers. A reviewer can add exact retailer evidence to `data/reviewed-promotions.json`; every later scan rechecks it. Explicit recurring membership benefits can have no listed expiry, with fees and eligibility preserved. Read the [collection and fallback guide](docs/promotion-discovery.md) for setup and limits.
 
@@ -139,7 +141,7 @@ This stores the shared offer cache, reports and rate limits in Postgres through 
 
 A Dockerfile is included for a Node deployment. Mount `/app/.data` on a persistent volume, or configure Supabase. Provide discovery secrets at runtime, not during the build. A static-only host cannot run the discovery APIs.
 
-The GitHub collector runs every six hours and supports manual dispatch on main. The primary path needs no model, paid search or database key. It publishes a separate data branch; optional CJ credentials enable the fallback. A successful scan requires at least one source evaluation, not a positive coupon count. See the [setup guide](docs/promotion-discovery.md).
+The GitHub collector runs twice daily and supports manual dispatch on main. `GEMINI_API_KEY` enables primary free-tier-compatible grounded search; collection still works without model, paid search or database keys. It publishes a separate data branch; optional CJ credentials enable the fallback. A successful scan requires at least one source evaluation, not a positive coupon count. See the [setup guide](docs/promotion-discovery.md).
 
 ## Quality checks
 
