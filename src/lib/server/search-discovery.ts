@@ -34,6 +34,7 @@ const CODE =
 
 export type SearchDiscovery = {
   searched: boolean;
+  usedGemini?: boolean;
   officialUrls: string[];
   aggregatorUrls: string[];
   candidates: Candidate[];
@@ -137,8 +138,8 @@ export async function searchPromotions(
 
   const primaryRows = gemini?.rows.filter((row) => row.storeId === store.id) ?? [];
   const primary = classifySearchResults(store, primaryRows);
-  // Only use legacy search when Gemini found no permitted official source for this store.
-  if (primary.officialUrls.length) return { searched: true, ...primary };
+  // The collector checks these pages before deciding whether legacy search is needed.
+  if (primary.officialUrls.length) return { searched: true, usedGemini: true, ...primary };
 
   const month = new Intl.DateTimeFormat("en-ZA", {
     timeZone: "Africa/Johannesburg",

@@ -10,9 +10,12 @@ globalThis.fetch = async (value, options) => {
     });
   }
   if (
-    /api\.openai\.com|api\.tavily\.com|link-search\.api\.cj\.com|generativelanguage\.googleapis\.com/.test(
-      url,
-    )
+    [
+      "api.openai.com",
+      "api.tavily.com",
+      "link-search.api.cj.com",
+      "generativelanguage.googleapis.com",
+    ].includes(new URL(url).hostname)
   )
     throw new Error("A feed reader must not contact collection providers.");
   return originalFetch(value, options);

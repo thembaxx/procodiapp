@@ -7,7 +7,7 @@ import { cjConfiguration, collectCjFallback } from "./cj-fallback";
 import { checkReviewedPromotions, reviewedPromotions } from "./reviewed-promotions";
 import { parseOfficialDocument, promotionLinks, type Candidate } from "./promotion-parser";
 import { parseCouponLeads } from "./coupon-leads";
-import { searchPromotions, parseAggregatorLeads } from "./search-discovery";
+import { searchPromotions, parseAggregatorLeads, type SearchDiscovery } from "./search-discovery";
 import { BrowserRequiredError } from "./public-pages";
 import { callTreg, tregConfigured, tregExtractedText } from "./treg-client";
 import { extractedCouponLeads } from "./treg-review-leads";
@@ -57,7 +57,7 @@ async function runDiscovery(signal: AbortSignal) {
         candidates: Candidate[] = [],
         errors: string[] = [];
       let renderedPages = 0;
-      const search = await searchPromotions(store, signal, gemini).catch(() => ({
+      const search: SearchDiscovery = await searchPromotions(store, signal, gemini).catch(() => ({
         searched: false,
         officialUrls: [] as string[],
         aggregatorUrls: [] as string[],
@@ -72,8 +72,15 @@ async function runDiscovery(signal: AbortSignal) {
           .map((item) => item.sourceUrl),
         ...sourceSnapshot.filter((item) => item.storeId === store.id).map((item) => item.sourceUrl),
       ];
-      const queue = discoveryUrls(store, [...search.officialUrls, ...selected], previous.offers),
+      // Check all Gemini pages first, leaving room in the five-page budget for recovery.
+      const queue = [
+          ...new Set([
+            ...(search.usedGemini ? search.officialUrls : []),
+            ...discoveryUrls(store, [...search.officialUrls, ...selected], previous.offers),
+          ]),
+        ].slice(0, 5),
         attempted = new Set<string>();
+      let pendingSearchFallback = search.usedGemini;
       for (let index = 0; index < queue.length && attempted.size < 5; index++) {
         const url = queue[index];
         if (attempted.has(url)) continue;
@@ -131,6 +138,28 @@ async function runDiscovery(signal: AbortSignal) {
             }
           }
           errors.push("Some official promotion sources could not be checked.");
+        }
+        if (pendingSearchFallback && search.officialUrls.every((page) => attempted.has(page))) {
+          pendingSearchFallback = false;
+          if (!offers.length && !signal.aborted) {
+            const fallbackSearch = await searchPromotions(store, signal).catch(() => ({
+              searched: false,
+              officialUrls: [] as string[],
+              aggregatorUrls: [] as string[],
+              candidates: [] as Candidate[],
+              warning: "Web search was unavailable.",
+            }));
+            search.searched ||= fallbackSearch.searched;
+            search.aggregatorUrls.push(...fallbackSearch.aggregatorUrls);
+            candidates.push(...fallbackSearch.candidates);
+            if (fallbackSearch.warning) errors.push(fallbackSearch.warning);
+            const remaining = [
+              ...new Set([...fallbackSearch.officialUrls, ...queue.slice(index + 1)]),
+            ]
+              .filter((page) => !attempted.has(page))
+              .slice(0, 5 - attempted.size);
+            queue.splice(index + 1, queue.length - index - 1, ...remaining);
+          }
         }
       }
       // Coupon aggregators are only reviewed leads; never publish their content directly.

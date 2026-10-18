@@ -10,21 +10,21 @@ The collector uses **`gemini-2.5-flash`** with **Google Search grounding**, maki
 
 Gemini supplies URLs only. Completed responses must include search-grounding metadata; ungrounded, blocked, truncated, oversized or malformed responses are discarded. Existing retailer/store allowlists select fetchable URLs. The collector then independently reads permitted pages and applies the same evidence, expiry, online-grocery eligibility and freshness rules. Generated codes and snippets never become offers or review evidence. Retailer blocks can still prevent confirmation.
 
-If Gemini is missing, fails, reaches its quota, or finds no permitted official URL for a retailer, the configured legacy search runs for that retailer. `DISCOVERY_SEARCH_MODE` selects that fallback (`brave` by default, `treg` or `both` only when explicitly configured). A Treg token alone no longer activates paid search. `none` disables **all** search, including Gemini; user-refresh-triggered scans use this setting to conserve quotas and recheck known sources. The ordinary official-source/CJ paths still run.
+If Gemini is missing, fails, reaches its quota, or its permitted pages yield no confirmed promotion for a retailer, the configured legacy search runs for that retailer. Gemini pages are checked first; fallback URLs take priority in the remaining five-page budget. `DISCOVERY_SEARCH_MODE` selects that fallback (`brave` by default, `treg` or `both` only when explicitly configured). A Treg token alone no longer activates paid search. `none` disables **all** search, including Gemini; user-refresh-triggered scans use this setting to conserve quotas and recheck known sources. The ordinary official-source/CJ paths still run.
 
 After merging, manually run **Discover promotions → main → source: manual** to use the secret immediately; later scheduled full scans use it automatically. Check the resulting feed's per-store `searched` flags and source status. Search success alone never advances the feed timestamp or counts as a confirmed source evaluation. The GitHub secret cannot be read back for local testing.
 
 ## Optional Treg Web Access pilot
 
 The scheduled collector can search with [Treg Web Access](https://treg.to/web-access) in
-addition to (or instead of) Brave Search when Gemini finds no official URL. The integration requires **a token and explicit opt-in**. No browser token is ever used. Set the following in the GitHub
+addition to (or instead of) Brave Search when Gemini pages provide no confirmed promotion. The integration requires **a token and explicit opt-in**. No browser token is ever used. Set the following in the GitHub
 Actions `discovery` environment:
 
 1. Add secret **`TREG_TOKEN`** (Treg team-scoped token). Identity tokens may
    additionally need the `TREG_ORG` environment variable.
 2. Set the Actions variable `DISCOVERY_SEARCH_MODE=treg` or `both` to opt in.
    The latter permits one Treg search and two Brave queries per retailer
-   only when Gemini has no permitted official result. The default is `brave`.
+   only when Gemini provides no confirmed promotion. The default is `brave`.
    `user_refresh` scans use `none`, so users cannot cause search charges.
 3. The workflow sets `TREG_MAX_COST_USD=0.01`,
    `TREG_SCAN_BUDGET_USD=0.12` and `TREG_MAX_CALLS_PER_SCAN=12`.
