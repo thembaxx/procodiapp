@@ -64,6 +64,52 @@ describe("Gemini primary promotion search", () => {
     expect((await searchGeminiPromotions(signal)).rows).toEqual(rows);
   });
 
+  it("uses Flash-Lite only when Google lists it as an available free-tier-compatible alternative", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ error: { status: "NOT_FOUND" } }, { status: 404 }))
+      .mockResolvedValueOnce(
+        Response.json({
+          models: [
+            {
+              name: "models/gemini-2.5-flash-lite",
+              supportedGenerationMethods: ["generateContent"],
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(Response.json(grounded()));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await searchGeminiPromotions(signal)).toEqual({ searched: true, rows });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/models?pageSize=100&fields=models(name,supportedGenerationMethods)",
+    );
+    expect(fetchMock.mock.calls[2][0]).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+    );
+    expect(fetchMock.mock.calls[2][1].body).toBe(fetchMock.mock.calls[0][1].body);
+  });
+
+  it("does not switch to models without documented free-tier search grounding", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ error: { status: "NOT_FOUND" } }, { status: 404 }))
+      .mockResolvedValueOnce(
+        Response.json({
+          models: [
+            {
+              name: "models/gemini-3.8-flash",
+              supportedGenerationMethods: ["generateContent"],
+            },
+          ],
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await searchGeminiPromotions(signal)).toMatchObject({ searched: false, rows: [] });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("does not call a provider without a key or when search is disabled for user refresh", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
