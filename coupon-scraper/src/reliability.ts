@@ -38,6 +38,21 @@ const kinds = new Set<OfferKind>([
   "loyalty", "bundle", "cashback",
 ]);
 const channels = new Set(["online", "in_store", "both"]);
+const storeIds: Record<string, string> = {
+  "Pick n Pay": "pnp", "Pick n Pay ASAP": "pnp", "ShopRite": "shoprite",
+  "Makro": "makro", "Woolworths": "woolworths", "Checkers": "checkers",
+  "SPAR": "spar", "Clicks": "clicks", "Takealot": "takealot",
+  "Dis-Chem": "dis-chem", "Mr D": "mr-d", "Game": "game",
+  "Food Lover's Market": "food-lover-s-market", "Boxer": "boxer",
+  "OK Foods": "ok-foods", "HiFi Corp": "hifi-corp", "Wootware": "wootware",
+  "Truworths": "truworths", "The Fix": "the-fix", "Cotton On": "cotton-on",
+  "Sportscene": "sportscene", "Total Sports": "total-sports",
+  "Foschini": "foschini", "Ackermans": "ackermans", "Pep": "pep",
+  "Jet": "jet", "OneDayOnly": "onedayonly", "Loot": "loot",
+  "Chamberlains": "chamberlains", "Sorbet": "sorbet",
+  "The Body Shop SA": "the-body-shop-sa", "Toy Kingdom": "toy-kingdom",
+  "Bargain Books": "bargain-books", "Baby City": "baby-city",
+};
 
 function textField(value: unknown, max: number, min = 1): string | null {
   return typeof value === "string" && value.trim().length >= min && value.length <= max
@@ -85,7 +100,7 @@ export function parseReviewedOffer(
     ? null : textField(value.region, 100, 2);
   const ongoing = value.ongoing === true;
   const expiresAt = value.expiresAt === null ? null : validDate(value.expiresAt);
-  if (!target || !merchant || !storeId || !/^[a-z0-9-]+$/.test(storeId) ||
+  if (!target || !merchant || !storeId || storeIds[merchant] !== storeId ||
       !kinds.has(kind as OfferKind) || !channels.has(channel as string) ||
       !title || !criteria || !evidence || !sourceUrl ||
       !allowedOfficialSource(sourceUrl, target.url) ||
