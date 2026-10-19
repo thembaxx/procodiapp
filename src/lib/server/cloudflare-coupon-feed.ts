@@ -49,7 +49,9 @@ export async function readCloudflareCouponLeads(
     const response = await fetch(url, {
       headers: { Accept: "application/json" },
       cache: "no-store",
-      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(8000)]) : AbortSignal.timeout(8000),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(8000)])
+        : AbortSignal.timeout(8000),
     });
     if (!response.ok) return { status: "unavailable", leads: [] };
     const data = feedSchema.safeParse(await response.json());
