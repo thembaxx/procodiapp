@@ -16,6 +16,8 @@ import { sourceSnapshot } from "../snapshot";
 import { z } from "zod";
 import { boundedJson } from "./bounded-input";
 import { readGithubFeed, usesGithubFeed } from "./github-feed";
+import { readReviewedCloudflareOffers } from "./cloudflare-verified-feed";
+import { deduplicate } from "../offers";
 
 export const PUBLIC_DISCOVERY_COOLDOWN_SECONDS = 600;
 export const REPORT_RETENTION_DAYS = 30;
@@ -65,7 +67,11 @@ async function database(endpoint: string, init: RequestInit = {}) {
 }
 
 export async function readCache(): Promise<Cache> {
-  if (usesGithubFeed()) return readGithubFeed();
+  if (usesGithubFeed()) {
+    const base = await readGithubFeed();
+    const reviewed = await readReviewedCloudflareOffers();
+    return { ...base, offers: deduplicate([...base.offers, ...reviewed]) };
+  }
   try {
     const raw = hasSupabase()
       ? (
