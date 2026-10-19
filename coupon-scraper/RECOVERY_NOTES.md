@@ -32,3 +32,12 @@ This is reconstructed code, **not an exported or tested original**.
 
 No deployment, production database migration or ProcodiApp runtime integration
 has been performed.
+
+## ProcodiApp feed adapter (new)
+`src/lib/server/cloudflare-coupon-feed.ts` now fetches a configured
+`CLOUDFLARE_COUPON_API_URL` over HTTPS, with an 8-second timeout, Zod
+response validation, source-host allowlisting, freshness checks and deduplication.
+It returns **review-only leads**. It is not yet called by the discovery
+pipeline because the Worker selectors have not been verified and the app
+requires evidence and confirmed expiry before publishing an offer.
+The adapter is disabled when its environment variable is absent.
