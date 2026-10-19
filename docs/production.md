@@ -16,6 +16,7 @@ Set these server environment variables before public launch:
 | `CRON_SECRET`                                     | Optional for the alternative HTTP scheduler: use 32+ random characters. The GitHub feed publisher does not need it.                      |
 | `DATA_DIR`                                        | An absolute path on a persistent volume for exactly one Node instance. Docker defaults to `/app/.data`; mount it.                        |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`       | Use instead of local storage for multiple instances or serverless. Run `supabase/schema.sql` first. Credentials are server-only.         |
+| `CLOUDFLARE_VERIFIED_FEED_URL`                  | Optional verified-offer Worker HTTPS origin. Enable only after applying the new D1 migration and validating Worker endpoints; unverified coupons never publish. |
 | `PROMOTION_FEED`, `PROMOTION_FEED_REPOSITORY`     | Use `github` after the scheduled feed is published; `local` runs collection against persistent/shared storage.                           |
 | `BRAVE_SEARCH_API_KEY`                            | Optional Actions-only web discovery key. Do not expose it to the browser.                                                                |
 | `GITHUB_DISPATCH_TOKEN`                           | Optional server-only fine-grained Actions-write token for on-demand scans in GitHub feed mode.                                           |
