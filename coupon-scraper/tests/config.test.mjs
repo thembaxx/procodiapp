@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { parseConfigFileTextToJson } from "typescript";
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
-const config = JSON.parse(read("../wrangler.jsonc"));
+const { config, error } = parseConfigFileTextToJson("wrangler.jsonc", read("../wrangler.jsonc"));
+assert.equal(error, undefined, "Wrangler configuration must be valid JSONC");
 const source = read("../src/index.ts");
 const schema = read("../schema.sql");
 test("cron runs at 02:00 and 14:00 SAST", () => {

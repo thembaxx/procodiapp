@@ -4,12 +4,15 @@ A Cloudflare Worker that schedules and queues discovery for 34 configured South 
 The recovered source is a **staging scaffold**, not a verified production feed.
 
 ## Architecture
+
 Cron (00:00 and 12:00 UTC / 02:00 and 14:00 SAST) or authenticated POST
 → up to 34 jobs on scrape-jobs → up to 3 queue consumers → Browser Run Puppeteer
 or scrape Quick Action → deduplicated D1 coupons → GET /api/coupons.
 
 ## Setup
+
 From `coupon-scraper/`:
+
 1. `npm ci` (this folder has its own npm lockfile).
 2. `npx wrangler d1 create coupons` if it does not already exist; copy its actual database ID into wrangler.jsonc.
 3. `npm run queue:create` (only if the queues do not exist).
@@ -25,6 +28,7 @@ failed jobs after 60 seconds instead of immediately repeating rate-limited calls
 it still sends jobs to `scrape-dlq` after two retries.
 
 ## Current deployment
+
 Deployed on 19 October 2026:
 `https://coupon-scraper.mndebele-themba.workers.dev`.
 The Browser Run, existing D1 and queue bindings, queue consumer, and twice-daily
@@ -38,6 +42,7 @@ Deployment and enqueueing work; retailer extraction remains unverified. Review
 Browser Run usage and failed jobs before replaying the dead-letter queue.
 
 ## API
+
 - `GET /api/health`
 - `GET /api/coupons?merchant=Pick%20n%20Pay&active=true&limit=100`
 - `GET /api/coupons/:id`
@@ -48,6 +53,7 @@ Source selectors are hypotheses and need site-by-site verification. Comply with 
 robots directives and applicable rate limits. Do not bypass bot challenges.
 
 ## Known limitations
+
 - Live scraping has been triggered, but no retailer extraction has been verified.
 - The D1 ID and account ID are configured for the connected Cloudflare account; change both when deploying to another account.
 - Quick Actions require a compatibility date >= 2026-03-24 and remote development.
@@ -56,6 +62,7 @@ robots directives and applicable rate limits. Do not bypass bot challenges.
 - Production ProcodiApp integration and fallback behaviour are not yet wired.
 
 ## Retailer selection
+
 The supplied 11 original + 23 additional entries total **34**, not 33. None of the
 new selectors or retailer deal URLs have been live verified.
 
