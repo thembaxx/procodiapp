@@ -3373,3 +3373,31 @@ html[data-display="standalone"] {
     transform: none;
   }
 }
+
+
+/* Store discovery preferences */
+.store-preferences { margin: 20px 0; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.store-preferences-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.store-preferences-heading strong { font-size: 15px; }
+.store-preferences-heading p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+.store-preferences-heading button, .store-preference-item button, .store-add-list button { background: var(--surface-raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.store-preferences-panel { margin-top: 16px; }
+.store-preferences-list { padding: 0; margin: 0 0 16px; list-style: none; display: grid; gap: 8px; }
+.store-preference-item { display: flex; align-items: center; gap: 10px; padding: 7px; background: var(--surface-raised); border: 1px solid var(--line); border-radius: 12px; }
+.store-drag-handle { cursor: grab; touch-action: none; min-height: 44px; min-width: 44px; font-size: 22px; }
+.store-drag-handle:active { cursor: grabbing; }
+.store-preference-name { flex: 1; font-weight: 700; }
+.store-preference-category { color: var(--muted); font-size: 11px; text-transform: capitalize; }
+.store-preferences-panel label { display: block; margin: 14px 0 7px; font-weight: 700; }
+.store-preferences-panel input { display: block; width: 100%; min-height: 44px; background: var(--surface-raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px; color: var(--text); }
+.store-add-list { display: grid; gap: 6px; max-height: 300px; overflow: auto; margin-top: 10px; }
+.store-add-list button { display: flex; align-items: center; gap: 12px; min-height: 44px; text-align: left; }
+.store-add-list button span { flex: 1; }
+.store-add-list button small { color: var(--muted); text-transform: capitalize; }
+.store-preferences-note { font-size: 11px; color: var(--muted); line-height: 1.6; }
+.category-pills { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding: 8px 0 15px; scrollbar-width: thin; }
+.category-pills button { scroll-snap-align: start; white-space: nowrap; min-height: 44px; padding: 0 17px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; font-weight: 650; }
+.category-pills button.active { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.region-tag { font-size: 10px; border: 1px solid var(--line); padding: 4px 9px; border-radius: 999px; color: var(--muted); }
+.refresh-button, .header-refresh, .pull-cue { display: none !important; }
+@media (prefers-reduced-motion: reduce) { .store-preference-item, .category-pills button { transition: none !important; } }

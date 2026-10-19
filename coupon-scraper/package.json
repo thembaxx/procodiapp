@@ -1,0 +1,18 @@
+{
+  "name": "coupon-scraper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --remote",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs",
+    "db:migrate:local": "wrangler d1 execute coupons --local --file=schema.sql",
+    "db:migrate": "wrangler d1 execute coupons --remote --file=schema.sql",
+    "queue:create": "wrangler queues create scrape-jobs && wrangler queues create scrape-dlq",
+    "tail": "wrangler tail"
+  },
+  "dependencies": { "@cloudflare/puppeteer": "^1.0.0" },
+  "devDependencies": { "@cloudflare/workers-types": "^4.20261001.0", "typescript": "^5.9.3", "wrangler": "^4.0.0" }
+}

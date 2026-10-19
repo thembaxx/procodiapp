@@ -1,0 +1,207 @@
+export const storeCatalogue = [
+  {
+    "name": "Pick n Pay",
+    "url": "https://www.pnp.co.za/c/pnp/promotions",
+    "id": "pick-n-pay",
+    "category": "food"
+  },
+  {
+    "name": "Pick n Pay ASAP",
+    "url": "https://asap.pnp.co.za/",
+    "id": "pick-n-pay-asap",
+    "category": "food"
+  },
+  {
+    "name": "ShopRite",
+    "url": "https://www.shoprite.co.za/specials",
+    "id": "shoprite",
+    "category": "food"
+  },
+  {
+    "name": "Makro",
+    "url": "https://www.makro.co.za/deals",
+    "id": "makro",
+    "category": "general"
+  },
+  {
+    "name": "Woolworths",
+    "url": "https://www.woolworths.co.za/cat/Specials",
+    "id": "woolworths",
+    "category": "food"
+  },
+  {
+    "name": "Mr D",
+    "url": "https://www.mrdelivery.com/",
+    "id": "mr-d",
+    "category": "food"
+  },
+  {
+    "name": "Clicks",
+    "url": "https://www.clicks.co.za/promotions",
+    "id": "clicks",
+    "category": "beauty"
+  },
+  {
+    "name": "Checkers",
+    "url": "https://www.checkers.co.za/specials",
+    "id": "checkers",
+    "category": "food"
+  },
+  {
+    "name": "SPAR",
+    "url": "https://www.spar.co.za/specials",
+    "id": "spar",
+    "category": "food"
+  },
+  {
+    "name": "Takealot",
+    "url": "https://www.takealot.com/all-deals",
+    "id": "takealot",
+    "category": "general"
+  },
+  {
+    "name": "Dis-Chem",
+    "url": "https://www.dischem.com/specials",
+    "id": "dis-chem",
+    "category": "beauty"
+  },
+  {
+    "name": "Game",
+    "url": "https://www.game.co.za/deals",
+    "id": "game",
+    "category": "general"
+  },
+  {
+    "name": "Food Lover's Market",
+    "url": "https://www.foodloversmarket.co.za/specials",
+    "id": "food-lover-s-market",
+    "category": "food"
+  },
+  {
+    "name": "Boxer",
+    "url": "https://www.boxer.co.za/specials",
+    "id": "boxer",
+    "category": "food"
+  },
+  {
+    "name": "OK Foods",
+    "url": "https://www.okfoods.co.za/specials",
+    "id": "ok-foods",
+    "category": "food"
+  },
+  {
+    "name": "HiFi Corp",
+    "url": "https://www.hificorp.co.za/deals",
+    "id": "hifi-corp",
+    "category": "electronics"
+  },
+  {
+    "name": "Wootware",
+    "url": "https://www.wootware.co.za/specials",
+    "id": "wootware",
+    "category": "electronics"
+  },
+  {
+    "name": "Truworths",
+    "url": "https://www.truworths.co.za/sale",
+    "id": "truworths",
+    "category": "clothing"
+  },
+  {
+    "name": "The Fix",
+    "url": "https://www.thefix.co.za/sale",
+    "id": "the-fix",
+    "category": "clothing"
+  },
+  {
+    "name": "Cotton On",
+    "url": "https://cottonon.com/ZA/sale",
+    "id": "cotton-on",
+    "category": "clothing"
+  },
+  {
+    "name": "Sportscene",
+    "url": "https://www.sportscene.co.za/sale",
+    "id": "sportscene",
+    "category": "clothing"
+  },
+  {
+    "name": "Total Sports",
+    "url": "https://www.totalsports.co.za/sale",
+    "id": "total-sports",
+    "category": "sports"
+  },
+  {
+    "name": "Foschini",
+    "url": "https://www.foschini.co.za/sale",
+    "id": "foschini",
+    "category": "clothing"
+  },
+  {
+    "name": "Ackermans",
+    "url": "https://www.ackermans.co.za/promotions",
+    "id": "ackermans",
+    "category": "clothing"
+  },
+  {
+    "name": "Pep",
+    "url": "https://www.pep.co.za/promotions",
+    "id": "pep",
+    "category": "clothing"
+  },
+  {
+    "name": "Jet",
+    "url": "https://www.jet.co.za/promotions",
+    "id": "jet",
+    "category": "clothing"
+  },
+  {
+    "name": "OneDayOnly",
+    "url": "https://www.onedayonly.co.za",
+    "id": "onedayonly",
+    "category": "general"
+  },
+  {
+    "name": "Loot",
+    "url": "https://www.loot.co.za/deals",
+    "id": "loot",
+    "category": "general"
+  },
+  {
+    "name": "Chamberlains",
+    "url": "https://www.chamberlains.co.za/specials",
+    "id": "chamberlains",
+    "category": "home"
+  },
+  {
+    "name": "Sorbet",
+    "url": "https://www.sorbet.co.za/promotions",
+    "id": "sorbet",
+    "category": "beauty"
+  },
+  {
+    "name": "The Body Shop SA",
+    "url": "https://www.thebodyshop.com/en-za/offers",
+    "id": "the-body-shop-sa",
+    "category": "beauty"
+  },
+  {
+    "name": "Toy Kingdom",
+    "url": "https://www.toykingdom.co.za/specials",
+    "id": "toy-kingdom",
+    "category": "toys"
+  },
+  {
+    "name": "Bargain Books",
+    "url": "https://www.bargainbooks.co.za/specials",
+    "id": "bargain-books",
+    "category": "books"
+  },
+  {
+    "name": "Baby City",
+    "url": "https://www.babycity.co.za/specials",
+    "id": "baby-city",
+    "category": "baby"
+  }
+] as const;
+export type StoreCatalogueItem = (typeof storeCatalogue)[number];

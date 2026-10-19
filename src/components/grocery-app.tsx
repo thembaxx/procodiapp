@@ -39,6 +39,8 @@ import {
   type OffersResponse,
 } from "@/lib/offers";
 import { stores, type Store } from "@/lib/stores";
+import { storeCatalogue } from "@/lib/store-catalogue";
+import { StorePreferences, defaultStoreIds, readStoreSelection } from "@/components/store-preferences";
 import type { Design } from "@/lib/appearance";
 import { designs } from "@/lib/designs";
 import { Icon } from "@/components/icon";
@@ -179,6 +181,7 @@ function OfferRow({
           {offer.type === "free_delivery" ? "Free delivery" : "Discount"}
         </span>
         {isNew && <span className="new-tag">New</span>}
+        {offer.region && <span className="region-tag">📍 {offer.region}</span>}
         <div className="offer-actions">
           <motion.button
             className="share-offer"
@@ -485,6 +488,8 @@ export function GroceryApp({
   const [data, setData] = useState(initialData);
   const [design, setDesign] = useState<Design>("wallet");
   const [filter, setFilter] = useState<Filter>("all");
+  const [category, setCategory] = useState("all");
+  const [selectedStores, setSelectedStores] = useState<string[]>(defaultStoreIds);
   const [query, setQuery] = useState("");
   const [openStore, setOpenStore] = useState<string>(initialData.offers[0]?.storeId ?? "checkers");
   const [saved, setSaved] = useState<string[]>([]);
@@ -527,6 +532,7 @@ export function GroceryApp({
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       setMounted(true);
+      setSelectedStores(readStoreSelection());
       setNow(Date.now());
       const parameters = new URLSearchParams(window.location.search);
       const selected = parameters.get("design");
@@ -775,18 +781,24 @@ export function GroceryApp({
   };
 
   const live = data.offers.filter((offer) => isLive(offer, now));
+  const storeCatalogueId = (id: string) => id === "pnp" ? "pick-n-pay" : id;
   const allVisible = filterOffers(live, filter, query, now).filter(
+    (offer) => selectedStores.includes(storeCatalogueId(offer.storeId)) &&
+      (category === "all" || storeCatalogue.find((item) => item.id === storeCatalogueId(offer.storeId))?.category === category),
+  ).filter(
     (offer) => !savedOnly || saved.includes(offer.id),
   );
-  const activeStores = stores.filter((store) => live.some((offer) => offer.storeId === store.id));
+  const activeStores = stores.filter((store) => selectedStores.includes(storeCatalogueId(store.id)) && live.some((offer) => offer.storeId === store.id));
   const visibleStores = stores
     .filter(
       (store) =>
+        selectedStores.includes(storeCatalogueId(store.id)) &&
+        (category === "all" || storeCatalogue.find((item) => item.id === storeCatalogueId(store.id))?.category === category) &&
         `${store.name} ${store.loyalty}`.toLowerCase().includes(query.trim().toLowerCase()) &&
         (!savedOnly || allVisible.some((offer) => offer.storeId === store.id)),
     )
     .map((store) => ({ store, offers: allVisible.filter((offer) => offer.storeId === store.id) }))
-    .sort((a, b) => Number(b.offers.length > 0) - Number(a.offers.length > 0));
+    .sort((a, b) => selectedStores.indexOf(storeCatalogueId(a.store.id)) - selectedStores.indexOf(storeCatalogueId(b.store.id)));
   const selectedStore = stores.find((store) => store.id === openStore) ?? stores[0];
   const glowStyle = {
     "--glow-one": selectedStore.color,
@@ -832,7 +844,7 @@ export function GroceryApp({
       onTouchEnd={() => {
         if (pull > 100) {
           if (!reduced) navigator.vibrate?.(10);
-          void refresh();
+          // Manual refresh is temporarily disabled; scheduled updates remain available.
         }
         touchStart.current = null;
         setPull(0);
@@ -1071,7 +1083,7 @@ export function GroceryApp({
                   <Icon icon={Cancel01Icon} size={16} />
                 </button>
               )}
-              <span className="search-shortcut">6 stores</span>
+              <span className="search-shortcut">{selectedStores.length} stores</span>
             </div>
             <fieldset className="filters" aria-label="Promotion type">
               {(
@@ -1104,6 +1116,15 @@ export function GroceryApp({
               ))}
             </fieldset>
           </div>
+          <StorePreferences selected={selectedStores} onChange={setSelectedStores} />
+          <nav className="category-pills" aria-label="Store categories">
+            {["all", "food", "clothing", "beauty", "electronics", "home", "sports", "toys", "books", "baby", "general"].map((item) => (
+              <button key={item} type="button" aria-pressed={category === item}
+                className={category === item ? "active" : ""} onClick={() => setCategory(item)}>
+                {item === "all" ? "All categories" : item[0].toUpperCase() + item.slice(1)}
+              </button>
+            ))}
+          </nav>
           <div className="results-status">
             <output className="status-text" aria-live="polite">
               <i className={`tiny-dot ${refreshing ? "searching" : "active"}`} />
