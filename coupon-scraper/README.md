@@ -15,7 +15,7 @@ From `coupon-scraper/`:
 3. `npm run queue:create` (only if the queues do not exist).
 4. `npm run db:migrate:local`; check schema and existing production data before `npm run db:migrate`.
 5. `npx wrangler secret put API_KEY` (mandatory for POST /api/scrape).
-6. `npm run typecheck`; `npm run dev` (remote mode needed for Quick Actions).
+6. `npm run typecheck && npm test`; `npm run dev` (remote mode needed for Quick Actions).
 7. Validate each target's permissions, URL, CSS selectors and output on staging.
 8. `npm run deploy` only after successful checks.
 
