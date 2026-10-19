@@ -142,7 +142,8 @@ export function ViewSettings({
             <motion.button
               key={item.id}
               className={`view-choice ${design === item.id ? "is-selected" : ""}`}
-              aria-label={item.name}
+              aria-labelledby={`view-name-${item.id}`}
+              aria-describedby={`view-description-${item.id} view-scene-${item.id}`}
               aria-pressed={design === item.id}
               onClick={() => onDesign(item.id)}
               whileHover={reduced ? undefined : { y: -2 }}
@@ -155,9 +156,9 @@ export function ViewSettings({
                 <Icon icon={item.icon} size={19} />
               </span>
               <span className="view-choice-copy">
-                <strong>{item.name}</strong>
-                <span>{item.description}</span>
-                <small>{item.scene}</small>
+                <strong id={`view-name-${item.id}`}>{item.name}</strong>
+                <span id={`view-description-${item.id}`}>{item.description}</span>
+                <small id={`view-scene-${item.id}`}>{item.scene}</small>
               </span>
               <span className="view-choice-check" aria-hidden="true">
                 {design === item.id && <Icon icon={Tick02Icon} size={16} />}
