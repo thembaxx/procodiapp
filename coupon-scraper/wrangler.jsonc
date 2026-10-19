@@ -1,9 +1,12 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "coupon-scraper",
+  "account_id": "4558b6cb691038495ac4966102bdb898",
   "main": "src/index.ts",
+  "workers_dev": true,
   "compatibility_date": "2026-10-13",
   "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
   "browser": { "binding": "BROWSER" },
   "d1_databases": [{
     "binding": "DB",
@@ -19,6 +22,7 @@
       "max_batch_timeout": 1,
       "max_concurrency": 3,
       "max_retries": 2,
+      "retry_delay": 60,
       "dead_letter_queue": "scrape-dlq"
     }]
   }

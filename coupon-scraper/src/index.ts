@@ -128,7 +128,7 @@ export default {
       return json({ error: "internal server error" }, 500);
     }
   },
-} satisfies ExportedHandler<Env>;
+} satisfies ExportedHandler<Env, ScrapeJob>;
 
 async function scrapeTarget(env: Env, target: ScrapeTarget): Promise<Coupon[]> {
   const now = new Date().toISOString();
