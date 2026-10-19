@@ -27,7 +27,7 @@ export function hasCompletedDiscovery(
 
 export async function refreshPromotions(): Promise<OffersResponse & { reused: boolean }> {
   if (usesGithubFeed()) {
-    await readGithubFeed(true);
+    await readGithubFeed(true).catch(() => undefined);
     const data = await readCache();
     return { ...data, offers: filterOffers(data.offers), newOfferIds: [], reused: true };
   }
