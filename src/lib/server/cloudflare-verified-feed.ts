@@ -55,7 +55,6 @@ export async function readReviewedCloudflareOffers(): Promise<Offer[]> {
     for (const entry of data.offers) {
       const store = stores.find((item) => item.id === entry.store_id);
       if (!store || !allowedStoreUrl(entry.source_url, store)) continue;
-      if (entry.channel === "in_store") continue; // Current UI is for online shopping.
       const checked = Date.parse(entry.checked_at);
       const valid = Date.parse(entry.valid_until);
       const expires = entry.expires_at ? Date.parse(entry.expires_at) : Infinity;
@@ -70,6 +69,7 @@ export async function readReviewedCloudflareOffers(): Promise<Offer[]> {
         code: entry.code,
         type: entry.kind === "free_delivery" ? "free_delivery" : "discount",
         kind: entry.kind,
+        channel: entry.channel,
         title: entry.title,
         criteria: entry.criteria,
         ...(entry.region ? { region: entry.region } : {}),
@@ -81,7 +81,7 @@ export async function readReviewedCloudflareOffers(): Promise<Offer[]> {
         foundAt: entry.checked_at,
         checkedAt: entry.checked_at,
         validUntil: entry.valid_until,
-        verified: true,
+        verified: false, // Verified retailer evidence is NOT checkout-tested.
         evidence: entry.source_evidence,
         collectionMethod: "reviewed_worker",
       };
