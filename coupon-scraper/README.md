@@ -69,7 +69,7 @@ new selectors or retailer deal URLs have been live verified.
 Set `ENABLED_MERCHANTS` as a comma-separated **server-wide** Worker environment
 variable (e.g. `Checkers,SPAR,Makro`) to queue only those retailers. The queue
 consumer also rejects disabled jobs left over from earlier schedules.
-If unset, all 34 are enabled. This is not a per-user setting.
+If unset, only Pick n Pay, ShopRite, Clicks, Checkers, SPAR and Makro are enabled by default while the rest remain unverified. Set the variable explicitly to opt into more retailers. This is not a per-user setting.
 
 ProcodiApp's My Stores UI saves per-device selection and order, but it does not
 control the shared scheduled Worker. A per-user scraping contract requires user
@@ -79,3 +79,32 @@ storage as a server-side permission or scheduling mechanism.
 The app now hides manual refresh, offers horizontally scrolling category pills,
 and supports an optional region label on verified offers. Official logo/font
 assets have not been verified or licensed for the new brands.
+
+## Reviewed publication and resilient integration
+
+`/api/coupons` is a **candidate feed**, not published retail savings. Browser guesses,
+uncertain expiry and unvalidated retailer pages must never go directly to ProcodiApp.
+
+1. Apply the **additive**, idempotent `schema.sql` with `npm run db:migrate` before deploying the updated Worker. It adds `verified_offers` and `source_health` without removing existing coupons.
+2. `GET /api/source-health` shows status per merchant, last scan, consecutive failures, and extracted candidate counts. Two consecutive scan errors begin a progressive cooldown (up to six hours) to protect Browser Run quota.
+3. `POST /api/review` requires `Authorization: Bearer <API_KEY>`. Only reviewed first-party evidence can be inserted. It requires canonical merchant + store ID, a specific official HTTPS URL, substantial source evidence, eligibility, channel, offer kind, and valid expiry (or explicitly ongoing status). Publication is limited to the next 24 hours or the earlier stated expiry. No AI inference or scraper auto-approval.
+4. `GET /api/verified-offers` returns only reviewed unexpired records. This is the **only** new endpoint eligible for integration into ProcodiApp. An empty verified feed is legitimate.
+5. Set `CLOUDFLARE_VERIFIED_FEED_URL=https://coupon-scraper.mndebele-themba.workers.dev/` in ProcodiApp's server environment only after verifying the Worker deployment and D1 migration. The live app merges qualifying reviewed offers with its GitHub feed; a failure does not renew old deadlines. If GitHub fails and reviewed Worker offers remain fresh, those can serve as a limited standalone fallback.
+
+The Worker's review endpoint records evidence supplied by an operator; it cannot
+prove the operator's evidence is current without an independent recheck.
+Offers are labelled **source listed, not tested at checkout**. A future reviewed
+checkout-testing process must be distinct from retailer-source confirmation.
+Some retailer hosts intentionally remain unsupported by the six-store web UI;
+the 34-store preference catalogue is not evidence of live catalogue coverage.
+
+`GET /api/source-health` and the app's `/status` page are public operational
+summaries; no secrets, report details or private rate-limit identifiers are returned.
+
+### Expansion sequence
+
+Prioritize separately reviewed official retailer catalogue URLs (Pick n Pay,
+Checkers and Clicks), structured partner feeds where contracts allow reuse,
+and then additional store sources. Discovery-search snippets, Guzzle-like
+aggregator claims and third-party coupon pages are **leads** until licensing
+and primary-source validation are in place. Do not bypass robots/CAPTCHA.
