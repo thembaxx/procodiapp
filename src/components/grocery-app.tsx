@@ -182,10 +182,16 @@ function OfferRow({
             icon={offer.type === "free_delivery" ? DeliveryTruck01Icon : Discount01Icon}
             size={15}
           />
-          {offer.type === "free_delivery" ? "Free delivery" : "Discount"}
+          {offer.kind === "catalogue_special" ? "Catalogue special" :
+            offer.kind === "coupon_code" ? "Promo code" :
+            offer.kind === "loyalty" ? "Loyalty saving" :
+            offer.kind === "bundle" ? "Bundle offer" :
+            offer.kind === "cashback" ? "Cashback" :
+            offer.type === "free_delivery" ? "Free delivery" : "Discount"}
         </span>
         {isNew && <span className="new-tag">New</span>}
         {offer.region && <span className="region-tag">📍 {offer.region}</span>}
+        {offer.channel === "in_store" && <span className="region-tag">In-store only</span>}
         <div className="offer-actions">
           <motion.button
             className="share-offer"
@@ -248,7 +254,9 @@ function OfferRow({
           <Icon icon={CheckmarkCircle02Icon} size={20} />
           <div>
             <b>No code needed</b>
-            <span>Apply the benefit in the app or at checkout</span>
+            <span>{offer.channel === "in_store"
+              ? "See the retailer's terms for participating stores"
+              : "Apply the benefit in the app or at checkout"}</span>
           </div>
         </div>
       )}
