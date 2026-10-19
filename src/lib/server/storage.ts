@@ -261,7 +261,7 @@ export async function saveReport(offerId: string, reason: string) {
 
 export async function checkStorage(): Promise<boolean> {
   try {
-    if (usesGithubFeed()) await readGithubFeed();
+    if (usesGithubFeed()) await readCache();
     if (hasSupabase()) await database("promotion_cache?select=id&limit=1");
     else {
       if (process.env.SUPABASE_URL || process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
