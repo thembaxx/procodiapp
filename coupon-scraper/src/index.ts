@@ -6,6 +6,7 @@ interface Env {
   BROWSER: Fetcher & { quickAction(action: string, options: unknown): Promise<Response> };
   SCRAPE_QUEUE: Queue<ScrapeJob>;
   API_KEY?: string;
+  ENABLED_MERCHANTS?: string;
 }
 
 const SCRAPE_TARGETS: ScrapeTarget[] = [
@@ -52,10 +53,19 @@ function json(body: unknown, status = 200): Response {
 function isRecord(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null && !Array.isArray(x);
 }
+function enabledTargetIndices(env: Env): number[] {
+  // Server-wide selection. A blank setting enables the full catalogue.
+  const configured = env.ENABLED_MERCHANTS?.trim();
+  const allowed = configured
+    ? new Set(configured.split(",").map((name) => name.trim().toLowerCase()).filter(Boolean))
+    : null;
+  return SCRAPE_TARGETS.flatMap((target, index) =>
+    !allowed || allowed.has(target.merchant.toLowerCase()) ? [index] : []);
+}
 async function enqueueAll(env: Env): Promise<number> {
-  // Each job is independent. sendBatch avoids partial sequential sends.
-  await env.SCRAPE_QUEUE.sendBatch(SCRAPE_TARGETS.map((_, index) => ({ body: { index } })));
-  return SCRAPE_TARGETS.length;
+  const indices = enabledTargetIndices(env);
+  if (indices.length) await env.SCRAPE_QUEUE.sendBatch(indices.map((index) => ({ body: { index } })));
+  return indices.length;
 }
 
 export default {
@@ -67,7 +77,7 @@ export default {
     for (const message of batch.messages) {
       const index = message.body?.index;
       const target = Number.isInteger(index) ? SCRAPE_TARGETS[index] : undefined;
-      if (!target) { console.error("invalid scrape job index", index); message.ack(); continue; }
+      if (!target || !enabledTargetIndices(env).includes(index)) { console.warn("disabled or invalid scrape job", index); message.ack(); continue; }
       try {
         const coupons = await scrapeTarget(env, target);
         const stored = await storeCoupons(env, coupons);
