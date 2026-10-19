@@ -27,7 +27,8 @@ export function hasCompletedDiscovery(
 
 export async function refreshPromotions(): Promise<OffersResponse & { reused: boolean }> {
   if (usesGithubFeed()) {
-    const data = await readGithubFeed(true);
+    await readGithubFeed(true);
+    const data = await readCache();
     return { ...data, offers: filterOffers(data.offers), newOfferIds: [], reused: true };
   }
   requireDiscovery();
