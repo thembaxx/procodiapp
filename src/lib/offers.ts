@@ -19,6 +19,7 @@ export const offerSchema = z
     expiryKnown: z.boolean(),
     ongoing: z.boolean(),
     sourceName: z.string().min(1).max(80),
+    region: z.string().min(2).max(100).optional(),
     sourceUrl: z.url().max(2000),
     foundAt: z.iso.datetime({ offset: true }),
     checkedAt: z.iso.datetime({ offset: true }),
