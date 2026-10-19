@@ -1,33 +1,34 @@
-# Source recovery status
+# Recovery status — 19 October 2026
 
-The original Cloudflare Worker artifact is inaccessible. This directory is being
-reconstructed from the user's pasted conversation, not copied from a verified repository.
+Recovered and committed a Worker scaffold from the pasted conversation:
+- `src/index.ts`: 11 retailers, twice-daily cron, queue fan-out/consumer,
+  public read API and authenticated manual enqueue, parser and D1 persistence
+- `src/puppeteer-scraper.ts`: browser session scraping
+- `src/types.ts`, `schema.sql`, `wrangler.jsonc`, `package.json`,
+  `tsconfig.json` and `README.md`
 
-## Recovered
-- Queue/cron/D1 Wrangler configuration (D1 ID remains intentionally unset)
-- Shared TypeScript interfaces
-- Non-destructive initial D1 schema
-- Original scraper target list, main Worker and Puppeteer source pasted in chat
-- Architecture and implementation notes in CODEX_PROMPT.md and HOW_IT_WORKS.md
+This is reconstructed code, **not an exported or tested original**.
 
-## Must validate before deployment
-- Worker source is incomplete in the transcript: src/index.ts cuts off in storeCoupons().
-- Original package.json and README.md contents were not supplied.
-- Verify Cloudflare Browser Rendering binding and Quick Action API; do not use
-  the transcript's unverified BROWSER.quickAction() method blindly.
-- Scraper selectors and retailer URLs are unverified and may return no deals.
-- Reject unauthenticated POST /api/scrape when API_KEY is absent.
-- Do not return raw exception messages to public API clients.
-- Validate expiration and source URLs; text such as 'ends Sunday' is not ISO.
-- Track retailer-specific scrape failures and avoid presenting inferred discounts
-  as verified coupon codes.
-- Re-check account-specific Browser Rendering, Workers and Queues quotas;
-  twice daily does not guarantee free usage.
-- Do not deploy or migrate against production until checks pass.
+## Fixes made relative to transcript
+- Cloudflare Quick Actions need compatibility date >= 2026-03-24; use 2026-10-13.
+- Browser binding configured as an object.
+- `POST /api/scrape` rejects requests if API_KEY is missing.
+- D1 schema uses CREATE TABLE IF NOT EXISTS instead of DROP TABLE.
+- Active expiry query handles ISO date-only values; relative expiry strings are ignored.
+- Quick Action response status and shape are checked; server exceptions are not sent to clients.
+- Root ProcodiApp retains pnpm; Worker is an independently managed npm package.
 
-## Next implementation steps
-1. Reconstruct and typecheck Worker source and Puppeteer adapter.
-2. Add parser, D1 and queue tests; mock network/browser calls.
-3. Confirm and set D1 database ID, queue resources and API_KEY secret.
-4. Deploy staging Worker and verify sample responses from retailer sources.
-5. Integrate into ProcodiApp as primary with existing fallback intact.
+## Blockers before production
+1. Run `npm install`, `npm run typecheck` and tests against real Wrangler versions.
+2. Confirm `@cloudflare/puppeteer` and Wrangler versions resolve and their types match.
+3. Check current account quotas; twice daily is not proof of zero cost.
+4. Confirm live retailer URL, selector, robots/terms and permission individually.
+5. Add fixture tests for parsing, deduplication, auth, expiry, and queue retry.
+6. Supply existing D1 ID, create/reuse queues, set API_KEY via Wrangler secret.
+7. Deploy to staging and inspect real scrape output before publishing as verified offers.
+8. Implement ProcodiApp's Cloudflare-primary adapter and retain its existing
+   Gemini/official-site/legacy fallbacks. The app's existing discovery pipeline
+   has been inspected but has not yet been changed.
+
+No deployment, production database migration or ProcodiApp runtime integration
+has been performed.
