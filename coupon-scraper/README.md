@@ -1,11 +1,11 @@
 # Coupon scraper (reconstructed)
 
-A Cloudflare Worker that schedules and queues discovery for 11 South African retailers.
+A Cloudflare Worker that schedules and queues discovery for 34 configured South African retailer targets.
 The recovered source is a **staging scaffold**, not a verified production feed.
 
 ## Architecture
 Cron (00:00 and 12:00 UTC / 02:00 and 14:00 SAST) or authenticated POST
-→ 11 jobs on scrape-jobs → up to 3 queue consumers → Browser Run Puppeteer
+→ up to 34 jobs on scrape-jobs → up to 3 queue consumers → Browser Run Puppeteer
 or scrape Quick Action → deduplicated D1 coupons → GET /api/coupons.
 
 ## Setup
@@ -36,3 +36,21 @@ robots directives and applicable rate limits. Do not bypass bot challenges.
 - This folder uses npm independently; the ProcodiApp root continues to use pnpm.
 - Cloudflare plan quotas and costs must be checked on the connected account.
 - Production ProcodiApp integration and fallback behaviour are not yet wired.
+
+## Retailer selection
+The supplied 11 original + 23 additional entries total **34**, not 33. None of the
+new selectors or retailer deal URLs have been live verified.
+
+Set `ENABLED_MERCHANTS` as a comma-separated **server-wide** Worker environment
+variable (e.g. `Checkers,SPAR,Makro`) to queue only those retailers. The queue
+consumer also rejects disabled jobs left over from earlier schedules.
+If unset, all 34 are enabled. This is not a per-user setting.
+
+ProcodiApp's My Stores UI saves per-device selection and order, but it does not
+control the shared scheduled Worker. A per-user scraping contract requires user
+accounts, persisted selection, and tenant-scoped queue jobs; do not treat local
+storage as a server-side permission or scheduling mechanism.
+
+The app now hides manual refresh, offers horizontally scrolling category pills,
+and supports an optional region label on verified offers. Official logo/font
+assets have not been verified or licensed for the new brands.
