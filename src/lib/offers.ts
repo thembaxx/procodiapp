@@ -12,6 +12,7 @@ export const offerSchema = z
     code: z.string().min(2).max(64).nullable(),
     type: z.enum(["free_delivery", "discount"]),
     kind: z.enum(["coupon_code", "discount", "free_delivery", "catalogue_special", "loyalty", "bundle", "cashback"]).optional(),
+    channel: z.enum(["online", "in_store", "both"]).optional(),
     title: z.string().min(5).max(160),
     criteria: z.string().min(10).max(650),
     minBasketZar: z.number().nonnegative().optional(),
