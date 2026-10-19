@@ -85,7 +85,7 @@ export function parseReviewedOffer(
     ? null : textField(value.region, 100, 2);
   const ongoing = value.ongoing === true;
   const expiresAt = value.expiresAt === null ? null : validDate(value.expiresAt);
-  if (!target || !storeId || !/^[a-z0-9-]+$/.test(storeId) ||
+  if (!target || !merchant || !storeId || !/^[a-z0-9-]+$/.test(storeId) ||
       !kinds.has(kind as OfferKind) || !channels.has(channel as string) ||
       !title || !criteria || !evidence || !sourceUrl ||
       !allowedOfficialSource(sourceUrl, target.url) ||
