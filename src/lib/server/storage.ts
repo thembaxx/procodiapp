@@ -68,9 +68,29 @@ async function database(endpoint: string, init: RequestInit = {}) {
 
 export async function readCache(): Promise<Cache> {
   if (usesGithubFeed()) {
-    const base = await readGithubFeed();
-    const reviewed = await readReviewedCloudflareOffers();
-    return { ...base, offers: deduplicate([...base.offers, ...reviewed]) };
+    const [primary, secondary] = await Promise.allSettled([
+      readGithubFeed(),
+      readReviewedCloudflareOffers(),
+    ]);
+    const reviewed = secondary.status === "fulfilled" ? secondary.value : [];
+    if (primary.status === "fulfilled")
+      return {
+        ...primary.value,
+        offers: deduplicate([...primary.value.offers, ...reviewed]),
+      };
+    // Independently reviewed records are an emergency read-only fallback when
+    // GitHub is down during a cold start. No freshness timestamps are renewed.
+    if (reviewed.length)
+      return {
+        offers: reviewed,
+        updatedAt: reviewed.reduce(
+          (newest, offer) => offer.checkedAt > newest ? offer.checkedAt : newest,
+          reviewed[0].checkedAt,
+        ),
+        checks: [],
+        mode: "free_sources",
+      };
+    throw new Error("Both published promotion feeds are unavailable.");
   }
   try {
     const raw = hasSupabase()
