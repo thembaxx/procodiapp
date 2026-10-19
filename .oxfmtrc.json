@@ -9,5 +9,13 @@
     ".next/**",
     "node_modules/**",
     "docs/reference/**"
+  ],
+  "overrides": [
+    {
+      "files": ["coupon-scraper/wrangler.jsonc"],
+      "options": {
+        "trailingComma": "none"
+      }
+    }
   ]
 }

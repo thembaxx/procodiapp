@@ -5,21 +5,25 @@
   "compatibility_date": "2026-10-13",
   "compatibility_flags": ["nodejs_compat"],
   "browser": { "binding": "BROWSER" },
-  "d1_databases": [{
-    "binding": "DB",
-    "database_name": "coupons",
-    "database_id": "2bd77bf9-c65b-4d90-a608-f3973776143a"
-  }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "coupons",
+      "database_id": "2bd77bf9-c65b-4d90-a608-f3973776143a"
+    }
+  ],
   "triggers": { "crons": ["0 */12 * * *"] },
   "queues": {
     "producers": [{ "binding": "SCRAPE_QUEUE", "queue": "scrape-jobs" }],
-    "consumers": [{
-      "queue": "scrape-jobs",
-      "max_batch_size": 1,
-      "max_batch_timeout": 1,
-      "max_concurrency": 3,
-      "max_retries": 2,
-      "dead_letter_queue": "scrape-dlq"
-    }]
+    "consumers": [
+      {
+        "queue": "scrape-jobs",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_concurrency": 3,
+        "max_retries": 2,
+        "dead_letter_queue": "scrape-dlq"
+      }
+    ]
   }
 }

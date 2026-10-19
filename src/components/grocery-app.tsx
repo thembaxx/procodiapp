@@ -40,7 +40,11 @@ import {
 } from "@/lib/offers";
 import { stores, type Store } from "@/lib/stores";
 import { storeCatalogue } from "@/lib/store-catalogue";
-import { StorePreferences, defaultStoreIds, readStoreSelection } from "@/components/store-preferences";
+import {
+  StorePreferences,
+  defaultStoreIds,
+  readStoreSelection,
+} from "@/components/store-preferences";
 import type { Design } from "@/lib/appearance";
 import { designs } from "@/lib/designs";
 import { Icon } from "@/components/icon";
@@ -781,24 +785,37 @@ export function GroceryApp({
   };
 
   const live = data.offers.filter((offer) => isLive(offer, now));
-  const storeCatalogueId = (id: string) => id === "pnp" ? "pick-n-pay" : id;
-  const allVisible = filterOffers(live, filter, query, now).filter(
-    (offer) => selectedStores.includes(storeCatalogueId(offer.storeId)) &&
-      (category === "all" || storeCatalogue.find((item) => item.id === storeCatalogueId(offer.storeId))?.category === category),
-  ).filter(
-    (offer) => !savedOnly || saved.includes(offer.id),
+  const storeCatalogueId = (id: string) => (id === "pnp" ? "pick-n-pay" : id);
+  const allVisible = filterOffers(live, filter, query, now)
+    .filter(
+      (offer) =>
+        selectedStores.includes(storeCatalogueId(offer.storeId)) &&
+        (category === "all" ||
+          storeCatalogue.find((item) => item.id === storeCatalogueId(offer.storeId))?.category ===
+            category),
+    )
+    .filter((offer) => !savedOnly || saved.includes(offer.id));
+  const activeStores = stores.filter(
+    (store) =>
+      selectedStores.includes(storeCatalogueId(store.id)) &&
+      live.some((offer) => offer.storeId === store.id),
   );
-  const activeStores = stores.filter((store) => selectedStores.includes(storeCatalogueId(store.id)) && live.some((offer) => offer.storeId === store.id));
   const visibleStores = stores
     .filter(
       (store) =>
         selectedStores.includes(storeCatalogueId(store.id)) &&
-        (category === "all" || storeCatalogue.find((item) => item.id === storeCatalogueId(store.id))?.category === category) &&
+        (category === "all" ||
+          storeCatalogue.find((item) => item.id === storeCatalogueId(store.id))?.category ===
+            category) &&
         `${store.name} ${store.loyalty}`.toLowerCase().includes(query.trim().toLowerCase()) &&
         (!savedOnly || allVisible.some((offer) => offer.storeId === store.id)),
     )
     .map((store) => ({ store, offers: allVisible.filter((offer) => offer.storeId === store.id) }))
-    .sort((a, b) => selectedStores.indexOf(storeCatalogueId(a.store.id)) - selectedStores.indexOf(storeCatalogueId(b.store.id)));
+    .sort(
+      (a, b) =>
+        selectedStores.indexOf(storeCatalogueId(a.store.id)) -
+        selectedStores.indexOf(storeCatalogueId(b.store.id)),
+    );
   const selectedStore = stores.find((store) => store.id === openStore) ?? stores[0];
   const glowStyle = {
     "--glow-one": selectedStore.color,
@@ -1118,9 +1135,26 @@ export function GroceryApp({
           </div>
           <StorePreferences selected={selectedStores} onChange={setSelectedStores} />
           <nav className="category-pills" aria-label="Store categories">
-            {["all", "food", "clothing", "beauty", "electronics", "home", "sports", "toys", "books", "baby", "general"].map((item) => (
-              <button key={item} type="button" aria-pressed={category === item}
-                className={category === item ? "active" : ""} onClick={() => setCategory(item)}>
+            {[
+              "all",
+              "food",
+              "clothing",
+              "beauty",
+              "electronics",
+              "home",
+              "sports",
+              "toys",
+              "books",
+              "baby",
+              "general",
+            ].map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={category === item}
+                className={category === item ? "active" : ""}
+                onClick={() => setCategory(item)}
+              >
                 {item === "all" ? "All categories" : item[0].toUpperCase() + item.slice(1)}
               </button>
             ))}

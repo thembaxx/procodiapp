@@ -13,6 +13,12 @@
     "queue:create": "wrangler queues create scrape-jobs && wrangler queues create scrape-dlq",
     "tail": "wrangler tail"
   },
-  "dependencies": { "@cloudflare/puppeteer": "^1.0.0" },
-  "devDependencies": { "@cloudflare/workers-types": "^4.20261001.0", "typescript": "^5.9.3", "wrangler": "^4.0.0" }
+  "dependencies": {
+    "@cloudflare/puppeteer": "^1.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20261001.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.0.0"
+  }
 }

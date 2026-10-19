@@ -4,7 +4,10 @@ import type { Coupon, ScrapeTarget } from "./types";
 type Parse = (text: string, merchant: string, url: string, now: string) => Promise<Coupon[]>;
 
 export async function scrapeTargetPuppeteer(
-  env: { BROWSER: Fetcher }, target: ScrapeTarget, parse: Parse, now: string,
+  env: { BROWSER: Fetcher },
+  target: ScrapeTarget,
+  parse: Parse,
+  now: string,
 ): Promise<Coupon[]> {
   const browser = await puppeteer.launch(env.BROWSER);
   const coupons = new Map<string, Coupon>();
@@ -20,8 +23,13 @@ export async function scrapeTargetPuppeteer(
     for (let n = 0; n < 3; n++) {
       const clicked = await page.evaluate(() => {
         const buttons = Array.from(document.querySelectorAll("button, a[role='button']"));
-        const match = buttons.find((b) => /^(load|show|view|see) more$/i.test((b.textContent || "").trim()));
-        if (match instanceof HTMLElement) { match.click(); return true; }
+        const match = buttons.find((b) =>
+          /^(load|show|view|see) more$/i.test((b.textContent || "").trim()),
+        );
+        if (match instanceof HTMLElement) {
+          match.click();
+          return true;
+        }
         return false;
       });
       if (!clicked) break;
@@ -31,7 +39,10 @@ export async function scrapeTargetPuppeteer(
     await new Promise((resolve) => setTimeout(resolve, 500));
     for (const selector of target.selectors) {
       const texts = await page.$$eval(selector, (elements) =>
-        elements.slice(0, 100).map((e) => (e.textContent || "").trim()).filter(Boolean),
+        elements
+          .slice(0, 100)
+          .map((e) => (e.textContent || "").trim())
+          .filter(Boolean),
       );
       for (const text of texts) {
         for (const coupon of await parse(text, target.merchant, target.url, now)) {
