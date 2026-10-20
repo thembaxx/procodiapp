@@ -84,7 +84,7 @@ export async function readCache(): Promise<Cache> {
       return {
         offers: reviewed,
         updatedAt: reviewed.reduce(
-          (newest, offer) => offer.checkedAt > newest ? offer.checkedAt : newest,
+          (newest, offer) => (offer.checkedAt > newest ? offer.checkedAt : newest),
           reviewed[0].checkedAt,
         ),
         checks: [],
