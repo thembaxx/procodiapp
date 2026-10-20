@@ -26,7 +26,9 @@ async function read(path) {
 try {
   const health = await read("/api/health");
   if (health.ok !== true) errors.push("Worker health response is not OK");
-} catch (error) { errors.push("Worker health: " + error.message); }
+} catch (error) {
+  errors.push("Worker health: " + error.message);
+}
 
 try {
   const result = await read("/api/source-health");
@@ -38,13 +40,16 @@ try {
       errors.push("Invalid failure count for " + String(s.merchant).slice(0, 80));
       continue;
     }
-    if (failures >= 3) errors.push(String(s.merchant).slice(0, 80) + ": " + failures + " consecutive failures");
+    if (failures >= 3)
+      errors.push(String(s.merchant).slice(0, 80) + ": " + failures + " consecutive failures");
     const checked = s.checked_at ? Date.parse(s.checked_at) : NaN;
     if (Number.isFinite(checked) && Date.now() - checked > 48 * 3600_000) {
       warnings.push(String(s.merchant).slice(0, 80) + ": last checked over 48 hours ago");
     }
   }
-} catch (error) { errors.push("Source health: " + error.message); }
+} catch (error) {
+  errors.push("Source health: " + error.message);
+}
 
 try {
   const result = await read("/api/verified-offers");
@@ -57,7 +62,9 @@ try {
       errors.push("Stale or invalid reviewed offer: " + String(offer.id).slice(0, 50));
     }
   }
-} catch (error) { errors.push("Reviewed offers: " + error.message); }
+} catch (error) {
+  errors.push("Reviewed offers: " + error.message);
+}
 
 await mkdir("reports", { recursive: true });
 const output = {
@@ -69,11 +76,17 @@ const output = {
 };
 await writeFile("reports/scraper-health.json", JSON.stringify(output, null, 2) + "\n");
 const summary = [
-  "## Coupon scraper operational health", "",
-  ...results.map(r => "- " + r.path + ": HTTP " + r.status),
-  "", "### Failures", ...(errors.length ? errors.map(s => "- " + s) : ["- None"]),
-  "", "### Review warnings", ...(warnings.length ? warnings.map(s => "- " + s) : ["- None"]),
+  "## Coupon scraper operational health",
+  "",
+  ...results.map((r) => "- " + r.path + ": HTTP " + r.status),
+  "",
+  "### Failures",
+  ...(errors.length ? errors.map((s) => "- " + s) : ["- None"]),
+  "",
+  "### Review warnings",
+  ...(warnings.length ? warnings.map((s) => "- " + s) : ["- None"]),
 ].join("\n");
 console.log(summary);
-if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, summary + "\n");
+if (process.env.GITHUB_STEP_SUMMARY)
+  await appendFile(process.env.GITHUB_STEP_SUMMARY, summary + "\n");
 if (errors.length) process.exitCode = 1;
