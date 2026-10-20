@@ -4,7 +4,7 @@ import { test as base } from "@playwright/test";
 type Connection = {
   url: string;
   setOnline: (online: boolean) => Promise<void>;
-  mockRefresh: (payload: unknown) => void;
+  mockFeed: (payload: unknown) => void;
 };
 
 // Drop real network connections at an isolated origin. Browser-level offline
@@ -13,18 +13,18 @@ export const test = base.extend<{ connection: Connection }>({
   connection: async ({ baseURL, page }, use) => {
     const target = new URL(baseURL!);
     let online = true;
-    let refreshResponse: string | null = null;
+    let feedResponse: string | null = null;
     const server = createServer((incoming, response) => {
       if (!online) {
         incoming.socket.destroy();
         return;
       }
-      if (incoming.method === "POST" && incoming.url === "/api/refresh" && refreshResponse) {
+      if (incoming.method === "GET" && incoming.url === "/api/offers" && feedResponse) {
         response.writeHead(200, {
           "Content-Type": "application/json",
           "Cache-Control": "no-store",
         });
-        response.end(refreshResponse);
+        response.end(feedResponse);
         incoming.resume();
         return;
       }
@@ -58,8 +58,8 @@ export const test = base.extend<{ connection: Connection }>({
     try {
       await use({
         url: `http://127.0.0.1:${address.port}`,
-        mockRefresh: (payload) => {
-          refreshResponse = JSON.stringify(payload);
+        mockFeed: (payload) => {
+          feedResponse = JSON.stringify(payload);
         },
         setOnline: async (value) => {
           online = value;

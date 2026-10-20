@@ -239,7 +239,6 @@ function OfferRow({
         <motion.button
           className={`copy-code ${copied ? "copied" : ""}`}
           onClick={copy}
-          aria-label={`Copy code ${offer.code}`}
           whileTap={reduced ? undefined : { scale: 0.98 }}
         >
           <code>{offer.code}</code>

@@ -142,8 +142,6 @@ export function ViewSettings({
             <motion.button
               key={item.id}
               className={`view-choice ${design === item.id ? "is-selected" : ""}`}
-              aria-labelledby={`view-name-${item.id}`}
-              aria-describedby={`view-description-${item.id} view-scene-${item.id}`}
               aria-pressed={design === item.id}
               onClick={() => onDesign(item.id)}
               whileHover={reduced ? undefined : { y: -2 }}

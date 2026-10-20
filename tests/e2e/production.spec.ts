@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { sourceSnapshot } from "../../src/lib/snapshot";
+import { reconnectOffers } from "./helpers";
 
 const origin = "https://grocery.example";
 
@@ -161,7 +162,7 @@ test("escapes hostile offer text and blocks inline event handlers without third-
     const url = new URL(request.url());
     if (!["127.0.0.1", "localhost"].includes(url.hostname)) outside.push(url.origin);
   });
-  await page.route("**/api/refresh", (route) =>
+  await page.route("**/api/offers", (route) =>
     route.fulfill({
       json: {
         offers: [offer],
@@ -173,11 +174,7 @@ test("escapes hostile offer text and blocks inline event handlers without third-
     }),
   );
   await page.goto("/");
-  await page
-    .getByRole("button", { name: /Refresh promotions|Find fresh offers/ })
-    .filter({ visible: true })
-    .first()
-    .click();
+  await reconnectOffers(page);
   await expect(page.getByText(marker, { exact: true })).toBeVisible();
   expect(await page.locator('img[src="/security-test-only"]').count()).toBe(0);
   expect(

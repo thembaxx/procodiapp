@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { sourceSnapshot } from "../../src/lib/snapshot";
-import { chooseView, chooseTheme, closeSettings, waitForApp } from "./helpers";
+import { chooseView, chooseTheme, closeSettings, reconnectOffers, waitForApp } from "./helpers";
 
 const testOffer = {
   ...sourceSnapshot[0],
@@ -47,12 +47,12 @@ test("opens only one Wallet card and shows terms for no-code benefits", async ({
   await expect(page.getByText("Nothing confirmed just yet.")).toBeVisible();
 });
 
-test("uses real refresh response to copy, save, and report a discovered code", async ({
+test("recovers a published feed to copy, save, and report a discovered code", async ({
   page,
   context,
 }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.route("**/api/refresh", (route) =>
+  await page.route("**/api/offers", (route) =>
     route.fulfill({
       json: {
         offers: [testOffer],
@@ -67,13 +67,9 @@ test("uses real refresh response to copy, save, and report a discovered code", a
     route.fulfill({ status: 201, json: { saved: true } }),
   );
   await page.goto("/?design=wallet");
-  await page
-    .getByRole("button", { name: /Refresh promotions|Find fresh offers/ })
-    .filter({ visible: true })
-    .first()
-    .click();
+  await reconnectOffers(page);
   await expect(page.getByText("Test-only grocery voucher", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Copy code E2E50" }).click();
+  await page.getByRole("button", { name: "E2E50 Copy code" }).click();
   await expect(page.getByText("Copied", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("E2E50");
   await page.getByRole("button", { name: "Save promotion: Test-only grocery voucher" }).click();
@@ -87,24 +83,28 @@ test("uses real refresh response to copy, save, and report a discovered code", a
   await expect(page.getByText("Thanks. Your report was saved for review.")).toBeVisible();
 });
 
-test("reports refresh limits without discarding offers", async ({ page }) => {
-  await page.route("**/api/refresh", (route) =>
-    route.fulfill({ status: 429, json: { error: "Refresh again in 30s.", retryAfter: 30 } }),
+test("retains offers when the feed is unavailable and keeps manual refresh hidden", async ({
+  page,
+}) => {
+  await page.route("**/api/offers", (route) =>
+    route.fulfill({ status: 503, json: { error: "Feed unavailable." } }),
   );
   await page.goto("/");
-  await page
-    .getByRole("button", { name: /Refresh promotions|Find fresh offers/ })
-    .filter({ visible: true })
-    .first()
-    .click();
-  await expect(page.locator(".status-text")).toContainText("Refresh again in 30s.");
+  expect((await reconnectOffers(page)).status()).toBe(503);
+  await expect(
+    page.getByRole("button", { name: /Refresh promotions|Find fresh offers/ }),
+  ).toHaveCount(0);
   await expect(page.locator(".store-card")).toHaveCount(6);
 });
 
-test("loads the latest scheduled scan when refresh reuses a recently checked result", async ({
+test("loads the latest scheduled scan on reconnect without starting another scan", async ({
   page,
 }) => {
-  await page.route("**/api/refresh", (route) =>
+  let scans = 0;
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/refresh") scans++;
+  });
+  await page.route("**/api/offers", (route) =>
     route.fulfill({
       json: {
         offers: [testOffer],
@@ -117,14 +117,10 @@ test("loads the latest scheduled scan when refresh reuses a recently checked res
     }),
   );
   await page.goto("/");
-  await page
-    .getByRole("button", { name: /Refresh promotions|Find fresh offers/ })
-    .filter({ visible: true })
-    .first()
-    .click();
+  await reconnectOffers(page);
   await expect(page.getByText(testOffer.title, { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Copy code E2E50" })).toBeVisible();
-  await expect(page.locator(".status-text")).toContainText("Sources were checked recently");
+  await expect(page.getByRole("button", { name: "E2E50 Copy code" })).toBeVisible();
+  expect(scans).toBe(0);
 });
 
 test("offers three layouts, persists a choice, and supports light and dark", async ({ page }) => {
@@ -132,7 +128,7 @@ test("offers three layouts, persists a choice, and supports light and dark", asy
   for (const name of ["Rewards", "Orbit", "Wallet"]) {
     await chooseView(page, name, false);
     await expect(page.locator(".app")).toHaveClass(new RegExp(`design-${name.toLowerCase()}`));
-    await expect(page.getByRole("button", { name, exact: true })).toHaveAttribute(
+    await expect(page.getByRole("button", { name: new RegExp(`^${name}\\b`) })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

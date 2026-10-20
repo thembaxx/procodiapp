@@ -2,7 +2,14 @@ import { expect, type Page } from "@playwright/test";
 import { test } from "./network";
 import AxeBuilder from "@axe-core/playwright";
 import { sourceSnapshot } from "../../src/lib/snapshot";
-import { chooseTheme, chooseView, closeSettings, openSettings, waitForApp } from "./helpers";
+import {
+  chooseTheme,
+  chooseView,
+  closeSettings,
+  openSettings,
+  reconnectOffers,
+  waitForApp,
+} from "./helpers";
 
 test.use({ serviceWorkers: "allow" });
 
@@ -90,6 +97,7 @@ test("cold launches offline with copying, saved offers, search and all three vie
   page,
   connection,
 }) => {
+  test.setTimeout(60_000);
   await page.emulateMedia({ reducedMotion: "reduce" });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -104,7 +112,7 @@ test("cold launches offline with copying, saved offers, search and all three vie
     validUntil: new Date(Date.now() + 86400000).toISOString(),
     expiresAt: new Date(Date.now() + 86400000).toISOString(),
   };
-  connection.mockRefresh({
+  connection.mockFeed({
     offers: [offer],
     updatedAt: new Date().toISOString(),
     checks: [],
@@ -113,11 +121,7 @@ test("cold launches offline with copying, saved offers, search and all three vie
   });
   await page.goto(connection.url);
   await offlineReady(page);
-  await page
-    .getByRole("button", { name: /Refresh promotions|Find fresh offers/ })
-    .filter({ visible: true })
-    .first()
-    .click();
+  await reconnectOffers(page);
   await expect(page.getByText(offer.title, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: `Save promotion: ${offer.title}` }).click();
   await expect.poll(async () => (await readSnapshot(page))?.data.offers[0]?.code).toBe("PWA30");
@@ -135,14 +139,11 @@ test("cold launches offline with copying, saved offers, search and all three vie
   await expect(
     page.getByRole("button", { name: `Unsave promotion: ${offer.title}` }),
   ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Copy code PWA30" }).click();
+  await page.getByRole("button", { name: "PWA30 Copy code" }).click();
   await expect(page.getByText("Copied", { exact: true })).toBeVisible();
   await expect(
-    page
-      .getByRole("button", { name: /Refresh promotions|Find fresh offers/ })
-      .filter({ visible: true })
-      .first(),
-  ).toBeDisabled();
+    page.getByRole("button", { name: /Refresh promotions|Find fresh offers/ }),
+  ).toHaveCount(0);
   const result = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();

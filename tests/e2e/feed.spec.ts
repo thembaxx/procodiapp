@@ -13,6 +13,7 @@ test.beforeAll(async () => {
     const collector = spawn(
       process.execPath,
       [
+        "--conditions=react-server",
         "--import",
         "tsx",
         "--import",
@@ -118,17 +119,13 @@ test("renders collector output through the real feed API and refreshes without p
   expect(body.offers).toHaveLength(6);
   expect(JSON.stringify(body)).not.toContain("must-not-be-forwarded");
   await page.goto(`${origin}/?design=wallet`);
-  await expect(page.getByRole("button", { name: "Copy code WORKER40" }).first()).toBeVisible();
-  const refreshed = page.waitForResponse((response) => response.url() === `${origin}/api/refresh`);
-  await page
-    .getByRole("button", { name: /Refresh promotions|Find fresh offers/ })
-    .filter({ visible: true })
-    .first()
-    .click();
-  const response = await refreshed;
+  await expect(page.getByRole("button", { name: "WORKER40 Copy code" }).first()).toBeVisible();
+  const response = await request.post(`${origin}/api/refresh`, {
+    headers: { origin },
+  });
   expect(response.ok()).toBe(true);
   expect((await response.json()).reused).toBe(true);
-  await expect(page.locator(".status-text")).toContainText("Latest promotions loaded");
+  await expect(page.getByRole("button", { name: "WORKER40 Copy code" }).first()).toBeVisible();
   const report = await request.post(`${origin}/api/report`, {
     data: { offerId: body.offers[0].id, reason: "The offer has ended" },
   });

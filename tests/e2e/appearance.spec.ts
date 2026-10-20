@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { chooseView, chooseTheme, waitForApp } from "./helpers";
+import { chooseView, chooseTheme, reconnectOffers, waitForApp } from "./helpers";
 
 const colors = {
   dark: { hex: "#0b0e11", rgb: "rgb(11, 14, 17)" },
@@ -69,7 +69,7 @@ test("keeps the server loading shell on the same canvas in portrait and landscap
   await expect(page.locator(".skeleton").first()).toHaveCSS("animation-name", "none");
 });
 
-test("matches page, browser and manifest colours across designs, themes and refresh", async ({
+test("matches page, browser and manifest colours across designs, themes and feed recovery", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -108,19 +108,16 @@ test("matches page, browser and manifest colours across designs, themes and refr
   const refreshed = new Promise<void>((resolve) => {
     finishRefresh = resolve;
   });
-  await page.route("**/api/refresh", async (route) => {
+  await page.route("**/api/offers", async (route) => {
     await refreshed;
     await route.fulfill({ status: 429, json: { error: "Refresh again in 30s.", retryAfter: 30 } });
   });
-  await page
-    .getByRole("button", { name: /Refresh promotions|Find fresh offers/ })
-    .filter({ visible: true })
-    .first()
-    .click();
-  await expect(page.locator(".status-text")).toContainText("Searching for fresh promotions");
+  const started = page.waitForRequest("**/api/offers");
+  const response = reconnectOffers(page);
+  await started;
   await expectCanvas(page, colors.orbitLight);
   finishRefresh();
-  await expect(page.locator(".status-text")).toContainText("Refresh again in 30s.");
+  expect((await response).status()).toBe(429);
   await expectCanvas(page, colors.orbitLight);
   expect(errors).toEqual([]);
 });
