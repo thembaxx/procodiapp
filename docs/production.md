@@ -6,23 +6,23 @@ The repository includes application code, tests and deployment assets. A public 
 
 Set these server environment variables before public launch:
 
-| Variable                                          | Requirement                                                                                                                              |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `SITE_URL`                                        | The canonical public HTTPS origin, with no subpath, credentials, query or fragment. Do not use a preview hostname.                       |
-| `INDEXING_ENABLED`                                | `true` on the public production deployment; `false` on previews and staging.                                                             |
-| `OPERATOR_NAME`                                   | The real operator/responsible party displayed on the privacy page.                                                                       |
-| `RATE_LIMIT_SECRET`                               | A separate random server-only secret of at least 32 characters, identical across replicas. Required for keyed rate limits in production. |
-| `CONTACT_EMAIL`                                   | The operator's support/privacy email, displayed on the privacy page.                                                                     |
-| `CRON_SECRET`                                     | Optional for the alternative HTTP scheduler: use 32+ random characters. The GitHub feed publisher does not need it.                      |
-| `DATA_DIR`                                        | An absolute path on a persistent volume for exactly one Node instance. Docker defaults to `/app/.data`; mount it.                        |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`       | Use instead of local storage for multiple instances or serverless. Run `supabase/schema.sql` first. Credentials are server-only.         |
-| `CLOUDFLARE_VERIFIED_FEED_URL`                  | Optional verified-offer Worker HTTPS origin. Enable only after applying the new D1 migration and validating Worker endpoints; unverified coupons never publish. |
-| `PROMOTION_FEED`, `PROMOTION_FEED_REPOSITORY`     | Use `github` after the scheduled feed is published; `local` runs collection against persistent/shared storage.                           |
-| `BRAVE_SEARCH_API_KEY`                            | Optional Actions-only web discovery key. Do not expose it to the browser.                                                                |
-| `GITHUB_DISPATCH_TOKEN`                           | Optional server-only fine-grained Actions-write token for on-demand scans in GitHub feed mode.                                           |
-| `PROMOTION_BROWSER_FALLBACK`                      | Enable only in the Actions collector with installed Chromium; keep disabled in the deployed app.                                         |
-| `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_ADVERTISERS` | Optional free publisher fallback. Set together on the collector only; leave unset for credential-free official sources.                  |
-| `TRUST_PROXY`                                     | Enable only when a trusted ingress overwrites `x-forwarded-for`.                                                                         |
+| Variable                                          | Requirement                                                                                                                                                     |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SITE_URL`                                        | The canonical public HTTPS origin, with no subpath, credentials, query or fragment. Do not use a preview hostname.                                              |
+| `INDEXING_ENABLED`                                | `true` on the public production deployment; `false` on previews and staging.                                                                                    |
+| `OPERATOR_NAME`                                   | The real operator/responsible party displayed on the privacy page.                                                                                              |
+| `RATE_LIMIT_SECRET`                               | A separate random server-only secret of at least 32 characters, identical across replicas. Required for keyed rate limits in production.                        |
+| `CONTACT_EMAIL`                                   | The operator's support/privacy email, displayed on the privacy page.                                                                                            |
+| `CRON_SECRET`                                     | Optional for the alternative HTTP scheduler: use 32+ random characters. The GitHub feed publisher does not need it.                                             |
+| `DATA_DIR`                                        | An absolute path on a persistent volume for exactly one Node instance. Docker defaults to `/app/.data`; mount it.                                               |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`       | Use instead of local storage for multiple instances or serverless. Run `supabase/schema.sql` first. Credentials are server-only.                                |
+| `CLOUDFLARE_VERIFIED_FEED_URL`                    | Optional verified-offer Worker HTTPS origin. Enable only after applying the new D1 migration and validating Worker endpoints; unverified coupons never publish. |
+| `PROMOTION_FEED`, `PROMOTION_FEED_REPOSITORY`     | Use `github` after the scheduled feed is published; `local` runs collection against persistent/shared storage.                                                  |
+| `BRAVE_SEARCH_API_KEY`                            | Optional Actions-only web discovery key. Do not expose it to the browser.                                                                                       |
+| `GITHUB_DISPATCH_TOKEN`                           | Optional server-only fine-grained Actions-write token for on-demand scans in GitHub feed mode.                                                                  |
+| `PROMOTION_BROWSER_FALLBACK`                      | Enable only in the Actions collector with installed Chromium; keep disabled in the deployed app.                                                                |
+| `CJ_API_TOKEN`, `CJ_WEBSITE_ID`, `CJ_ADVERTISERS` | Optional free publisher fallback. Set together on the collector only; leave unset for credential-free official sources.                                         |
+| `TRUST_PROXY`                                     | Enable only when a trusted ingress overwrites `x-forwarded-for`.                                                                                                |
 
 Metadata for public pages, robots and sitemap use runtime configuration. The static offline shell is always excluded from indexing. Set the same public configuration during build and runtime when possible, and rebuild after changing branding or metadata defaults. Never put provider keys into `NEXT_PUBLIC_*` variables or the container image.
 

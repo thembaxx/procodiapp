@@ -11,7 +11,15 @@ const workerOfferSchema = z.object({
   id: z.string().min(5).max(128),
   merchant: z.string().min(1).max(100),
   store_id: z.string().min(1).max(100),
-  kind: z.enum(["coupon_code", "discount", "free_delivery", "catalogue_special", "loyalty", "bundle", "cashback"]),
+  kind: z.enum([
+    "coupon_code",
+    "discount",
+    "free_delivery",
+    "catalogue_special",
+    "loyalty",
+    "bundle",
+    "cashback",
+  ]),
   title: z.string().min(5).max(160),
   criteria: z.string().min(10).max(650),
   code: z.string().min(2).max(64).nullable(),
@@ -37,8 +45,15 @@ export async function readReviewedCloudflareOffers(): Promise<Offer[]> {
   if (!origin) return [];
   try {
     const base = new URL(origin);
-    if (base.protocol !== "https:" || base.username || base.password ||
-        base.pathname !== "/" || base.search || base.hash) throw new Error("Invalid Worker URL");
+    if (
+      base.protocol !== "https:" ||
+      base.username ||
+      base.password ||
+      base.pathname !== "/" ||
+      base.search ||
+      base.hash
+    )
+      throw new Error("Invalid Worker URL");
     if (lastGood && Date.now() < lastGood.expiresAt) return lastGood.offers;
     const url = new URL("/api/verified-offers", base);
     const response = await fetch(url, {
@@ -58,9 +73,14 @@ export async function readReviewedCloudflareOffers(): Promise<Offer[]> {
       const checked = Date.parse(entry.checked_at);
       const valid = Date.parse(entry.valid_until);
       const expires = entry.expires_at ? Date.parse(entry.expires_at) : Infinity;
-      if (checked > now + 60_000 || checked < now - 86_400_000 ||
-          valid <= now || valid > checked + 86_401_000 ||
-          valid > expires || (entry.ongoing === 1) !== (entry.expires_at === null))
+      if (
+        checked > now + 60_000 ||
+        checked < now - 86_400_000 ||
+        valid <= now ||
+        valid > checked + 86_401_000 ||
+        valid > expires ||
+        (entry.ongoing === 1) !== (entry.expires_at === null)
+      )
         continue;
       if (entry.kind === "coupon_code" && !entry.code) continue;
       const offer: Offer = {
@@ -93,8 +113,10 @@ export async function readReviewedCloudflareOffers(): Promise<Offer[]> {
   } catch {
     // Never claim that a failed source rechecked an offer. Previous records
     // retain their original expiration and cannot be extended by this cache.
-    return (lastGood?.offers ?? []).filter((offer) =>
-      Date.parse(offer.validUntil) > Date.now() &&
-      (offer.ongoing || (offer.expiresAt && Date.parse(offer.expiresAt) > Date.now())));
+    return (lastGood?.offers ?? []).filter(
+      (offer) =>
+        Date.parse(offer.validUntil) > Date.now() &&
+        (offer.ongoing || (offer.expiresAt && Date.parse(offer.expiresAt) > Date.now())),
+    );
   }
 }

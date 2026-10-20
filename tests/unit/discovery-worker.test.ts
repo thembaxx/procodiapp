@@ -13,6 +13,7 @@ it("executes the real scheduled worker and writes all six store results to share
       const worker = spawn(
         process.execPath,
         [
+          "--conditions=react-server",
           "--import",
           "tsx",
           "--import",
@@ -84,6 +85,7 @@ it("runs the filesystem collector and real GitHub publisher without model or dat
       const worker = spawn(
         process.execPath,
         [
+          "--conditions=react-server",
           "--import",
           "tsx",
           "--import",

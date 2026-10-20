@@ -1,6 +1,13 @@
 import type { Coupon, ScrapeJob, ScrapeTarget } from "./types";
 import { scrapeTargetPuppeteer } from "./puppeteer-scraper";
-import { approveReviewedOffer, listSourceHealth, listVerifiedOffers, parseReviewedOffer, recordSourceCheck, sourceCoolingDown } from "./reliability";
+import {
+  approveReviewedOffer,
+  listSourceHealth,
+  listVerifiedOffers,
+  parseReviewedOffer,
+  recordSourceCheck,
+  sourceCoolingDown,
+} from "./reliability";
 
 interface Env {
   DB: D1Database;
@@ -435,7 +442,9 @@ function enabledTargetIndices(env: Env): number[] {
   const configured = env.ENABLED_MERCHANTS?.trim();
   // Safe default while browser selectors remain unverified: don't exhaust Browser Run
   // across all 34 speculative targets. Explicit ENABLED_MERCHANTS opts more in.
-  const defaultMerchants = new Set(["Pick n Pay", "ShopRite", "Clicks", "Checkers", "SPAR", "Makro"].map(s => s.toLowerCase()));
+  const defaultMerchants = new Set(
+    ["Pick n Pay", "ShopRite", "Clicks", "Checkers", "SPAR", "Makro"].map((s) => s.toLowerCase()),
+  );
   const allowed = configured
     ? new Set(
         configured
@@ -449,9 +458,13 @@ function enabledTargetIndices(env: Env): number[] {
   );
 }
 async function enqueueAll(env: Env): Promise<number> {
-  const indices = (await Promise.all(enabledTargetIndices(env).map(async index =>
-    (await sourceCoolingDown(env.DB, SCRAPE_TARGETS[index].merchant)) ? null : index
-  ))).filter((index): index is number => index !== null);
+  const indices = (
+    await Promise.all(
+      enabledTargetIndices(env).map(async (index) =>
+        (await sourceCoolingDown(env.DB, SCRAPE_TARGETS[index].merchant)) ? null : index,
+      ),
+    )
+  ).filter((index): index is number => index !== null);
   if (indices.length)
     await env.SCRAPE_QUEUE.sendBatch(indices.map((index) => ({ body: { index } })));
   return indices.length;
@@ -478,13 +491,21 @@ export default {
       try {
         const coupons = await scrapeTarget(env, target);
         const stored = await storeCoupons(env, coupons);
-        await recordSourceCheck(env.DB, target.merchant, coupons.length ? "checked" : "empty", coupons.length);
+        await recordSourceCheck(
+          env.DB,
+          target.merchant,
+          coupons.length ? "checked" : "empty",
+          coupons.length,
+        );
         console.log("scrape result", target.merchant, { extracted: coupons.length, stored });
         message.ack();
       } catch (error) {
         await recordSourceCheck(env.DB, target.merchant, "failed", 0);
-        console.error("scrape failed", target.merchant,
-          error instanceof Error ? error.message : "unknown");
+        console.error(
+          "scrape failed",
+          target.merchant,
+          error instanceof Error ? error.message : "unknown",
+        );
         message.retry();
       }
     }
@@ -514,12 +535,18 @@ export default {
         const raw = await request.text();
         if (raw.length > 8192) return json({ error: "review payload too large" }, 413);
         let body: unknown;
-        try { body = JSON.parse(raw); } catch { return json({ error: "invalid json" }, 400); }
+        try {
+          body = JSON.parse(raw);
+        } catch {
+          return json({ error: "invalid json" }, 400);
+        }
         const offer = parseReviewedOffer(body, SCRAPE_TARGETS);
         if (!offer) return json({ error: "invalid or unsupported official evidence" }, 422);
         await approveReviewedOffer(env.DB, offer);
-        return json({ ok: true, id: offer.id, validUntil: offer.valid_until,
-          checkoutTested: false }, 201);
+        return json(
+          { ok: true, id: offer.id, validUntil: offer.valid_until, checkoutTested: false },
+          201,
+        );
       }
       if (url.pathname === "/api/coupons" && request.method === "GET") {
         const merchant = url.searchParams.get("merchant");

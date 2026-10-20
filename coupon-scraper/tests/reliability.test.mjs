@@ -11,7 +11,9 @@ const transpiled = ts.transpileModule(source, {
 const { parseReviewedOffer } = await import(
   "data:text/javascript;base64," + Buffer.from(transpiled.outputText).toString("base64")
 );
-const target = [{ merchant: "Pick n Pay", url: "https://www.pnp.co.za/c/pnp/promotions", selectors: [] }];
+const target = [
+  { merchant: "Pick n Pay", url: "https://www.pnp.co.za/c/pnp/promotions", selectors: [] },
+];
 const now = new Date("2026-10-19T12:00:00.000Z");
 const item = {
   id: "valid-test-offer",
@@ -45,14 +47,23 @@ test("reject foreign domain, invalid expiry, empty evidence and unsupported merc
     { kind: "coupon_code", code: null },
     { channel: "global" },
     { storeId: "not-valid" },
-  ]) assert.equal(parseReviewedOffer({ ...item, ...patch }, target, now), null);
+  ])
+    assert.equal(parseReviewedOffer({ ...item, ...patch }, target, now), null);
 });
 test("ongoing benefits need explicit no-expiry confirmation and are never checkout tested", () => {
-  const ongoing = parseReviewedOffer({
-    ...item, kind: "loyalty", code: null, ongoing: true, expiresAt: null,
-    evidence: "The published benefit is ongoing with no listed end date.",
-    checkoutTested: true,
-  }, target, now);
+  const ongoing = parseReviewedOffer(
+    {
+      ...item,
+      kind: "loyalty",
+      code: null,
+      ongoing: true,
+      expiresAt: null,
+      evidence: "The published benefit is ongoing with no listed end date.",
+      checkoutTested: true,
+    },
+    target,
+    now,
+  );
   assert.equal(ongoing?.ongoing, 1);
   assert.equal(ongoing?.checkout_tested, 0);
   assert.equal(parseReviewedOffer({ ...item, ongoing: true }, target, now), null);
