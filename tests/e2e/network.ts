@@ -59,7 +59,7 @@ export const test = base.extend<{ connection: Connection }>({
       await use({
         url: `http://127.0.0.1:${address.port}`,
         mockFeed: (payload) => {
-          feedResponse = JSON.stringify(payload);
+          feedResponse = payload === null ? null : JSON.stringify(payload);
         },
         setOnline: async (value) => {
           online = value;

@@ -160,6 +160,7 @@ test("cold launches offline with copying, saved offers, search and all three vie
   await waitForApp(page);
   await expect(page.getByText(offer.title, { exact: true })).toBeVisible();
   await page.getByRole("searchbox", { name: "Search stores" }).fill("");
+  connection.mockFeed(null);
   await connection.setOnline(true);
   await expect(page.getByRole("complementary", { name: "Offline status" })).not.toBeVisible();
   await expect(page.getByText(offer.title, { exact: true })).not.toBeVisible();
