@@ -27,6 +27,7 @@ jobs:
     permissions:
       contents: write
     env:
+      NODE_OPTIONS: --conditions=react-server
       PROMOTION_FEED: local
       DATA_DIR: .data/discovery
     steps:

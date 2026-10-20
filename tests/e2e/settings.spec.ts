@@ -17,7 +17,7 @@ test("replaces bottom tabs with settings, preserves choices and returns keyboard
   await waitForApp(page);
   await expect(page.locator(".app")).toHaveClass(/design-orbit/);
   await openSettings(page);
-  await expect(page.getByRole("button", { name: "Orbit", exact: true })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: /^Orbit\b/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );

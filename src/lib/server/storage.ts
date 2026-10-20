@@ -16,6 +16,8 @@ import { sourceSnapshot } from "../snapshot";
 import { z } from "zod";
 import { boundedJson } from "./bounded-input";
 import { readGithubFeed, usesGithubFeed } from "./github-feed";
+import { readReviewedCloudflareOffers } from "./cloudflare-verified-feed";
+import { deduplicate } from "../offers";
 
 export const PUBLIC_DISCOVERY_COOLDOWN_SECONDS = 600;
 export const REPORT_RETENTION_DAYS = 30;
@@ -65,7 +67,31 @@ async function database(endpoint: string, init: RequestInit = {}) {
 }
 
 export async function readCache(): Promise<Cache> {
-  if (usesGithubFeed()) return readGithubFeed();
+  if (usesGithubFeed()) {
+    const [primary, secondary] = await Promise.allSettled([
+      readGithubFeed(),
+      readReviewedCloudflareOffers(),
+    ]);
+    const reviewed = secondary.status === "fulfilled" ? secondary.value : [];
+    if (primary.status === "fulfilled")
+      return {
+        ...primary.value,
+        offers: deduplicate([...primary.value.offers, ...reviewed]),
+      };
+    // Independently reviewed records are an emergency read-only fallback when
+    // GitHub is down during a cold start. No freshness timestamps are renewed.
+    if (reviewed.length)
+      return {
+        offers: reviewed,
+        updatedAt: reviewed.reduce(
+          (newest, offer) => (offer.checkedAt > newest ? offer.checkedAt : newest),
+          reviewed[0].checkedAt,
+        ),
+        checks: [],
+        mode: "free_sources",
+      };
+    throw new Error("Both published promotion feeds are unavailable.");
+  }
   try {
     const raw = hasSupabase()
       ? (
@@ -235,7 +261,7 @@ export async function saveReport(offerId: string, reason: string) {
 
 export async function checkStorage(): Promise<boolean> {
   try {
-    if (usesGithubFeed()) await readGithubFeed();
+    if (usesGithubFeed()) await readCache();
     if (hasSupabase()) await database("promotion_cache?select=id&limit=1");
     else {
       if (process.env.SUPABASE_URL || process.env.SUPABASE_SERVICE_ROLE_KEY) return false;

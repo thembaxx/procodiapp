@@ -11,6 +11,18 @@ export const offerSchema = z
     storeId: z.enum(["checkers", "pnp", "woolworths", "shoprite", "spar", "makro"]),
     code: z.string().min(2).max(64).nullable(),
     type: z.enum(["free_delivery", "discount"]),
+    kind: z
+      .enum([
+        "coupon_code",
+        "discount",
+        "free_delivery",
+        "catalogue_special",
+        "loyalty",
+        "bundle",
+        "cashback",
+      ])
+      .optional(),
+    channel: z.enum(["online", "in_store", "both"]).optional(),
     title: z.string().min(5).max(160),
     criteria: z.string().min(10).max(650),
     minBasketZar: z.number().nonnegative().optional(),
@@ -26,7 +38,9 @@ export const offerSchema = z
     validUntil: z.iso.datetime({ offset: true }),
     verified: z.boolean(),
     evidence: z.string().min(10).max(800),
-    collectionMethod: z.enum(["official_page", "reviewed_source", "affiliate_api"]).optional(),
+    collectionMethod: z
+      .enum(["official_page", "reviewed_source", "affiliate_api", "reviewed_worker"])
+      .optional(),
   })
   .refine((offer) => {
     const store = stores.find((item) => item.id === offer.storeId);
@@ -77,10 +91,15 @@ export function filterOffers(
       `${store.name} ${store.loyalty}`.toLowerCase().includes(query.trim().toLowerCase()),
     )
     .map((store) => store.id);
+  const needle = query.trim().toLowerCase();
   return offers.filter(
     (offer) =>
       isLive(offer, now) &&
-      ids.includes(offer.storeId) &&
+      (ids.includes(offer.storeId) ||
+        (!!needle &&
+          [offer.title, offer.criteria, offer.code, offer.region, offer.kind].some((value) =>
+            value?.toLowerCase().includes(needle),
+          ))) &&
       (filter === "all" || offer.type === filter),
   );
 }

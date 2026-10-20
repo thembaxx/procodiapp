@@ -39,6 +39,22 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+  scraper:
+    name: Cloudflare Worker checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: coupon-scraper/package-lock.json
+      - run: npm ci --prefix coupon-scraper
+      - run: npm run predeploy --prefix coupon-scraper
+      - run: npm run build --prefix coupon-scraper
   database:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -116,12 +132,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+      - uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
         with:
           languages: javascript-typescript
           build-mode: none
           queries: security-extended
-      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
+      - uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
         with:
           category: /language:javascript-typescript
           output: codeql-results
@@ -130,7 +146,7 @@ jobs:
   gate:
     name: CI gate
     if: always()
-    needs: [validate, database, secrets, dependencies, workflows, codeql]
+    needs: [validate, scraper, database, secrets, dependencies, workflows, codeql]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

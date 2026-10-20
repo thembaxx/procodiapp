@@ -1,5 +1,13 @@
 import type { Coupon, ScrapeJob, ScrapeTarget } from "./types";
 import { scrapeTargetPuppeteer } from "./puppeteer-scraper";
+import {
+  approveReviewedOffer,
+  listSourceHealth,
+  listVerifiedOffers,
+  parseReviewedOffer,
+  recordSourceCheck,
+  sourceCoolingDown,
+} from "./reliability";
 
 interface Env {
   DB: D1Database;
@@ -60,6 +68,11 @@ function isRecord(x: unknown): x is Record<string, unknown> {
 function enabledTargetIndices(env: Env): number[] {
   // Server-wide selection. A blank setting enables the full catalogue.
   const configured = env.ENABLED_MERCHANTS?.trim();
+  // Safe default while browser selectors remain unverified: don't exhaust Browser Run
+  // across all 34 speculative targets. Explicit ENABLED_MERCHANTS opts more in.
+  const defaultMerchants = new Set(
+    ["Pick n Pay", "ShopRite", "Clicks", "Checkers", "SPAR", "Makro"].map((s) => s.toLowerCase()),
+  );
   const allowed = configured
     ? new Set(
         configured
@@ -67,13 +80,19 @@ function enabledTargetIndices(env: Env): number[] {
           .map((name) => name.trim().toLowerCase())
           .filter(Boolean),
       )
-    : null;
+    : defaultMerchants;
   return SCRAPE_TARGETS.flatMap((target, index) =>
-    !allowed || allowed.has(target.merchant.toLowerCase()) ? [index] : [],
+    allowed.has(target.merchant.toLowerCase()) ? [index] : [],
   );
 }
 async function enqueueAll(env: Env): Promise<number> {
-  const indices = enabledTargetIndices(env);
+  const indices = (
+    await Promise.all(
+      enabledTargetIndices(env).map(async (index) =>
+        (await sourceCoolingDown(env.DB, SCRAPE_TARGETS[index].merchant)) ? null : index,
+      ),
+    )
+  ).filter((index): index is number => index !== null);
   if (indices.length)
     await env.SCRAPE_QUEUE.sendBatch(indices.map((index) => ({ body: { index } })));
   return indices.length;
@@ -93,12 +112,23 @@ export default {
         message.ack();
         continue;
       }
+      if (await sourceCoolingDown(env.DB, target.merchant)) {
+        message.ack();
+        continue;
+      }
       try {
         const coupons = await scrapeTarget(env, target);
         const stored = await storeCoupons(env, coupons);
+        await recordSourceCheck(
+          env.DB,
+          target.merchant,
+          coupons.length ? "checked" : "empty",
+          coupons.length,
+        );
         console.log("scrape result", target.merchant, { extracted: coupons.length, stored });
         message.ack();
       } catch (error) {
+        await recordSourceCheck(env.DB, target.merchant, "failed", 0);
         console.error(
           "scrape failed",
           target.merchant,
@@ -114,6 +144,37 @@ export default {
     try {
       if (url.pathname === "/api/health" && request.method === "GET") {
         return json({ ok: true, time: new Date().toISOString() });
+      }
+      if (url.pathname === "/api/verified-offers" && request.method === "GET") {
+        // Unlike the browser-extracted /api/coupons endpoint, only records
+        // explicitly approved with retailer evidence can appear here.
+        const offers = await listVerifiedOffers(env.DB);
+        return json({ count: offers.length, offers, reviewedOnly: true });
+      }
+      if (url.pathname === "/api/source-health" && request.method === "GET") {
+        const sources = await listSourceHealth(env.DB);
+        return json({ sources, checkedAt: new Date().toISOString() });
+      }
+      if (url.pathname === "/api/review" && request.method === "POST") {
+        if (!env.API_KEY || request.headers.get("Authorization") !== "Bearer " + env.API_KEY)
+          return json({ error: "unauthorized" }, 401);
+        if (Number(request.headers.get("Content-Length") ?? 0) > 8192)
+          return json({ error: "review payload too large" }, 413);
+        const raw = await request.text();
+        if (raw.length > 8192) return json({ error: "review payload too large" }, 413);
+        let body: unknown;
+        try {
+          body = JSON.parse(raw);
+        } catch {
+          return json({ error: "invalid json" }, 400);
+        }
+        const offer = parseReviewedOffer(body, SCRAPE_TARGETS);
+        if (!offer) return json({ error: "invalid or unsupported official evidence" }, 422);
+        await approveReviewedOffer(env.DB, offer);
+        return json(
+          { ok: true, id: offer.id, validUntil: offer.valid_until, checkoutTested: false },
+          201,
+        );
       }
       if (url.pathname === "/api/coupons" && request.method === "GET") {
         const merchant = url.searchParams.get("merchant");
