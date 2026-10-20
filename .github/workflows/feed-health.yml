@@ -2,7 +2,7 @@ name: Promotion feed health
 on:
   workflow_dispatch:
   schedule:
-    - cron: '55 5,17 * * *'
+    - cron: "55 5,17 * * *"
 permissions:
   contents: read
 concurrency:
