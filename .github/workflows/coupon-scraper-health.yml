@@ -1,5 +1,10 @@
 name: Coupon scraper operational health
 on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/check-scraper-health.mjs
+      - .github/workflows/coupon-scraper-health.yml
   schedule:
     - cron: "25 5,17 * * *"
   workflow_dispatch:
