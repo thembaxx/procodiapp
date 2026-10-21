@@ -109,7 +109,6 @@ and then additional store sources. Discovery-search snippets, Guzzle-like
 aggregator claims and third-party coupon pages are **leads** until licensing
 and primary-source validation are in place. Do not bypass robots/CAPTCHA.
 
-
 ## Optional Firecrawl API deal discovery
 
 Firecrawl is an **additional rescue provider**, not a replacement for Browser Run or
@@ -119,6 +118,11 @@ leads or fails, the Worker can request the **same approved retailer URL** from
 bounded text blocks and passed through the existing deterministic coupon parser,
 deduplication and D1 storage. These are **unverified review leads** in
 `/api/coupons`, never auto-published to `/api/verified-offers`.
+
+For automated releases, add `FIRECRAWL_API_KEY` in the GitHub repository's
+Actions secrets or the `coupon-worker-production` environment secrets. The
+production deployment workflow securely installs it in Cloudflare. The Wrangler
+command below is for manual deployments.
 
 The deployment has `FIRECRAWL_ENABLED="true"` and
 `FIRECRAWL_DAILY_LIMIT="6"` but makes **no Firecrawl calls without its Worker
