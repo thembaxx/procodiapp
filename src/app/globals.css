@@ -1196,6 +1196,91 @@ h2 {
   font-size: 12px;
   margin-top: 20px;
 }
+/* Helpful store discovery when a category has no matching offers. */
+.category-suggestions {
+  display: grid;
+  list-style: none;
+  padding: 0;
+  gap: 10px;
+  max-width: 640px;
+  margin: 24px auto 0;
+  text-align: left;
+}
+.category-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+.category-suggestion-details {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+.category-suggestion-details strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.category-suggestion-details small {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+.category-suggestion-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.category-suggestion-actions a,
+.category-suggestion-actions button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.category-suggestion-actions button {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+  font-weight: 700;
+}
+@media (max-width: 560px) {
+  .category-suggestion {
+    flex-wrap: wrap;
+  }
+  .category-suggestion-actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+}
+.directory-section-heading {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 36px 0 0;
+}
+.directory-mark-generic {
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+
 .filter-empty {
   font-size: 12px;
   line-height: 1.8;
