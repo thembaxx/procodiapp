@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import ts from "typescript";
+import { createRequire } from "node:module";
+const ts = createRequire(import.meta.url)("typescript");
 
 // Compile the actual Worker module; no test-only duplicate of validation logic.
 const source = readFileSync(new URL("../src/reliability.ts", import.meta.url), "utf8");

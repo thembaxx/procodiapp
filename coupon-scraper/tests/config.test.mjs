@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { parseConfigFileTextToJson } from "typescript";
+import { createRequire } from "node:module";
+const { parseConfigFileTextToJson } = createRequire(import.meta.url)("typescript");
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const { config, error } = parseConfigFileTextToJson("wrangler.jsonc", read("../wrangler.jsonc"));
 assert.equal(error, undefined, "Wrangler configuration must be valid JSONC");
