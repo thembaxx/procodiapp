@@ -83,6 +83,19 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: npm run deploy
+      - name: Install Firecrawl API key as a Worker secret
+        if: steps.credential.outputs.ready == 'true'
+        working-directory: coupon-scraper
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        run: |
+          if test -z "$FIRECRAWL_API_KEY"; then
+            echo '::error::FIRECRAWL_API_KEY is missing from repository or coupon-worker-production environment secrets.'
+            exit 1
+          fi
+          # Pipe directly to Wrangler; never echo, print, commit or persist the key.
+          printf '%s' "$FIRECRAWL_API_KEY" | npx wrangler secret put FIRECRAWL_API_KEY
       - name: Verify deployed health, evidence and source endpoints
         if: steps.credential.outputs.ready == 'true'
         run: node scripts/check-scraper-health.mjs

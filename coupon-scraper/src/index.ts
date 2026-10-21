@@ -1,5 +1,6 @@
 import type { Coupon, ScrapeJob, ScrapeTarget } from "./types";
 import { scrapeTargetPuppeteer } from "./puppeteer-scraper";
+import { scrapeFirecrawlLeads } from "./firecrawl";
 import {
   approveReviewedOffer,
   listSourceHealth,
@@ -15,6 +16,9 @@ interface Env {
   SCRAPE_QUEUE: Queue<ScrapeJob>;
   API_KEY?: string;
   ENABLED_MERCHANTS?: string;
+  FIRECRAWL_API_KEY?: string;
+  FIRECRAWL_ENABLED?: string;
+  FIRECRAWL_DAILY_LIMIT?: string;
 }
 
 const SCRAPE_TARGETS: ScrapeTarget[] = [
@@ -595,6 +599,31 @@ export default {
 } satisfies ExportedHandler<Env, ScrapeJob>;
 
 async function scrapeTarget(env: Env, target: ScrapeTarget): Promise<Coupon[]> {
+  let browserFailure: unknown;
+  try {
+    const coupons = await scrapeTargetNative(env, target);
+    if (coupons.length) return coupons;
+  } catch (error) {
+    browserFailure = error;
+  }
+  try {
+    // Optional, globally quota-limited API fallback; never auto-approves the leads.
+    const rescued = await scrapeFirecrawlLeads(
+      env,
+      target,
+      parseCouponText,
+      new Date().toISOString(),
+    );
+    if (rescued !== null) return rescued;
+  } catch {
+    console.warn("Optional Firecrawl extraction unavailable", target.merchant);
+  }
+  // Preserve the original queue retry/cooldown behavior if both sources failed.
+  if (browserFailure) throw browserFailure;
+  return [];
+}
+
+async function scrapeTargetNative(env: Env, target: ScrapeTarget): Promise<Coupon[]> {
   const now = new Date().toISOString();
   if (target.usePuppeteer) return scrapeTargetPuppeteer(env, target, parseCouponText, now);
   const response = await env.BROWSER.quickAction("scrape", {

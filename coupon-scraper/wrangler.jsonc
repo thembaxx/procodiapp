@@ -8,6 +8,10 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "browser": { "binding": "BROWSER" },
+  "vars": {
+    "FIRECRAWL_ENABLED": "true",
+    "FIRECRAWL_DAILY_LIMIT": "6",
+  },
   "d1_databases": [
     {
       "binding": "DB",
