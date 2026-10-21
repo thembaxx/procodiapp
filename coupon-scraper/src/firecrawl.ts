@@ -164,7 +164,10 @@ export async function scrapeFirecrawlLeads(
   }
   if (!data || typeof data !== "object" || Array.isArray(data))
     throw new Error("Firecrawl returned an invalid response.");
-  const result = data as { success?: unknown; data?: { markdown?: unknown; metadata?: { sourceURL?: unknown } } };
+  const result = data as {
+    success?: unknown;
+    data?: { markdown?: unknown; metadata?: { sourceURL?: unknown } };
+  };
   const markdown = result.data?.markdown;
   if (
     result.success !== true ||
@@ -178,8 +181,7 @@ export async function scrapeFirecrawlLeads(
   for (const paragraph of markdown.split(/\n\s*\n/).slice(0, 120)) {
     const text = paragraph.replace(/\s+/g, " ").trim();
     if (text.length < 12 || text.length > 4000) continue;
-    for (const lead of await parse(text, target.merchant, target.url, now))
-      unique.set(lead.id, lead);
+    for (const lead of await parse(text, target.merchant, target.url, now)) unique.set(lead.id, lead);
     if (unique.size >= 50) break;
   }
   return [...unique.values()];
