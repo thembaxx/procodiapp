@@ -1,7 +1,7 @@
 name: CI failure triage
 on:
   workflow_run:
-    workflows: ["Checks", "Discover promotions", "Deploy production"]
+    workflows: ["Discover promotions", "Deploy production", "Promotion feed health"]
     types: [completed]
 permissions:
   contents: read
