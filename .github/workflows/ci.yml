@@ -29,6 +29,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Print exact formatting fixes for Firecrawl PR
+        run: |
+          pnpm exec oxfmt coupon-scraper/README.md coupon-scraper/src/firecrawl.ts coupon-scraper/tests/firecrawl.test.mjs
+          git diff -- coupon-scraper/README.md coupon-scraper/src/firecrawl.ts coupon-scraper/tests/firecrawl.test.mjs
       - run: pnpm check
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
