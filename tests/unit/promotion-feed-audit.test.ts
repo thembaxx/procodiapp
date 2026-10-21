@@ -132,7 +132,12 @@ it("rejects malformed feeds and accepts an honest empty scan with a warning", ()
 });
 it("does not report a Worker deployment as successful when its credential is missing", () => {
   const workflow = readFileSync(".github/workflows/deploy-coupon-worker.yml", "utf8");
-  const missing = workflow.split("echo 'ready=false' >> \"$GITHUB_OUTPUT\"")[1];
+  const missing =
+    workflow.match(
+      /if\s+test\s+-n\s+"\$CLOUDFLARE_API_TOKEN"\s*;\s*then[\s\S]*?\n\s*else\s*\n([\s\S]*?)\n\s*fi/,
+    )?.[1] ?? "";
+  expect(missing).not.toBe("");
+  expect(missing).toContain("echo 'ready=false' >> \"$GITHUB_OUTPUT\"");
   expect(missing).toContain("exit 1");
   expect(missing).toContain("no migration or deployment occurred");
 });
