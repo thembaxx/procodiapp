@@ -108,3 +108,49 @@ Checkers and Clicks), structured partner feeds where contracts allow reuse,
 and then additional store sources. Discovery-search snippets, Guzzle-like
 aggregator claims and third-party coupon pages are **leads** until licensing
 and primary-source validation are in place. Do not bypass robots/CAPTCHA.
+
+
+## Optional Firecrawl API deal discovery
+
+Firecrawl is an **additional rescue provider**, not a replacement for Browser Run or
+the six-store official promotion collector. When the existing browser returns no
+leads or fails, the Worker can request the **same approved retailer URL** from
+`POST https://api.firecrawl.dev/v2/scrape`. The returned Markdown is split into
+bounded text blocks and passed through the existing deterministic coupon parser,
+deduplication and D1 storage. These are **unverified review leads** in
+`/api/coupons`, never auto-published to `/api/verified-offers`.
+
+The deployment has `FIRECRAWL_ENABLED="true"` and
+`FIRECRAWL_DAILY_LIMIT="6"` but makes **no Firecrawl calls without its Worker
+secret**. To activate:
+
+1. Run `npm run db:migrate` first from `coupon-scraper/`. The additive
+   `firecrawl_usage` table tracks the shared UTC daily request budget atomically
+   across queue consumers (the production GitHub deployment already migrates before deploy).
+2. Run `npx wrangler secret put FIRECRAWL_API_KEY` in `coupon-scraper/`,
+   supplying your own Firecrawl API key privately. The connected ChatGPT Firecrawl
+   plugin does **not** automatically grant the deployed Worker an API key.
+3. Use `npm run typecheck && npm test && npm run build`, then deploy the tested Worker.
+   Check `/api/source-health`, `/api/coupons`, and the Cloudflare Worker logs
+   after a scheduled run.
+4. To pause Firecrawl, change `FIRECRAWL_ENABLED` to `"false"` in
+   `wrangler.jsonc` and redeploy, or remove the `FIRECRAWL_API_KEY` secret.
+   Set `FIRECRAWL_DAILY_LIMIT="0"` to disable the paid path while keeping
+   the provider available.
+
+**Cost and safety guards:** Only selected enabled merchants receive queue jobs.
+The API path uses `proxy: "basic"` (not the more expensive automatic proxy
+escalation), a single page, a 12-second provider timeout, a hard daily cap of six
+requests by default (maximum configured cap: 12), source-URL validation, and a
+robots.txt preflight. Rejected/blocked pages are never converted into offers.
+Requests reserve quota before dispatch; even a failed call consumes that day's
+local budget, rather than retrying and risking unexpected charges. Firecrawl's
+account-level quotas and actual billing remain authoritative. No CAPTCHA
+bypass, arbitrary URL submission, or user-triggered unlimited requests are added.
+The browser path still works without a Firecrawl key, credits, or API availability.
+
+**Scope:** this adds a fallback for the 34-target Cloudflare scraper, not a
+full-site autonomous crawl. It does not expand retailer coverage beyond
+`SCRAPE_TARGETS`; new merchant selectors/URLs still require validation.
+Daily reservation rows accumulate modestly in D1 and may be pruned later,
+excluding today's row. No Firecrawl response content or credential is logged.
