@@ -47,3 +47,11 @@ CREATE TABLE IF NOT EXISTS source_health (
   extracted_count INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_source_cooldown ON source_health (cooldown_until);
+
+-- Atomic daily Firecrawl credit reservations shared by all queue consumers.
+-- One basic-proxy scrape is bounded to one request/credit; failed attempts count.
+-- Old rows can be pruned periodically, but never delete today's usage.
+CREATE TABLE IF NOT EXISTS firecrawl_usage (
+  day TEXT PRIMARY KEY,
+  requests INTEGER NOT NULL DEFAULT 0 CHECK (requests >= 0)
+);
