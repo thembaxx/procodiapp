@@ -33,6 +33,7 @@ jobs:
         run: |
           pnpm exec oxfmt coupon-scraper/README.md coupon-scraper/src/firecrawl.ts coupon-scraper/tests/firecrawl.test.mjs
           git diff -- coupon-scraper/README.md coupon-scraper/src/firecrawl.ts coupon-scraper/tests/firecrawl.test.mjs
+          exit 1 # temporary: return formatter diff to CI logs without running E2E
       - run: pnpm check
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
