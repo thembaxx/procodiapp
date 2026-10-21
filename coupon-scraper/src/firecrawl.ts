@@ -53,7 +53,10 @@ export function robotsPermit(text: string, pathname: string): boolean {
   const groups: { agents: string[]; rules: { allow: boolean; path: string }[] }[] = [];
   let group: (typeof groups)[number] | undefined;
   for (const raw of text.split(/\r?\n/)) {
-    const match = raw.replace(/#.*/, "").trim().match(/^(user-agent|allow|disallow)\s*:\s*(.*)$/i);
+    const match = raw
+      .replace(/#.*/, "")
+      .trim()
+      .match(/^(user-agent|allow|disallow)\s*:\s*(.*)$/i);
     if (!match) continue;
     const type = match[1].toLowerCase();
     const value = match[2].trim();
@@ -181,7 +184,8 @@ export async function scrapeFirecrawlLeads(
   for (const paragraph of markdown.split(/\n\s*\n/).slice(0, 120)) {
     const text = paragraph.replace(/\s+/g, " ").trim();
     if (text.length < 12 || text.length > 4000) continue;
-    for (const lead of await parse(text, target.merchant, target.url, now)) unique.set(lead.id, lead);
+    for (const lead of await parse(text, target.merchant, target.url, now))
+      unique.set(lead.id, lead);
     if (unique.size >= 50) break;
   }
   return [...unique.values()];
