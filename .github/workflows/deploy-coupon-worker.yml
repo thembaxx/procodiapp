@@ -50,7 +50,9 @@ jobs:
             echo 'ready=true' >> "$GITHUB_OUTPUT"
           else
             echo 'ready=false' >> "$GITHUB_OUTPUT"
-            echo 'Cloudflare deployment skipped: add CLOUDFLARE_API_TOKEN to Actions secrets.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Cloudflare deployment blocked: CLOUDFLARE_API_TOKEN is not configured for this environment.' >> "$GITHUB_STEP_SUMMARY"
+            echo '::error::Cloudflare deployment credential is missing; no migration or deployment occurred.'
+            exit 1
           fi
       - uses: actions/checkout@v4
         if: steps.credential.outputs.ready == 'true'
