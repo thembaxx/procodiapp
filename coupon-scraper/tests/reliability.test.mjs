@@ -1,16 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-const ts = createRequire(import.meta.url)("typescript");
+import { stripTypeScriptTypes } from "node:module";
 
 // Compile the actual Worker module; no test-only duplicate of validation logic.
 const source = readFileSync(new URL("../src/reliability.ts", import.meta.url), "utf8");
-const transpiled = ts.transpileModule(source, {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-});
+const transpiled = stripTypeScriptTypes(source, { mode: "strip" });
 const { parseReviewedOffer } = await import(
-  "data:text/javascript;base64," + Buffer.from(transpiled.outputText).toString("base64")
+  "data:text/javascript;base64," + Buffer.from(transpiled).toString("base64")
 );
 const target = [
   { merchant: "Pick n Pay", url: "https://www.pnp.co.za/c/pnp/promotions", selectors: [] },
