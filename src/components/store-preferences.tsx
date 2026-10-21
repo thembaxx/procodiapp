@@ -15,6 +15,14 @@ export const defaultStoreIds = [
   "makro",
 ];
 
+export function saveStoreSelection(ids: string[]): void {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(ids));
+  } catch {
+    /* Storage is optional in private browsing. */
+  }
+}
+
 export function readStoreSelection(): string[] {
   try {
     const raw: unknown = JSON.parse(localStorage.getItem(KEY) ?? "null");
@@ -77,11 +85,7 @@ export function StorePreferences({
   );
   const update = (ids: string[]) => {
     onChange(ids);
-    try {
-      localStorage.setItem(KEY, JSON.stringify(ids));
-    } catch {
-      /* optional */
-    }
+    saveStoreSelection(ids);
   };
   return (
     <section className="store-preferences">

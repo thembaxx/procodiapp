@@ -22,13 +22,85 @@ test("searches stores, changes filters, and handles no results", async ({ page }
   await expect(page.getByRole("button", { name: /^Pick n Pay asap!/ })).toBeVisible();
   await page.getByRole("searchbox").fill("not-a-store");
   await expect(page.getByText("No stores by that name.")).toBeVisible();
-  await page.getByRole("button", { name: "Explore all stores" }).click();
+  await page.getByRole("button", { name: "Clear search" }).click();
   await expect(page.locator(".store-card")).toHaveCount(6);
   await page.getByRole("button", { name: /^Discounts(?:\s*\d+)?$/ }).click();
   await expect(page.getByRole("button", { name: /^Discounts(?:\s*\d+)?$/ })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
+});
+
+test("Explore all stores opens the directory from an empty search", async ({ page }) => {
+  await page.goto("/?design=wallet");
+  await page.getByRole("searchbox", { name: "Search stores" }).fill("not-a-store");
+  await expect(page.getByText("No stores by that name.")).toBeVisible();
+
+  await page.getByRole("link", { name: "Explore all stores" }).click();
+  await expect(page).toHaveURL(/\/stores\/?$/);
+  await expect(page.locator(".directory-card")).toHaveCount(34);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});
+
+test("Explore all stores still works when the user has removed every preferred store", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("procodiapp-selected-stores-v1", "[]");
+  });
+  await page.goto("/?design=wallet");
+  await expect(page.getByText("No stores by that name.")).toBeVisible();
+
+  await page.getByRole("link", { name: "Explore all stores" }).click();
+  await expect(page).toHaveURL(/\/stores\/?$/);
+  await expect(page.locator(".directory-card")).toHaveCount(34);
+});
+
+test("empty clothing category suggests unselected stores and saves additions", async ({ page }) => {
+  await page.goto("/?design=wallet");
+  await page.getByRole("button", { name: "Clothing", exact: true }).click();
+
+  await expect(page.getByText("No matching clothing offers right now.")).toBeVisible();
+  const suggestions = page.getByRole("list", { name: "Suggested clothing stores" });
+  await expect(suggestions.getByRole("listitem")).toHaveCount(8);
+  await page.getByRole("button", { name: "Add Truworths" }).click();
+  await expect(page.getByRole("button", { name: "Add Truworths" })).toHaveCount(0);
+  await expect(page.getByText("7 selected", { exact: false })).toBeVisible();
+  const savedIds = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("procodiapp-selected-stores-v1") ?? "[]"),
+  );
+  expect(savedIds).toContain("truworths");
+
+  await page.reload();
+  await page.getByRole("button", { name: "Clothing", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Add Truworths" })).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "Suggested clothing stores" })).toBeVisible();
+  await page.getByRole("link", { name: "Explore all stores" }).click();
+  await expect(page).toHaveURL(/\/stores\/?$/);
+  await expect(page.getByRole("heading", { name: "More supported stores" })).toBeVisible();
+  await expect(page.locator(".directory-card")).toHaveCount(34);
+});
+
+test("a category with all stores added keeps its Explore all stores link", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "procodiapp-selected-stores-v1",
+      JSON.stringify([
+        "checkers",
+        "pick-n-pay",
+        "woolworths",
+        "shoprite",
+        "spar",
+        "makro",
+        "toy-kingdom",
+      ]),
+    );
+  });
+  await page.goto("/?design=wallet");
+  await page.getByRole("button", { name: "Toys", exact: true }).click();
+  await expect(page.getByText("No matching toys offers right now.")).toBeVisible();
+  await expect(page.getByRole("list", { name: "Suggested toys stores" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Explore all stores" })).toBeVisible();
 });
 
 test("opens only one Wallet card and shows terms for no-code benefits", async ({ page }) => {

@@ -44,6 +44,7 @@ import {
   StorePreferences,
   defaultStoreIds,
   readStoreSelection,
+  saveStoreSelection,
 } from "@/components/store-preferences";
 import type { Design } from "@/lib/appearance";
 import { designs } from "@/lib/designs";
@@ -556,15 +557,16 @@ export function GroceryApp({
       setNow(Date.now());
       const parameters = new URLSearchParams(window.location.search);
       const selected = parameters.get("design");
-      const category = parameters.get("filter");
-      if (category === "free_delivery" || category === "discount") setFilter(category);
+      const categoryFilter = parameters.get("filter");
+      if (categoryFilter === "free_delivery" || categoryFilter === "discount")
+        setFilter(categoryFilter);
       if (parameters.get("saved") === "1") setSavedOnly(true);
       const store = stores.find((item) => item.id === parameters.get("store"));
       if (store) {
         setQuery(store.name);
         setOpenStore(store.id);
       }
-      if (category || store || parameters.get("saved") === "1")
+      if (categoryFilter || store || parameters.get("saved") === "1")
         requestAnimationFrame(() =>
           document.getElementById("offers")?.scrollIntoView({ behavior: "instant" }),
         );
@@ -816,6 +818,20 @@ export function GroceryApp({
       selectedStores.includes(storeCatalogueId(store.id)) &&
       live.some((offer) => offer.storeId === store.id),
   );
+  const suggestedStores =
+    category === "all"
+      ? []
+      : storeCatalogue.filter(
+          (store) => store.category === category && !selectedStores.includes(store.id),
+        );
+  const showCategoryDiscovery = category !== "all" && !savedOnly && allVisible.length === 0;
+  const addSuggestedStore = (id: string, name: string) => {
+    if (selectedStores.includes(id)) return;
+    const next = [...selectedStores, id];
+    setSelectedStores(next);
+    saveStoreSelection(next);
+    showToast(name + " added to My stores. Visit the retailer for offers.");
+  };
   const visibleStores = stores
     .filter(
       (store) =>
@@ -1186,7 +1202,55 @@ export function GroceryApp({
           </div>
           <div className="content-grid">
             <div className="stores-area">
-              {visibleStores.length && (!savedOnly || allVisible.length) ? (
+              {showCategoryDiscovery ? (
+                <div className="empty-state category-discovery">
+                  <span aria-hidden="true">
+                    <Icon icon={Search01Icon} size={35} />
+                  </span>
+                  <h3>No matching {category} offers right now.</h3>
+                  <p>
+                    {suggestedStores.length
+                      ? `Here are supported ${category} stores you haven't added yet. These suggestions are not verified promotions.`
+                      : `You've added all supported ${category} stores. Check retailer websites for other deals.`}
+                  </p>
+                  {suggestedStores.length > 0 && (
+                    <ul
+                      className="category-suggestions"
+                      aria-label={`Suggested ${category} stores`}
+                    >
+                      {suggestedStores.map((store) => (
+                        <li className="category-suggestion" key={store.id}>
+                          <div className="category-suggestion-details">
+                            <strong>{store.name}</strong>
+                            <small>{store.category}</small>
+                          </div>
+                          <div className="category-suggestion-actions">
+                            <a
+                              href={store.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`Visit ${store.name} website (opens in a new tab)`}
+                            >
+                              Visit site <Icon icon={ArrowUpRight01Icon} size={14} />
+                            </a>
+                            <button
+                              type="button"
+                              aria-label={`Add ${store.name}`}
+                              onClick={() => addSuggestedStore(store.id, store.name)}
+                            >
+                              + Add
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <a className="primary-button" href="/stores">
+                    Explore all stores
+                    <Icon icon={ArrowUpRight01Icon} size={18} />
+                  </a>
+                </div>
+              ) : visibleStores.length && (!savedOnly || allVisible.length) ? (
                 <div className="store-list">
                   {visibleStores.map(({ store, offers }) => (
                     <StoreCard
@@ -1221,30 +1285,26 @@ export function GroceryApp({
                       ? "Tap the bookmark on a promotion to save it here."
                       : "Try Checkers, Pick n Pay or another favourite."}
                   </p>
-                  <button
-                    className="primary-button"
-                    onClick={() => {
-                      setQuery("");
-                      setSavedOnly(false);
-                      setFilter("all");
-                    }}
-                  >
+                  <a className="primary-button" href="/stores">
                     Explore all stores
                     <Icon icon={ArrowUpRight01Icon} size={18} />
-                  </button>
+                  </a>
                 </div>
               )}
-              {!allVisible.length && visibleStores.length > 0 && !savedOnly && (
-                <p className="filter-empty">
-                  No confirmed{" "}
-                  {filter === "free_delivery"
-                    ? "free delivery offers"
-                    : filter === "discount"
-                      ? "discounts"
-                      : "offers"}{" "}
-                  match right now. Try another filter or refresh the sources.
-                </p>
-              )}
+              {!showCategoryDiscovery &&
+                !allVisible.length &&
+                visibleStores.length > 0 &&
+                !savedOnly && (
+                  <p className="filter-empty">
+                    No confirmed{" "}
+                    {filter === "free_delivery"
+                      ? "free delivery offers"
+                      : filter === "discount"
+                        ? "discounts"
+                        : "offers"}{" "}
+                    match right now. Try another filter or refresh the sources.
+                  </p>
+                )}
             </div>
             <aside className="savings-sidebar">
               <div className="small-note">
