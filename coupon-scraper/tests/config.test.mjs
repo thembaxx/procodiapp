@@ -1,11 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
-const { parseConfigFileTextToJson } = createRequire(import.meta.url)("typescript");
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
-const { config, error } = parseConfigFileTextToJson("wrangler.jsonc", read("../wrangler.jsonc"));
-assert.equal(error, undefined, "Wrangler configuration must be valid JSONC");
+// The Wrangler dry-run build validates full JSONC. This fixture only needs JSON
+// with trailing commas normalized; avoid depending on TypeScript compiler internals.
+const config = JSON.parse(read("../wrangler.jsonc").replace(/,\s*([}\]])/g, "$1"));
 const source = read("../src/index.ts");
 const schema = read("../schema.sql");
 test("cron runs at 02:00 and 14:00 SAST", () => {
