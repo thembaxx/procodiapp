@@ -17,7 +17,9 @@ export const generateMetadata = () =>
 export default async function StoresPage() {
   const cache = await readCache();
   const live = filterOffers(cache.offers);
-  const trackedIds = new Set<string>(stores.map((store) => (store.id === "pnp" ? "pick-n-pay" : store.id)));
+  const trackedIds = new Set<string>(
+    stores.map((store) => (store.id === "pnp" ? "pick-n-pay" : store.id)),
+  );
   const moreStores = storeCatalogue.filter((store) => !trackedIds.has(store.id));
   return (
     <ContentShell>
