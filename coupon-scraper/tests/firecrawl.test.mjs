@@ -22,7 +22,12 @@ const page = {
 };
 const originalFetch = globalThis.fetch;
 
-function setup({ enabled = "true", limit = "6", markdown = page.data.markdown, sourceURL = target.url } = {}) {
+function setup({
+  enabled = "true",
+  limit = "6",
+  markdown = page.data.markdown,
+  sourceURL = target.url,
+} = {}) {
   const calls = [];
   let credits = 0;
   const env = {
@@ -65,19 +70,30 @@ function setup({ enabled = "true", limit = "6", markdown = page.data.markdown, s
   return { env, calls, credits: () => credits };
 }
 
-test.afterEach(() => { globalThis.fetch = originalFetch; });
+test.afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
 
 test("opt-in only: disabled Firecrawl neither fetches nor reserves quota", async () => {
   const { env, calls } = setup({ enabled: "false" });
-  assert.equal(await scrapeFirecrawlLeads(env, target, async () => [], new Date().toISOString()), null);
+  assert.equal(
+    await scrapeFirecrawlLeads(env, target, async () => [], new Date().toISOString()),
+    null,
+  );
   assert.equal(calls.length, 0);
 });
 
 test("respects explicit robots denial before spending a credit", async () => {
-  assert.equal(robotsPermit("User-agent: Firecrawl\nDisallow: /c/\nAllow: /c/open", "/c/pnp"), false);
+  assert.equal(
+    robotsPermit("User-agent: Firecrawl\nDisallow: /c/\nAllow: /c/open", "/c/pnp"),
+    false,
+  );
   const { env, calls, credits } = setup();
   globalThis.fetch = async () => new Response("User-agent: *\nDisallow: /");
-  assert.equal(await scrapeFirecrawlLeads(env, target, async () => [], new Date().toISOString()), null);
+  assert.equal(
+    await scrapeFirecrawlLeads(env, target, async () => [], new Date().toISOString()),
+    null,
+  );
   assert.equal(credits(), 0);
   assert.equal(calls.length, 0);
 });
@@ -85,10 +101,21 @@ test("respects explicit robots denial before spending a credit", async () => {
 test("extracts unique bounded review leads, never marking them verified", async () => {
   const { env, calls, credits } = setup();
   const parse = async (text, merchant, sourceUrl, now) =>
-    text.includes("SAVE50") ? [{
-      id: "lead-1", code: "SAVE50", merchant, source_url: sourceUrl,
-      title: text, description: text, discount: "R50", found_at: now, expires_at: null,
-    }] : [];
+    text.includes("SAVE50")
+      ? [
+          {
+            id: "lead-1",
+            code: "SAVE50",
+            merchant,
+            source_url: sourceUrl,
+            title: text,
+            description: text,
+            discount: "R50",
+            found_at: now,
+            expires_at: null,
+          },
+        ]
+      : [];
   const leads = await scrapeFirecrawlLeads(env, target, parse, "2026-10-21T00:00:00Z");
   assert.equal(leads.length, 1);
   assert.equal(leads[0].source_url, target.url);
@@ -106,6 +133,9 @@ test("rejects redirected or unrelated source data after reserving quota", async 
 
 test("applies an explicit zero-credit daily limit", async () => {
   const { env, calls } = setup({ limit: "0" });
-  assert.equal(await scrapeFirecrawlLeads(env, target, async () => [], new Date().toISOString()), null);
+  assert.equal(
+    await scrapeFirecrawlLeads(env, target, async () => [], new Date().toISOString()),
+    null,
+  );
   assert.equal(calls.filter((call) => call.url.includes("firecrawl.dev")).length, 0);
 });
