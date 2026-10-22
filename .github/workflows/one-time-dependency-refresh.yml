@@ -1,0 +1,31 @@
+name: One-time pnpm dependency refresh
+on:
+  push:
+    branches:
+      - chore/deps-latest-stable-20261022
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 24
+      - name: Upgrade stable dependencies and verify lockfile
+        run: |
+          corepack enable
+          pnpm up --latest --ignore-scripts
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Commit upgrade and delete one-time workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/one-time-dependency-refresh.yml
+          git add package.json pnpm-lock.yaml
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore(deps): upgrade dependencies to latest stable'
+            git push
+          fi
