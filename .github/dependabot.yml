@@ -33,7 +33,6 @@ updates:
     directory: /coupon-scraper
     schedule:
       interval: daily
-      day: monday
     open-pull-requests-limit: 3
     groups:
       scraper-patches:
