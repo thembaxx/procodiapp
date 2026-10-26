@@ -1,12 +1,14 @@
 import type { Coupon, ScrapeJob, ScrapeTarget } from "./types";
 import { scrapeTargetPuppeteer } from "./puppeteer-scraper";
 import { scrapeFirecrawlLeads } from "./firecrawl";
+import { BROWSER_SPACING_SECONDS, classifyScrapeError, pacedJobs } from "./scrape-policy";
 import {
   approveReviewedOffer,
   listSourceHealth,
   listVerifiedOffers,
   parseReviewedOffer,
   recordSourceCheck,
+  reserveBrowserSlot,
   sourceCoolingDown,
 } from "./reliability";
 
@@ -59,7 +61,7 @@ const SCRAPE_TARGETS: ScrapeTarget[] = [
   },
   {
     merchant: "Makro",
-    url: "https://www.makro.co.za/deals",
+    url: "https://www.makro.co.za/promotions-store",
     usePuppeteer: true,
     selectors: [
       ".product-item",
@@ -117,7 +119,7 @@ const SCRAPE_TARGETS: ScrapeTarget[] = [
   },
   {
     merchant: "SPAR",
-    url: "https://www.spar.co.za/specials",
+    url: "https://www.spar.co.za/national-specials",
     selectors: [
       ".specials-item",
       ".promo-card",
@@ -469,8 +471,9 @@ async function enqueueAll(env: Env): Promise<number> {
       ),
     )
   ).filter((index): index is number => index !== null);
-  if (indices.length)
-    await env.SCRAPE_QUEUE.sendBatch(indices.map((index) => ({ body: { index } })));
+  // Per-message delays spread scheduled jobs over time; the D1 gate also protects
+  // against overlapping schedules, manual triggers and queue redeliveries.
+  if (indices.length) await env.SCRAPE_QUEUE.sendBatch(pacedJobs(indices));
   return indices.length;
 }
 
@@ -493,6 +496,15 @@ export default {
         continue;
       }
       try {
+        // D1's conditional write is atomic, even across independently enqueued jobs.
+        // If the shared slot is busy, schedule a fresh job instead of consuming
+        // the current message's limited error retries.
+        if (!(await reserveBrowserSlot(env.DB, BROWSER_SPACING_SECONDS))) {
+          await env.SCRAPE_QUEUE.send({ index }, { delaySeconds: BROWSER_SPACING_SECONDS });
+          console.info("scrape deferred", { merchant: target.merchant, reason: "browser_pacing" });
+          message.ack();
+          continue;
+        }
         const coupons = await scrapeTarget(env, target);
         const stored = await storeCoupons(env, coupons);
         await recordSourceCheck(
@@ -504,13 +516,17 @@ export default {
         console.log("scrape result", target.merchant, { extracted: coupons.length, stored });
         message.ack();
       } catch (error) {
-        await recordSourceCheck(env.DB, target.merchant, "failed", 0);
-        console.error(
-          "scrape failed",
-          target.merchant,
-          error instanceof Error ? error.message : "unknown",
-        );
-        message.retry();
+        const diagnostic = classifyScrapeError(error);
+        await recordSourceCheck(env.DB, target.merchant, "failed", 0, diagnostic);
+        console.error("scrape failed", {
+          merchant: target.merchant,
+          ...diagnostic,
+          checkedAt: new Date().toISOString(),
+        });
+        // A provider 429 is not a retailer failure and immediate retries waste
+        // Browser Run quota. Wait for the next scheduled/manual healthful run.
+        if (diagnostic.code === "browser_rate_limited") message.ack();
+        else message.retry({ delaySeconds: 120 });
       }
     }
   },

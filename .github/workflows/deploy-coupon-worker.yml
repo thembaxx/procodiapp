@@ -98,4 +98,4 @@ jobs:
           printf '%s' "$FIRECRAWL_API_KEY" | npx wrangler secret put FIRECRAWL_API_KEY
       - name: Verify deployed health, evidence and source endpoints
         if: steps.credential.outputs.ready == 'true'
-        run: node scripts/check-scraper-health.mjs
+        run: node scripts/check-scraper-health.mjs --deployment-smoke

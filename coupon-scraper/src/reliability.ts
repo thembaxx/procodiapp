@@ -1,4 +1,5 @@
 import type { ScrapeTarget } from "./types";
+import type { ScrapeFailure } from "./scrape-policy";
 
 export type OfferKind =
   | "coupon_code"
@@ -36,6 +37,10 @@ type SourceState = {
   consecutive_failures: number;
   cooldown_until: string | null;
   extracted_count: number;
+  error_provider: string | null;
+  last_error_code: string | null;
+  last_error_status: number | null;
+  last_error_at: string | null;
 };
 
 const kinds = new Set<OfferKind>([
@@ -235,6 +240,24 @@ export async function listVerifiedOffers(
   return result.results;
 }
 
+/** Atomic shared browser launch reservation across queue consumers and triggers. */
+export async function reserveBrowserSlot(
+  db: D1Database,
+  spacingSeconds: number,
+  now = new Date(),
+): Promise<boolean> {
+  const next = new Date(now.getTime() + spacingSeconds * 1000).toISOString();
+  const claimed = await db
+    .prepare(
+      "INSERT INTO browser_rate_gate (name,next_allowed_at) VALUES ('shared',?) " +
+        "ON CONFLICT(name) DO UPDATE SET next_allowed_at=excluded.next_allowed_at " +
+        "WHERE browser_rate_gate.next_allowed_at <= ? RETURNING next_allowed_at",
+    )
+    .bind(next, now.toISOString())
+    .first<{ next_allowed_at: string }>();
+  return !!claimed;
+}
+
 export async function sourceCoolingDown(db: D1Database, merchant: string): Promise<boolean> {
   const row = await db
     .prepare("SELECT cooldown_until FROM source_health WHERE merchant = ?")
@@ -248,6 +271,7 @@ export async function recordSourceCheck(
   merchant: string,
   status: "checked" | "empty" | "failed",
   extracted: number,
+  diagnostic?: ScrapeFailure,
 ): Promise<void> {
   const now = new Date();
   const existing = await db
@@ -257,7 +281,12 @@ export async function recordSourceCheck(
   const failures = status === "failed" ? (existing?.consecutive_failures ?? 0) + 1 : 0;
   // On a provider outage back off for up to six hours. Even an empty scrape
   // remains a candidate-only result and is not a published offer.
-  const delay = failures >= 2 ? Math.min(6 * 3600, 600 * 2 ** Math.min(failures - 2, 6)) : 0;
+  const delay =
+    diagnostic?.code === "browser_rate_limited"
+      ? 6 * 3600
+      : failures >= 2
+        ? Math.min(6 * 3600, 600 * 2 ** Math.min(failures - 2, 6))
+        : 0;
   const cooldown = delay ? new Date(now.getTime() + delay * 1000).toISOString() : null;
   await db
     .prepare(
@@ -278,13 +307,36 @@ export async function recordSourceCheck(
       extracted,
     )
     .run();
+  if (diagnostic) {
+    await db
+      .prepare(
+        "INSERT INTO source_diagnostics (merchant,provider,error_code,http_status,occurred_at) " +
+          "VALUES (?,?,?,?,?) ON CONFLICT(merchant) DO UPDATE SET " +
+          "provider=excluded.provider,error_code=excluded.error_code," +
+          "http_status=excluded.http_status,occurred_at=excluded.occurred_at",
+      )
+      .bind(
+        merchant,
+        diagnostic.provider,
+        diagnostic.code,
+        diagnostic.httpStatus,
+        now.toISOString(),
+      )
+      .run();
+  }
 }
 
 export async function listSourceHealth(db: D1Database): Promise<SourceState[]> {
   const result = await db
     .prepare(
-      "SELECT merchant,status,checked_at,last_success_at,consecutive_failures,cooldown_until,extracted_count " +
-        "FROM source_health ORDER BY merchant LIMIT 100",
+      "SELECT sh.merchant,sh.status,sh.checked_at,sh.last_success_at,sh.consecutive_failures," +
+        "sh.cooldown_until,sh.extracted_count," +
+        "CASE WHEN sh.status='failed' THEN sd.provider END AS error_provider," +
+        "CASE WHEN sh.status='failed' THEN sd.error_code END AS last_error_code," +
+        "CASE WHEN sh.status='failed' THEN sd.http_status END AS last_error_status," +
+        "CASE WHEN sh.status='failed' THEN sd.occurred_at END AS last_error_at " +
+        "FROM source_health sh LEFT JOIN source_diagnostics sd ON sd.merchant=sh.merchant " +
+        "ORDER BY sh.merchant LIMIT 100",
     )
     .all<SourceState>();
   return result.results;

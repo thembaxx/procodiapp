@@ -1,6 +1,8 @@
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
+import { inspectSource } from "./scraper-health-policy.mjs";
 
 const BASE = "https://coupon-scraper.mndebele-themba.workers.dev";
+const deployment = process.argv.includes("--deployment-smoke");
 const results = [];
 const errors = [];
 const warnings = [];
@@ -35,17 +37,9 @@ try {
   if (!Array.isArray(result.sources)) throw new Error("Missing source health array");
   if (!result.sources.length) warnings.push("No source checks are recorded yet");
   for (const s of result.sources) {
-    const failures = Number(s.consecutive_failures);
-    if (!Number.isInteger(failures) || failures < 0) {
-      errors.push("Invalid failure count for " + String(s.merchant).slice(0, 80));
-      continue;
-    }
-    if (failures >= 3)
-      errors.push(String(s.merchant).slice(0, 80) + ": " + failures + " consecutive failures");
-    const checked = s.checked_at ? Date.parse(s.checked_at) : NaN;
-    if (Number.isFinite(checked) && Date.now() - checked > 48 * 3600_000) {
-      warnings.push(String(s.merchant).slice(0, 80) + ": last checked over 48 hours ago");
-    }
+    const diagnostic = inspectSource(s, { deployment });
+    errors.push(...diagnostic.errors);
+    warnings.push(...diagnostic.warnings);
   }
 } catch (error) {
   errors.push("Source health: " + error.message);
@@ -70,13 +64,14 @@ await mkdir("reports", { recursive: true });
 const output = {
   checkedAt: new Date().toISOString(),
   base: BASE,
+  mode: deployment ? "deployment" : "operational",
   results,
   errors,
   warnings,
 };
 await writeFile("reports/scraper-health.json", JSON.stringify(output, null, 2) + "\n");
 const summary = [
-  "## Coupon scraper operational health",
+  deployment ? "## Coupon scraper deployment smoke check" : "## Coupon scraper operational health",
   "",
   ...results.map((r) => "- " + r.path + ": HTTP " + r.status),
   "",

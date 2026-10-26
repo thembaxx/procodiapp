@@ -158,3 +158,30 @@ full-site autonomous crawl. It does not expand retailer coverage beyond
 `SCRAPE_TARGETS`; new merchant selectors/URLs still require validation.
 Daily reservation rows accumulate modestly in D1 and may be pruned later,
 excluding today's row. No Firecrawl response content or credential is logged.
+
+## Browser Run reliability and health
+
+The Worker schedules only the default six retailers unless `ENABLED_MERCHANTS` is set.
+Scheduled messages are staggered by 30 seconds, with one queue consumer and an
+atomic D1 browser launch gate to prevent overlapping/manual jobs exceeding the
+shared launch budget. A busy gate defers work without consuming error retries.
+Browser Run HTTP 429 errors are classified separately, logged without raw
+exception content, and cooled down for six hours rather than retried immediately.
+Unknown or navigation errors retain bounded queue retries.
+
+Current source targets for Makro and SPAR use official promotion pages:
+`https://www.makro.co.za/promotions-store` and
+`https://www.spar.co.za/national-specials`. Their CSS extraction remains
+unverified and must not be treated as verified offers.
+
+`GET /api/source-health` includes `error_provider`, `last_error_code`,
+`last_error_status`, and `last_error_at` for actively failing sources.
+The additive `source_diagnostics` and `browser_rate_gate` tables are created
+by `npm run db:migrate` before deploying; no existing coupon rows are deleted.
+
+`node scripts/check-scraper-health.mjs` is the strict twice-daily operational
+check and continues to flag three or more consecutive failures. The deploy
+workflow runs `node scripts/check-scraper-health.mjs --deployment-smoke`:
+it requires functioning, schema-valid Worker endpoints but reports old scraper
+failures as warnings, so successful code releases do not look like failed
+deployments. The operational monitor remains responsible for extraction health.
