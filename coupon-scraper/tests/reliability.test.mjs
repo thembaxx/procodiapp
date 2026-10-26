@@ -73,10 +73,10 @@ test("atomic browser slot reservation enforces the shared 30-second lease", asyn
     prepare(sql) {
       assert.match(sql, /ON CONFLICT\(name\).*RETURNING next_allowed_at/);
       return {
-        bind(next, now) {
+        bind(next, atTime) {
           return {
             async first() {
-              if (nextAllowed !== null && nextAllowed > now) return null;
+              if (nextAllowed !== null && nextAllowed > atTime) return null;
               nextAllowed = next;
               return { next_allowed_at: next };
             },

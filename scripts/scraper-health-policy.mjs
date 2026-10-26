@@ -1,4 +1,4 @@
-/** Deployment should validate the API contract, not reject healthy releases for old scrape failures. */
+/** Deployment checks the API contract, not historical retailer failures. */
 export function inspectSource(source, { deployment = false, now = Date.now() } = {}) {
   const errors = [];
   const warnings = [];
@@ -9,7 +9,9 @@ export function inspectSource(source, { deployment = false, now = Date.now() } =
     return { errors, warnings };
   }
   if (failures >= 3) {
-    const reason = source?.last_error_code ? " (" + String(source.last_error_code).slice(0, 80) + ")" : "";
+    const reason = source?.last_error_code
+      ? " (" + String(source.last_error_code).slice(0, 80) + ")"
+      : "";
     const diagnostic = merchant + ": " + failures + " consecutive failures" + reason;
     (deployment ? warnings : errors).push(diagnostic);
   }

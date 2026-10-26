@@ -247,11 +247,14 @@ export async function reserveBrowserSlot(
   now = new Date(),
 ): Promise<boolean> {
   const next = new Date(now.getTime() + spacingSeconds * 1000).toISOString();
-  const claimed = await db.prepare(
-    "INSERT INTO browser_rate_gate (name,next_allowed_at) VALUES ('shared',?) " +
-      "ON CONFLICT(name) DO UPDATE SET next_allowed_at=excluded.next_allowed_at " +
-      "WHERE browser_rate_gate.next_allowed_at <= ? RETURNING next_allowed_at",
-  ).bind(next, now.toISOString()).first<{ next_allowed_at: string }>();
+  const claimed = await db
+    .prepare(
+      "INSERT INTO browser_rate_gate (name,next_allowed_at) VALUES ('shared',?) " +
+        "ON CONFLICT(name) DO UPDATE SET next_allowed_at=excluded.next_allowed_at " +
+        "WHERE browser_rate_gate.next_allowed_at <= ? RETURNING next_allowed_at",
+    )
+    .bind(next, now.toISOString())
+    .first<{ next_allowed_at: string }>();
   return !!claimed;
 }
 
@@ -278,9 +281,12 @@ export async function recordSourceCheck(
   const failures = status === "failed" ? (existing?.consecutive_failures ?? 0) + 1 : 0;
   // On a provider outage back off for up to six hours. Even an empty scrape
   // remains a candidate-only result and is not a published offer.
-  const delay = diagnostic?.code === "browser_rate_limited"
-    ? 6 * 3600
-    : failures >= 2 ? Math.min(6 * 3600, 600 * 2 ** Math.min(failures - 2, 6)) : 0;
+  const delay =
+    diagnostic?.code === "browser_rate_limited"
+      ? 6 * 3600
+      : failures >= 2
+        ? Math.min(6 * 3600, 600 * 2 ** Math.min(failures - 2, 6))
+        : 0;
   const cooldown = delay ? new Date(now.getTime() + delay * 1000).toISOString() : null;
   await db
     .prepare(
@@ -302,12 +308,21 @@ export async function recordSourceCheck(
     )
     .run();
   if (diagnostic) {
-    await db.prepare(
-      "INSERT INTO source_diagnostics (merchant,provider,error_code,http_status,occurred_at) " +
-        "VALUES (?,?,?,?,?) ON CONFLICT(merchant) DO UPDATE SET " +
-        "provider=excluded.provider,error_code=excluded.error_code," +
-        "http_status=excluded.http_status,occurred_at=excluded.occurred_at",
-    ).bind(merchant, diagnostic.provider, diagnostic.code, diagnostic.httpStatus, now.toISOString()).run();
+    await db
+      .prepare(
+        "INSERT INTO source_diagnostics (merchant,provider,error_code,http_status,occurred_at) " +
+          "VALUES (?,?,?,?,?) ON CONFLICT(merchant) DO UPDATE SET " +
+          "provider=excluded.provider,error_code=excluded.error_code," +
+          "http_status=excluded.http_status,occurred_at=excluded.occurred_at",
+      )
+      .bind(
+        merchant,
+        diagnostic.provider,
+        diagnostic.code,
+        diagnostic.httpStatus,
+        now.toISOString(),
+      )
+      .run();
   }
 }
 
