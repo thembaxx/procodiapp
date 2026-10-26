@@ -6,7 +6,7 @@ import { stripTypeScriptTypes } from "node:module";
 // Compile the actual Worker module; no test-only duplicate of validation logic.
 const source = readFileSync(new URL("../src/reliability.ts", import.meta.url), "utf8");
 const transpiled = stripTypeScriptTypes(source, { mode: "strip" });
-const { parseReviewedOffer } = await import(
+const { parseReviewedOffer, reserveBrowserSlot } = await import(
   "data:text/javascript;base64," + Buffer.from(transpiled).toString("base64")
 );
 const target = [
@@ -65,4 +65,28 @@ test("ongoing benefits need explicit no-expiry confirmation and are never checko
   assert.equal(ongoing?.ongoing, 1);
   assert.equal(ongoing?.checkout_tested, 0);
   assert.equal(parseReviewedOffer({ ...item, ongoing: true }, target, now), null);
+});
+
+test("atomic browser slot reservation enforces the shared 30-second lease", async () => {
+  let nextAllowed = null;
+  const db = {
+    prepare(sql) {
+      assert.match(sql, /ON CONFLICT\(name\).*RETURNING next_allowed_at/);
+      return {
+        bind(next, now) {
+          return {
+            async first() {
+              if (nextAllowed !== null && nextAllowed > now) return null;
+              nextAllowed = next;
+              return { next_allowed_at: next };
+            },
+          };
+        },
+      };
+    },
+  };
+  const at = new Date("2026-10-26T00:00:00Z");
+  assert.equal(await reserveBrowserSlot(db, at), true);
+  assert.equal(await reserveBrowserSlot(db, new Date(at.getTime() + 29000)), false);
+  assert.equal(await reserveBrowserSlot(db, new Date(at.getTime() + 30000)), true);
 });

@@ -55,3 +55,18 @@ CREATE TABLE IF NOT EXISTS firecrawl_usage (
   day TEXT PRIMARY KEY,
   requests INTEGER NOT NULL DEFAULT 0 CHECK (requests >= 0)
 );
+
+-- Shared, atomic Browser Run launch pacing. Does not alter any existing table.
+CREATE TABLE IF NOT EXISTS browser_rate_gate (
+  name TEXT PRIMARY KEY,
+  next_allowed_at TEXT NOT NULL
+);
+
+-- Stable, non-sensitive failure diagnostics. Do not persist raw exception text.
+CREATE TABLE IF NOT EXISTS source_diagnostics (
+  merchant TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  error_code TEXT NOT NULL,
+  http_status INTEGER,
+  occurred_at TEXT NOT NULL
+);
