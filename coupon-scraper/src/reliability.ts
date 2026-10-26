@@ -1,5 +1,5 @@
 import type { ScrapeTarget } from "./types";
-import { BROWSER_SPACING_SECONDS, type ScrapeFailure } from "./scrape-policy";
+import type { ScrapeFailure } from "./scrape-policy";
 
 export type OfferKind =
   | "coupon_code"
@@ -241,8 +241,12 @@ export async function listVerifiedOffers(
 }
 
 /** Atomic shared browser launch reservation across queue consumers and triggers. */
-export async function reserveBrowserSlot(db: D1Database, now = new Date()): Promise<boolean> {
-  const next = new Date(now.getTime() + BROWSER_SPACING_SECONDS * 1000).toISOString();
+export async function reserveBrowserSlot(
+  db: D1Database,
+  spacingSeconds: number,
+  now = new Date(),
+): Promise<boolean> {
+  const next = new Date(now.getTime() + spacingSeconds * 1000).toISOString();
   const claimed = await db.prepare(
     "INSERT INTO browser_rate_gate (name,next_allowed_at) VALUES ('shared',?) " +
       "ON CONFLICT(name) DO UPDATE SET next_allowed_at=excluded.next_allowed_at " +

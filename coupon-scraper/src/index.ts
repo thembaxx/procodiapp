@@ -499,7 +499,7 @@ export default {
         // D1's conditional write is atomic, even across independently enqueued jobs.
         // If the shared slot is busy, schedule a fresh job instead of consuming
         // the current message's limited error retries.
-        if (!(await reserveBrowserSlot(env.DB))) {
+        if (!(await reserveBrowserSlot(env.DB, BROWSER_SPACING_SECONDS))) {
           await env.SCRAPE_QUEUE.send({ index }, { delaySeconds: BROWSER_SPACING_SECONDS });
           console.info("scrape deferred", { merchant: target.merchant, reason: "browser_pacing" });
           message.ack();

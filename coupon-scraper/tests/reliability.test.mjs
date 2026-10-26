@@ -86,7 +86,7 @@ test("atomic browser slot reservation enforces the shared 30-second lease", asyn
     },
   };
   const at = new Date("2026-10-26T00:00:00Z");
-  assert.equal(await reserveBrowserSlot(db, at), true);
-  assert.equal(await reserveBrowserSlot(db, new Date(at.getTime() + 29000)), false);
-  assert.equal(await reserveBrowserSlot(db, new Date(at.getTime() + 30000)), true);
+  assert.equal(await reserveBrowserSlot(db, 30, at), true);
+  assert.equal(await reserveBrowserSlot(db, 30, new Date(at.getTime() + 29000)), false);
+  assert.equal(await reserveBrowserSlot(db, 30, new Date(at.getTime() + 30000)), true);
 });
