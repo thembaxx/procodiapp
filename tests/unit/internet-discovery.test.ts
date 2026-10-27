@@ -136,6 +136,67 @@ it("shares one Gemini search across all stores and independently fetches its off
   expect(discoveryCandidates()).toEqual([]);
   expect(JSON.stringify(await readCache())).not.toMatch(/INVENTED99|gemini-test-only-key/);
 });
+it("uses free current-model link selection after legacy 404s, reusing source reads within the page budget", async () => {
+  vi.stubEnv("GEMINI_API_KEY", "gemini-test-only-key");
+  const fetchMock = mockSources();
+  const readSource = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation(async (value, options) => {
+    const url = String(value);
+    if (url.includes("generativelanguage.googleapis.com")) {
+      if (url.includes("/models?"))
+        return Response.json({
+          models: [
+            {
+              name: "models/gemini-2.5-flash-lite",
+              supportedGenerationMethods: ["generateContent"],
+            },
+          ],
+        });
+      if (url.endsWith(":generateContent"))
+        return Response.json({ error: { status: "NOT_FOUND" } }, { status: 404 });
+      const body = JSON.parse(options!.body as string);
+      expect(body.tools).toBeUndefined();
+      const sources = JSON.parse(body.input.split("\n").at(-1));
+      return Response.json({
+        status: "completed",
+        steps: [
+          {
+            type: "model_output",
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  selections: sources.map((source: { storeId: string }) => ({
+                    storeId: source.storeId,
+                    ids: [0],
+                  })),
+                }),
+              },
+            ],
+          },
+        ],
+      });
+    }
+    return readSource(value, options);
+  });
+  const result = await discoverOffers();
+  expect(result.offers).toHaveLength(6);
+  expect(result.offers.every((offer) => offer.code === "WEB50")).toBe(true);
+  expect(result.checks.every((check) => !check.searched && check.status === "checked")).toBe(true);
+  const requests = fetchMock.mock.calls.map(([url]) => String(url));
+  expect(requests.filter((url) => url.endsWith("/interactions"))).toHaveLength(1);
+  for (const store of stores) {
+    expect(requests.filter((url) => url === store.sources[0])).toHaveLength(1);
+    const pages = requests.filter(
+      (url) =>
+        store.domains.some(
+          (host) => new URL(url).hostname === host || new URL(url).hostname === `www.${host}`,
+        ) && !url.endsWith("/robots.txt"),
+    );
+    expect(new Set(pages).size).toBeLessThanOrEqual(5);
+  }
+  expect(JSON.stringify(await readCache())).not.toContain("gemini-test-only-key");
+});
 it.each(["unavailable", "empty"])(
   "uses configured fallback after Gemini pages are %s without exceeding the page budget",
   async (kind) => {

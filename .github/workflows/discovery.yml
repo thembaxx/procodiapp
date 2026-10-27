@@ -1,29 +1,35 @@
-name: Diagnose Gemini access
+name: Verify free Gemini page discovery
 on:
   workflow_dispatch:
     inputs:
       source:
-        description: "Diagnostic request"
+        description: Verification request
         required: false
         default: manual
         type: choice
-        options:
-          - manual
+        options: [manual]
 permissions:
   contents: read
 jobs:
-  diagnose:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
+    timeout-minutes: 6
     environment: discovery
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          version: 11.19.0
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 24
-      - name: Check basic generation and grounded search
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify production Gemini discovery against public sources
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: node scripts/diagnose-gemini-access.mjs
+          DISCOVERY_SEARCH_MODE: brave
+        run: node --conditions=react-server --import tsx scripts/verify-gemini-page-discovery.mjs
