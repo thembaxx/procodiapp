@@ -139,7 +139,8 @@ export async function searchPromotions(
   const primaryRows = gemini?.rows.filter((row) => row.storeId === store.id) ?? [];
   const primary = classifySearchResults(store, primaryRows);
   // The collector checks these pages before deciding whether legacy search is needed.
-  if (primary.officialUrls.length) return { searched: true, usedGemini: true, ...primary };
+  if (primary.officialUrls.length)
+    return { searched: gemini?.searched ?? false, usedGemini: true, ...primary };
 
   const month = new Intl.DateTimeFormat("en-ZA", {
     timeZone: "Africa/Johannesburg",

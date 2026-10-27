@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { stores } from "../stores";
 import { boundedJson } from "./bounded-input";
+import { discoverGeminiPageLinks } from "./gemini-page-discovery";
+import type { PublicDocument } from "./public-pages";
 
 const searchRows = z.object({
   results: z
@@ -69,6 +71,7 @@ const modelList = z.object({
 export type GeminiSearch = {
   searched: boolean;
   rows: z.infer<typeof searchRows>["results"];
+  documents?: PublicDocument[];
   warning?: string;
 };
 
@@ -121,6 +124,7 @@ export async function searchGeminiPromotions(signal: AbortSignal): Promise<Gemin
       cache: "no-store",
       signal: AbortSignal.any([signal, AbortSignal.timeout(25_000)]),
     };
+    let currentModelFallback = false;
     let response = await fetch(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
       request,
@@ -142,6 +146,7 @@ export async function searchGeminiPromotions(signal: AbortSignal): Promise<Gemin
       );
       if (available.ok) {
         const models = modelList.parse(await boundedJson(available, 50_000));
+        currentModelFallback = true;
         if (
           models.models.some(
             (model) =>
@@ -164,6 +169,13 @@ export async function searchGeminiPromotions(signal: AbortSignal): Promise<Gemin
         void available.body?.cancel().catch(() => {});
         console.warn(`Gemini model availability check failed: HTTP ${available.status}.`);
       }
+    }
+    if (response.status === 404 && currentModelFallback) {
+      void response.body?.cancel().catch(() => {});
+      console.info(
+        "Legacy Gemini models are inaccessible; selecting fetched source links with Gemini 3.8 Flash free generation.",
+      );
+      return discoverGeminiPageLinks(apiKey, signal);
     }
     if (!response.ok) {
       let codes: string[] = [];
