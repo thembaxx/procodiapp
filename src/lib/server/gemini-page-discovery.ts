@@ -95,7 +95,7 @@ export async function discoverGeminiPageLinks(
         "Api-Revision": "2026-05-20",
       },
       body: JSON.stringify({
-        model: "gemini-3.8-flash",
+        model: "gemini-3.5-flash-lite",
         store: false,
         input: [
           "Select the best existing links for current South African online grocery promotions, coupon terms, membership benefits and delivery offers.",
