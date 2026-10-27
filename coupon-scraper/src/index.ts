@@ -23,7 +23,7 @@ interface Env {
   FIRECRAWL_DAILY_LIMIT?: string;
 }
 
-const SCRAPE_TARGETS: ScrapeTarget[] = [
+export const SCRAPE_TARGETS: ScrapeTarget[] = [
   {
     merchant: "Pick n Pay",
     url: "https://www.pnp.co.za/c/pnp/promotions",
@@ -64,6 +64,8 @@ const SCRAPE_TARGETS: ScrapeTarget[] = [
     url: "https://www.makro.co.za/promotions-store",
     usePuppeteer: true,
     selectors: [
+      "div._4ddWXP[data-tkid]",
+      "div[data-tkid*='_MC.']",
       ".product-item",
       ".deal-tile",
       ".special-offer",
@@ -121,6 +123,7 @@ const SCRAPE_TARGETS: ScrapeTarget[] = [
     merchant: "SPAR",
     url: "https://www.spar.co.za/national-specials",
     selectors: [
+      "a[href$='/spar2u-app']:has([class*='_priceSection_'])",
       ".specials-item",
       ".promo-card",
       ".product-tile",
@@ -614,7 +617,7 @@ export default {
   },
 } satisfies ExportedHandler<Env, ScrapeJob>;
 
-async function scrapeTarget(env: Env, target: ScrapeTarget): Promise<Coupon[]> {
+export async function scrapeTarget(env: Env, target: ScrapeTarget): Promise<Coupon[]> {
   let browserFailure: unknown;
   try {
     const coupons = await scrapeTargetNative(env, target);
@@ -630,7 +633,10 @@ async function scrapeTarget(env: Env, target: ScrapeTarget): Promise<Coupon[]> {
       parseCouponText,
       new Date().toISOString(),
     );
-    if (rescued !== null) return rescued;
+    if (rescued?.length) return rescued;
+    // A failed retailer extraction is not repaired by an empty optional response.
+    // Keep its failure visible instead of resetting source health to 'empty'.
+    if (rescued !== null && !browserFailure) return rescued;
   } catch {
     console.warn("Optional Firecrawl extraction unavailable", target.merchant);
   }
@@ -639,7 +645,7 @@ async function scrapeTarget(env: Env, target: ScrapeTarget): Promise<Coupon[]> {
   return [];
 }
 
-async function scrapeTargetNative(env: Env, target: ScrapeTarget): Promise<Coupon[]> {
+export async function scrapeTargetNative(env: Env, target: ScrapeTarget): Promise<Coupon[]> {
   const now = new Date().toISOString();
   if (target.usePuppeteer) return scrapeTargetPuppeteer(env, target, parseCouponText, now);
   const response = await env.BROWSER.quickAction("scrape", {
@@ -652,10 +658,12 @@ async function scrapeTargetNative(env: Env, target: ScrapeTarget): Promise<Coupo
     throw new Error("unexpected browser scrape response");
   }
   const coupons = new Map<string, Coupon>();
+  let matchedContent = 0;
   for (const group of data.result) {
     if (!isRecord(group) || !Array.isArray(group.results)) continue;
     for (const item of group.results) {
-      if (!isRecord(item) || typeof item.text !== "string") continue;
+      if (!isRecord(item) || typeof item.text !== "string" || !item.text.trim()) continue;
+      matchedContent += 1;
       for (const coupon of await parseCouponText(
         item.text.trim(),
         target.merchant,
@@ -666,10 +674,11 @@ async function scrapeTargetNative(env: Env, target: ScrapeTarget): Promise<Coupo
       }
     }
   }
+  if (!matchedContent) throw new Error("retailer selectors matched no readable content");
   return [...coupons.values()];
 }
 
-async function parseCouponText(
+export async function parseCouponText(
   text: string,
   merchant: string,
   sourceUrl: string,
@@ -680,9 +689,15 @@ async function parseCouponText(
     /(?:code|promo(?:\s+code)?|coupon|voucher)[:\s]+([A-Z0-9]{3,20})\b/i,
   );
   const discountMatch = text.match(
-    /(?:save\s+R\s?\d+(?:[.,]\d+)?|(?:R\s?\d+(?:[.,]\d+)?|\d+%)\s*(?:off|discount|savings?|special))/i,
+    /(?:save\s+R\s?\d+(?:[.,]\d+)?|(?<![\d.,])(?:R\s?\d+(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?\s*%)\s*(?:off|discount|savings?|special))/i,
   );
   if (!codeMatch && !discountMatch) return [];
+  const percentage = discountMatch?.[0].match(/(-?\d+(?:[.,]\d+)?)\s*%/);
+  if (percentage) {
+    const amount = Number(percentage[1].replace(",", "."));
+    // Adjacent price spans previously produced values such as '39957% off'.
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 100) return [];
+  }
   const code = codeMatch ? codeMatch[1].toUpperCase() : null;
   // Relative dates are not persisted as expiry timestamps.
   const isoExpiry =
