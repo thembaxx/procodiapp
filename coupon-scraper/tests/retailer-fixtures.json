@@ -1,0 +1,25 @@
+{
+  "description": "Synthetic offline fixtures model retailer card structures observed on 26 October 2026. Names and prices are test data, not published offers.",
+  "cards": [
+    {
+      "merchant": "Makro",
+      "html": "<main><div class=\"_4ddWXP\" data-tkid=\"search-result-1\"><div>Fixture coffee maker</div><div><span>R</span><span>399</span></div><div>57% off</div></div><div data-tkid=\"search_MC.fixture-2\"><div>Fixture kettle</div><div>R699</div><div>Save R100</div></div></main>",
+      "expectedCards": 2,
+      "expectedDiscounts": ["57% off", "Save R100"]
+    },
+    {
+      "merchant": "SPAR",
+      "html": "<main><a href=\"https://www.spar.co.za/spar2u-app\"><div>Fixture pantry bundle</div><div class=\"_priceSection_a1b2\"><div>R99</div><div>Save R20</div></div></a><a href=\"/spar2u-app\"><div>Fixture soap bundle</div><div class=\"_priceSection_c3d4\"><div>R45</div><div>25% off</div></div></a><a href=\"/spar2u-app\">Download the app</a></main>",
+      "expectedCards": 2,
+      "expectedDiscounts": ["Save R20", "25% off"]
+    }
+  ],
+  "unqualifiedText": "Fixture plain rice 1 kg. R29.99. Available while stocks last.",
+  "invalidPercentages": [
+    "Fixture coffee maker R39957% off",
+    "Fixture offer 101% off",
+    "Fixture offer 0% off",
+    "Fixture offer -10% off",
+    "Fixture offer 100,01% discount"
+  ]
+}
