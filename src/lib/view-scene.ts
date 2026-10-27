@@ -117,6 +117,36 @@ export function createViewScene(canvas: HTMLCanvasElement, appearance: SceneAppe
     rings.push(ring);
   }
 
+  // Decorative, original low-poly produce for the optional Rewards atmosphere.
+  // These are not licensed models and never represent actual store inventory.
+  const produce: Group[] = [];
+  const produceGeometry = new SphereGeometry(0.19, 12, 10);
+  const produceMaterials = [
+    new MeshBasicMaterial({ color: "#d87152", transparent: true, opacity: 0.17 }),
+    new MeshBasicMaterial({ color: "#9cbb77", transparent: true, opacity: 0.17 }),
+    new MeshBasicMaterial({ color: "#e0b866", transparent: true, opacity: 0.17 }),
+  ];
+  const leafGeometry = new PlaneGeometry(0.13, 0.07);
+  const leafMaterial = new MeshBasicMaterial({
+    color: "#729c78",
+    transparent: true,
+    opacity: 0.21,
+    side: DoubleSide,
+  });
+  for (let i = 0; i < 3; i++) {
+    const item = new Group();
+    const fruit = new Mesh(produceGeometry, produceMaterials[i]);
+    fruit.scale.set(1, 0.88 + i * 0.12, 1);
+    item.add(fruit);
+    const leaf = new Mesh(leafGeometry, leafMaterial);
+    leaf.rotation.z = -0.45;
+    leaf.position.set(0.09, 0.21, 0.02);
+    item.add(leaf);
+    item.position.set((i - 1) * 2.4, -2.5 + i * 0.4, -1);
+    groups.rewards.add(item);
+    produce.push(item);
+  }
+
   let active = appearance;
   let width = 10;
   let raf = 0;
@@ -162,6 +192,10 @@ export function createViewScene(canvas: HTMLCanvasElement, appearance: SceneAppe
       tile.rotation.y = index * 0.4 + elapsed * 0.04;
       tile.rotation.z = index * 0.68 + Math.sin(elapsed * 0.16 + index) * 0.1;
       tileMaterials[index].opacity = (active.light ? 0.1 : 0.16) + burst * 0.04;
+    });
+    produce.forEach((item, index) => {
+      item.position.y = -2.5 + index * 0.4 + Math.sin(elapsed * 0.55 + index) * 0.1;
+      item.rotation.y = elapsed * (index % 2 ? -0.08 : 0.08);
     });
     groups.orbit.position.set(width * 0.38 + eased.x * 0.14, -0.8 + eased.y * 0.12, 0);
     groups.orbit.rotation.y = eased.x * 0.04;
