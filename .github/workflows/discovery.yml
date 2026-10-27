@@ -1,77 +1,29 @@
-name: Discover promotions
+name: Diagnose Gemini access
 on:
-  schedule:
-    # 06:17 and 18:17 South African Standard Time (UTC+2).
-    - cron: "17 4,16 * * *"
   workflow_dispatch:
     inputs:
       source:
-        description: "Where the scan was requested"
+        description: "Diagnostic request"
         required: false
         default: manual
         type: choice
         options:
           - manual
-          - user_refresh
 permissions:
   contents: read
-concurrency:
-  group: scheduled-discovery
-  cancel-in-progress: false
 jobs:
-  refresh:
-    if: github.ref == 'refs/heads/main'
+  diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 4
     environment: discovery
-    permissions:
-      contents: write
-    env:
-      NODE_OPTIONS: --conditions=react-server
-      PROMOTION_FEED: local
-      DATA_DIR: .data/discovery
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          version: 11.19.0
-          cache: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Install Chromium for permitted JavaScript-rendered sources
-        run: pnpm exec playwright install --with-deps chromium
-      - name: Load last published feed
-        run: pnpm exec tsx scripts/load-promotion-feed.ts
-      - name: Search with Gemini first and check promotion sources
+      - name: Check basic generation and grounded search
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
-          # Gemini uses one grounded batch per full scan. Refresh only rechecks known sources.
-          # Legacy search is a fallback; paid Treg search requires an explicit variable.
-          DISCOVERY_SEARCH_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.source == 'user_refresh' && 'none' || vars.DISCOVERY_SEARCH_MODE || 'brave' }}
-          TREG_TOKEN: ${{ secrets.TREG_TOKEN }}
-          TREG_ORG: ${{ vars.TREG_ORG }}
-          TREG_MAX_COST_USD: "0.01"
-          TREG_SCAN_BUDGET_USD: "0.12"
-          TREG_MAX_CALLS_PER_SCAN: "12"
-          PROMOTION_TREG_EXTRACT_FALLBACK: ${{ github.event_name == 'workflow_dispatch' && inputs.source == 'user_refresh' && 'false' || vars.PROMOTION_TREG_EXTRACT_FALLBACK || 'false' }}
-          PROMOTION_BROWSER_FALLBACK: "true"
-          CJ_API_TOKEN: ${{ secrets.CJ_API_TOKEN }}
-          CJ_WEBSITE_ID: ${{ vars.CJ_WEBSITE_ID }}
-          CJ_ADVERTISERS: ${{ vars.CJ_ADVERTISERS }}
-        run: pnpm discover --publish
-      - name: Publish the public promotion feed
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: pnpm exec tsx scripts/publish-promotion-feed.ts
-      - name: Clean up optional private report storage
-        if: always()
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: pnpm exec tsx scripts/cleanup-promotion-data.ts
+        run: node scripts/diagnose-gemini-access.mjs
