@@ -29,10 +29,14 @@ async function probe(label, route, body) {
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/${route}`, {
       method: body ? "POST" : "GET",
-      headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+      headers: {
+        "x-goog-api-key": apiKey,
+        "Content-Type": "application/json",
+        ...(route === "v1beta/interactions" ? { "Api-Revision": "2026-05-20" } : {}),
+      },
       ...(body ? { body: JSON.stringify(body) } : {}),
       redirect: "error",
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(30_000),
     });
     const chunks = [];
     let bytes = 0;
@@ -176,14 +180,6 @@ for (const model of models) {
     grounded ||= !!(result?.ok && result.grounded);
   }
 }
-await probe(
-  "gemini-3.8-flash:basic:generateContent",
-  "v1beta/models/gemini-3.8-flash:generateContent",
-  {
-    contents: [{ role: "user", parts: [{ text: "Reply with OK." }] }],
-    generationConfig: { maxOutputTokens: 32 },
-  },
-);
 await probe("gemini-3.8-flash:basic:interactions", "v1beta/interactions", {
   model: "gemini-3.8-flash",
   store: false,
