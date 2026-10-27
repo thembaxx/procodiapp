@@ -54,6 +54,25 @@ async function probe(label, route, body) {
       ...(data.error?.details ?? []).map((x) => x.reason),
     ].filter((code) => codes.has(code));
     const message = typeof data.error?.message === "string" ? data.error.message : "";
+    const errorText = response.ok ? "" : JSON.stringify(data);
+    const errorTerms = [
+      "generation_config",
+      "max_output_tokens",
+      "thinking_level",
+      "url_context",
+      "store",
+      "model",
+      "unknown",
+      "unsupported",
+      "not supported",
+      "invalid",
+      "required",
+      "permission",
+      "billing",
+      "free tier",
+      "api key",
+      "revision",
+    ].filter((term) => errorText.toLowerCase().includes(term));
     const categories = [];
     if (/model.*not found|not found.*model|not supported.*generatecontent/i.test(message))
       categories.push("model-or-operation-unavailable");
@@ -74,6 +93,7 @@ async function probe(label, route, body) {
         probe: label,
         http: response.status,
         ...(errorCodes.length ? { codes: [...new Set(errorCodes)] } : {}),
+        ...(errorTerms.length ? { errorTerms } : {}),
         ...(categories.length ? { categories } : {}),
         ...(candidate
           ? {
@@ -156,12 +176,25 @@ for (const model of models) {
     grounded ||= !!(result?.ok && result.grounded);
   }
 }
+await probe(
+  "gemini-3.8-flash:basic:generateContent",
+  "v1beta/models/gemini-3.8-flash:generateContent",
+  {
+    contents: [{ role: "user", parts: [{ text: "Reply with OK." }] }],
+    generationConfig: { maxOutputTokens: 32 },
+  },
+);
+await probe("gemini-3.8-flash:basic:interactions", "v1beta/interactions", {
+  model: "gemini-3.8-flash",
+  store: false,
+  input: "Reply with OK.",
+});
 const current = await probe("gemini-3.8-flash:url-context:interactions", "v1beta/interactions", {
   model: "gemini-3.8-flash",
   store: false,
   input:
     "Use URL context to read https://www.pnp.co.za/asap and identify any official promotion or terms links on that page. Reply with at most three URLs, or none if unavailable.",
   tools: [{ type: "url_context" }],
-  generation_config: { max_output_tokens: 1024, thinking_level: "minimal" },
+  generation_config: { max_output_tokens: 1024 },
 });
 process.exitCode = grounded || current?.ok ? 0 : 1;
