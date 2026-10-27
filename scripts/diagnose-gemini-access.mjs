@@ -68,6 +68,7 @@ async function probe(label, route, body) {
     const groundedResponse = !!(
       search?.webSearchQueries?.length && search?.groundingChunks?.length
     );
+    const contextResults = (data.steps ?? []).filter((step) => step.type === "url_context_result");
     console.log(
       JSON.stringify({
         probe: label,
@@ -90,6 +91,16 @@ async function probe(label, route, body) {
                     item.name === `models/${model}` &&
                     item.supportedGenerationMethods?.includes("generateContent"),
                 ),
+              ),
+            }
+          : {}),
+        ...(data.steps
+          ? {
+              interactionCompleted: data.status === "completed",
+              contextResults: contextResults.length,
+              contextItems: contextResults.reduce(
+                (count, step) => count + (Array.isArray(step.result) ? step.result.length : 0),
+                0,
               ),
             }
           : {}),
@@ -145,4 +156,12 @@ for (const model of models) {
     grounded ||= !!(result?.ok && result.grounded);
   }
 }
-process.exitCode = grounded ? 0 : 1;
+const current = await probe("gemini-3.8-flash:url-context:interactions", "v1beta/interactions", {
+  model: "gemini-3.8-flash",
+  store: false,
+  input:
+    "Use URL context to read https://www.pnp.co.za/asap and identify any official promotion or terms links on that page. Reply with at most three URLs, or none if unavailable.",
+  tools: [{ type: "url_context" }],
+  generation_config: { max_output_tokens: 1024, thinking_level: "minimal" },
+});
+process.exitCode = grounded || current?.ok ? 0 : 1;
