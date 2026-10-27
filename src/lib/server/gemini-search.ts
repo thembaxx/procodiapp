@@ -173,7 +173,7 @@ export async function searchGeminiPromotions(signal: AbortSignal): Promise<Gemin
     if (response.status === 404 && currentModelFallback) {
       void response.body?.cancel().catch(() => {});
       console.info(
-        "Legacy Gemini models are inaccessible; selecting fetched source links with Gemini 3.8 Flash free generation.",
+        "Legacy Gemini models are inaccessible; selecting fetched source links with Gemini 3.5 Flash-Lite free generation.",
       );
       return discoverGeminiPageLinks(apiKey, signal);
     }

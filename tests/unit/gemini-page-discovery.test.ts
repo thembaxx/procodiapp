@@ -52,7 +52,7 @@ it("selects only existing official links using one stateless free-generation req
   expect(options.headers["x-goog-api-key"]).toBe("test-key-never-log");
   expect(options).toMatchObject({ redirect: "error", cache: "no-store" });
   const body = JSON.parse(options.body);
-  expect(body).toMatchObject({ model: "gemini-3.8-flash", store: false });
+  expect(body).toMatchObject({ model: "gemini-3.5-flash-lite", store: false });
   expect(body.tools).toBeUndefined();
   expect(body.input).not.toMatch(/127\.0\.0\.1|makro\.co\.za|wethrift\.com|<a href/);
   expect(body.input).toContain("untrusted source data");

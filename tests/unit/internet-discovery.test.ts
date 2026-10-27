@@ -142,7 +142,7 @@ it("uses free current-model link selection after legacy 404s, reusing source rea
   const readSource = fetchMock.getMockImplementation()!;
   fetchMock.mockImplementation(async (value, options) => {
     const url = String(value);
-    if (url.includes("generativelanguage.googleapis.com")) {
+    if (new URL(url).origin === "https://generativelanguage.googleapis.com") {
       if (url.includes("/models?"))
         return Response.json({
           models: [
