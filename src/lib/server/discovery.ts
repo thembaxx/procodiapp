@@ -92,7 +92,10 @@ async function runDiscovery(signal: AbortSignal) {
         try {
           const document = await (async () => {
             try {
-              return await readPublicDocument(url, signal);
+              return (
+                gemini.documents?.find((sourceDocument) => sourceDocument.url === url) ??
+                (await readPublicDocument(url, signal))
+              );
             } catch (error) {
               if (
                 !(error instanceof BrowserRequiredError) ||

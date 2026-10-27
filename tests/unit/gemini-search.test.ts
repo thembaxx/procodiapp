@@ -3,6 +3,11 @@ import { searchGeminiPromotions } from "../../src/lib/server/gemini-search";
 import { searchPromotions } from "../../src/lib/server/search-discovery";
 import { resetTregUsage } from "../../src/lib/server/treg-client";
 import { stores } from "../../src/lib/stores";
+import { discoverGeminiPageLinks } from "../../src/lib/server/gemini-page-discovery";
+
+vi.mock("../../src/lib/server/gemini-page-discovery", () => ({
+  discoverGeminiPageLinks: vi.fn(),
+}));
 
 const signal = new AbortController().signal;
 const rows = [{ storeId: "pnp", title: "Coupon terms", url: "https://www.pnp.co.za/terms" }];
@@ -22,6 +27,7 @@ function grounded(text = JSON.stringify({ results: rows })) {
 }
 
 beforeEach(() => {
+  vi.mocked(discoverGeminiPageLinks).mockReset().mockResolvedValue({ searched: false, rows: [] });
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "info").mockImplementation(() => {});
   vi.stubEnv("GEMINI_API_KEY", "gemini-test-only-key");
@@ -92,6 +98,12 @@ describe("Gemini primary promotion search", () => {
   });
 
   it("does not switch to models without documented free-tier search grounding", async () => {
+    const discovered = {
+      searched: false,
+      rows: [{ storeId: "pnp" as const, title: "Terms", url: "https://www.pnp.co.za/terms" }],
+      documents: [{ url: "https://www.pnp.co.za/asap", text: "Public source page", html: null }],
+    };
+    vi.mocked(discoverGeminiPageLinks).mockResolvedValueOnce(discovered);
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ error: { status: "NOT_FOUND" } }, { status: 404 }))
@@ -106,8 +118,9 @@ describe("Gemini primary promotion search", () => {
         }),
       );
     vi.stubGlobal("fetch", fetchMock);
-    expect(await searchGeminiPromotions(signal)).toMatchObject({ searched: false, rows: [] });
+    expect(await searchGeminiPromotions(signal)).toBe(discovered);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(discoverGeminiPageLinks).toHaveBeenCalledExactlyOnceWith("gemini-test-only-key", signal);
   });
 
   it("does not call a provider without a key or when search is disabled for user refresh", async () => {
@@ -131,6 +144,7 @@ describe("Gemini primary promotion search", () => {
       if (status === 429) expect(result.warning).toContain("quota");
       expect(JSON.stringify(result)).not.toContain("gemini-test-only-key");
       expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(discoverGeminiPageLinks).not.toHaveBeenCalled();
       expect(JSON.stringify(vi.mocked(console.warn).mock.calls)).not.toContain(
         "gemini-test-only-key",
       );
