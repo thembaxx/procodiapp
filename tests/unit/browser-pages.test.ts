@@ -9,6 +9,7 @@ const { page, close, launch } = vi.hoisted(() => {
     url: vi.fn(),
     content: vi.fn(),
     waitForLoadState: vi.fn(),
+    waitForTimeout: vi.fn(),
   };
   return { page: mockPage, close: vi.fn(), launch: vi.fn() };
 });
@@ -31,6 +32,9 @@ beforeEach(() => {
   page.url.mockReturnValue(url);
   page.content.mockResolvedValue(content);
   page.waitForLoadState.mockResolvedValue(undefined);
+  page.waitForTimeout.mockImplementation(async (ms: number) => {
+    vi.setSystemTime(Date.now() + ms);
+  });
 });
 afterEach(() => vi.useRealTimers());
 const signal = () => new AbortController().signal;
@@ -55,6 +59,23 @@ it("rejects a header-only snapshot after the network-idle deadline", async () =>
   });
   await expect(readBrowserDocument(url, signal())).rejects.toThrow("readable public page");
   expect(page.waitForLoadState).toHaveBeenCalledWith("networkidle", { timeout: 8000 });
+  expect(Date.now() - started).toBe(8000);
+  expect(close).toHaveBeenCalledOnce();
+});
+it("keeps waiting when hydration starts after network idle", async () => {
+  const started = Date.now();
+  page.waitForLoadState.mockImplementationOnce(async () => vi.setSystemTime(started + 500));
+  page.content.mockImplementation(async () => (Date.now() - started < 1400 ? shell : content));
+  expect((await readBrowserDocument(url, signal())).text).toContain("Smart Shopper");
+  expect(page.content.mock.calls.length).toBeGreaterThan(1);
+  expect(Date.now() - started).toBe(1500);
+  expect(close).toHaveBeenCalledOnce();
+});
+it("does not extend the eight-second limit when network idle resolves early", async () => {
+  const started = Date.now();
+  page.waitForLoadState.mockImplementationOnce(async () => vi.setSystemTime(started + 500));
+  page.content.mockResolvedValue(shell);
+  await expect(readBrowserDocument(url, signal())).rejects.toThrow("readable public page");
   expect(Date.now() - started).toBe(8000);
   expect(close).toHaveBeenCalledOnce();
 });

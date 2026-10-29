@@ -34,26 +34,30 @@ export async function readBrowserDocument(
       throw new Error("Browser page was unavailable or redirected.");
     // CMS content arrives after the shell. Background trackers can prevent idle,
     // so take a bounded snapshot after eight seconds if requests never settle.
+    const deadline = Date.now() + 8000;
     await page.waitForLoadState("networkidle", { timeout: 8000 }).catch(() => {});
-    signal.throwIfAborted();
-    if (page.url() !== url) throw new Error("Browser page was redirected.");
-    const html = await page.content();
-    signal.throwIfAborted();
-    if (Buffer.byteLength(html, "utf8") > 2_500_000)
-      throw new Error("Browser page exceeded the size limit.");
-    const text = stripHtml(html);
-    // A hydrated header is not evidence that the retailer's content has loaded.
-    const $ = load(html);
-    $("header").remove();
-    const main = $("main, [role=main]");
-    const content = stripHtml(main.length ? main.toString() : $.html());
-    if (
-      content.length < 100 ||
-      /enable javascript to continue/i.test(content) ||
-      /access denied|verify you are human|captcha|page not found/i.test(text)
-    )
-      throw new Error("Browser did not yield a readable public page.");
-    return { url, text, html };
+    for (;;) {
+      signal.throwIfAborted();
+      if (page.url() !== url) throw new Error("Browser page was redirected.");
+      const html = await page.content();
+      signal.throwIfAborted();
+      if (Buffer.byteLength(html, "utf8") > 2_500_000)
+        throw new Error("Browser page exceeded the size limit.");
+      const text = stripHtml(html);
+      if (/access denied|verify you are human|captcha|page not found/i.test(text))
+        throw new Error("Browser did not yield a readable public page.");
+      // A hydrated header is not evidence that the retailer's content has loaded.
+      const $ = load(html);
+      $("header").remove();
+      const main = $("main, [role=main]");
+      const content = stripHtml(main.length ? main.toString() : $.html());
+      if (content.length >= 100 && !/enable javascript to continue/i.test(content))
+        return { url, text, html };
+      // Network idle can precede a later hydration request; share its deadline.
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error("Browser did not yield a readable public page.");
+      await page.waitForTimeout(Math.min(200, remaining));
+    }
   } finally {
     await browser.close();
   }

@@ -54,7 +54,10 @@ it("counts failed browser attempts against the one-render-per-store budget", asy
   vi.mocked(readBrowserDocument).mockRejectedValueOnce(new Error("Browser deadline exceeded."));
   const result = await discoverOffers();
   expect(readBrowserDocument).toHaveBeenCalledOnce();
-  expect(readBrowserDocument).toHaveBeenCalledWith(stores[1].sources[0], expect.any(AbortSignal));
+  expect(readBrowserDocument).toHaveBeenCalledWith(
+    "https://www.pnp.co.za/pnp-asap-terms-and-conditions",
+    expect.any(AbortSignal),
+  );
   expect(result.checks.find((check) => check.storeId === "pnp")).toMatchObject({
     status: "unavailable",
     pages: 0,
