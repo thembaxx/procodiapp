@@ -151,7 +151,7 @@ test("Puppeteer missing-selector failure closes its browser and is not empty suc
       on() {},
       goto: async () => ({ ok: () => true }),
       waitForSelector: async () => {
-        throw new Error("retailer selector timeout");
+        throw new Error("Waiting for selector failed: Waiting failed: 10000ms exceeded");
       },
     }),
     close: async () => {

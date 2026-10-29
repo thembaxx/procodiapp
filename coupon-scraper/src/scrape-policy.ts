@@ -17,6 +17,7 @@ export type ScrapeFailure = {
     | "browser_http_error"
     | "browser_launch_error"
     | "retailer_navigation_error"
+    | "retailer_selector_error"
     | "scrape_error";
   httpStatus: number | null;
 };
@@ -35,6 +36,8 @@ export function classifyScrapeError(error: unknown): ScrapeFailure {
     return { provider: "browser_run", code: "browser_http_error", httpStatus };
   if (/unable to create new browser/i.test(message))
     return { provider: "browser_run", code: "browser_launch_error", httpStatus };
+  if (/retailer selector (?:timeout|missing|unavailable)|waiting for selector/i.test(message))
+    return { provider: "retailer", code: "retailer_selector_error", httpStatus };
   if (/navigation|net::ERR_|timeout|ERR_ABORTED/i.test(message))
     return { provider: "retailer", code: "retailer_navigation_error", httpStatus };
   return { provider: "worker", code: "scrape_error", httpStatus };

@@ -44,5 +44,10 @@ test("differentiate Browser Run rate limits from broken retailer extraction", ()
     classifyScrapeError(new Error("Navigation timeout of 30000 ms exceeded")).code,
     "retailer_navigation_error",
   );
+  assert.deepEqual(classifyScrapeError(new Error("retailer selector timeout")), {
+    provider: "retailer",
+    code: "retailer_selector_error",
+    httpStatus: null,
+  });
   assert.equal(classifyScrapeError(new Error("broken parser")).code, "scrape_error");
 });
