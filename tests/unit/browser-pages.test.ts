@@ -8,7 +8,7 @@ const { page, close, launch } = vi.hoisted(() => {
     goto: vi.fn(),
     url: vi.fn(),
     content: vi.fn(),
-    waitForTimeout: vi.fn(),
+    waitForLoadState: vi.fn(),
   };
   return { page: mockPage, close: vi.fn(), launch: vi.fn() };
 });
@@ -30,15 +30,14 @@ beforeEach(() => {
   page.goto.mockResolvedValue({ ok: () => true, url: () => url });
   page.url.mockReturnValue(url);
   page.content.mockResolvedValue(content);
-  page.waitForTimeout.mockImplementation(async (ms: number) => {
-    vi.setSystemTime(Date.now() + ms);
-  });
+  page.waitForLoadState.mockResolvedValue(undefined);
 });
 afterEach(() => vi.useRealTimers());
 const signal = () => new AbortController().signal;
 
 it("waits for delayed hydration beyond the old 700ms window", async () => {
   const started = Date.now();
+  page.waitForLoadState.mockImplementationOnce(async () => vi.setSystemTime(started + 1400));
   page.content.mockImplementation(async () => (Date.now() - started < 1400 ? shell : content));
   const document = await readBrowserDocument(url, signal());
   expect(document.text).toContain("Link your Smart Shopper card for deals");
@@ -47,11 +46,21 @@ it("waits for delayed hydration beyond the old 700ms window", async () => {
   expect(ensureRobotsAllowed).toHaveBeenCalledWith(url, expect.any(AbortSignal));
   expect(close).toHaveBeenCalledOnce();
 });
-it("stops after eight seconds if the page never hydrates", async () => {
+it("rejects a header-only snapshot after the network-idle deadline", async () => {
   page.content.mockResolvedValue(shell);
   const started = Date.now();
-  await expect(readBrowserDocument(url, signal())).rejects.toThrow("before the deadline");
+  page.waitForLoadState.mockImplementationOnce(async () => {
+    vi.setSystemTime(started + 8000);
+    throw new Error("Network-idle timeout");
+  });
+  await expect(readBrowserDocument(url, signal())).rejects.toThrow("readable public page");
+  expect(page.waitForLoadState).toHaveBeenCalledWith("networkidle", { timeout: 8000 });
   expect(Date.now() - started).toBe(8000);
+  expect(close).toHaveBeenCalledOnce();
+});
+it("reads hydrated content after the deadline even when background requests prevent idle", async () => {
+  page.waitForLoadState.mockRejectedValueOnce(new Error("Network-idle timeout"));
+  expect((await readBrowserDocument(url, signal())).text).toContain("Smart Shopper");
   expect(close).toHaveBeenCalledOnce();
 });
 it.each([
@@ -63,11 +72,9 @@ it.each([
   page.content.mockResolvedValue(html);
   await expect(readBrowserDocument(url, signal())).rejects.toThrow("readable public page");
   expect(page.content).toHaveBeenCalledOnce();
-  expect(page.waitForTimeout).not.toHaveBeenCalled();
   expect(close).toHaveBeenCalledOnce();
 });
 it("rejects a client-side redirect during hydration", async () => {
-  page.content.mockResolvedValue(shell);
   page.url.mockReturnValueOnce(url).mockReturnValue("https://www.pnp.co.za/login");
   await expect(readBrowserDocument(url, signal())).rejects.toThrow("redirected");
   expect(close).toHaveBeenCalledOnce();
@@ -75,7 +82,7 @@ it("rejects a client-side redirect during hydration", async () => {
 it("honours cancellation while waiting for page content", async () => {
   const controller = new AbortController();
   page.content.mockResolvedValue(shell);
-  page.waitForTimeout.mockImplementationOnce(async () => controller.abort());
+  page.waitForLoadState.mockImplementationOnce(async () => controller.abort());
   await expect(readBrowserDocument(url, controller.signal)).rejects.toMatchObject({
     name: "AbortError",
   });
