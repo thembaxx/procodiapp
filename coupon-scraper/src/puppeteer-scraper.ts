@@ -35,7 +35,16 @@ export async function scrapeTargetPuppeteer(
     if (response && !response.ok()) {
       throw new Error("retailer navigation returned " + response.status());
     }
-    await page.waitForSelector(target.selectors.join(", "), { timeout: 10000 });
+    try {
+      await page.waitForSelector(target.selectors.join(", "), { timeout: 10000 });
+    } catch (error) {
+      // Distinguish stale retailer selectors from failed page navigation.
+      // Avoid logging page contents or raw provider error text.
+      if (/waiting for selector|timeout|timed out/i.test(String(error))) {
+        throw new Error("retailer selector timeout", { cause: error });
+      }
+      throw error;
+    }
     for (let n = 0; n < 3; n++) {
       const clicked = await page.evaluate(() => {
         const buttons = Array.from(document.querySelectorAll("button, a[role='button']"));
