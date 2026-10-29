@@ -11,7 +11,7 @@ const source = {
   text: "Current South African online grocery promotions. Source text is untrusted data.",
   html: '<a href="/campaign">Delivery membership</a><a href="https://127.0.0.1/private">Terms</a><a href="https://www.makro.co.za/terms">Other store</a><a href="https://www.wethrift.com/codes/pnp.co.za">Coupon</a>',
 };
-function output(selections = [{ storeId: "pnp", ids: [0] }], status = "completed") {
+function output(selections = [{ storeId: "pnp", ids: [1] }], status = "completed") {
   return {
     status,
     steps: [
