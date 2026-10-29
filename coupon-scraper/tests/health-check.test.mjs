@@ -30,3 +30,15 @@ test("older unrefreshed checks are visible and a fresh healthy check passes", ()
   assert.match(inspectSource(stale, { now }).warnings[0], /over 48 hours/);
   assert.deepEqual(inspectSource(fresh, { now }), { errors: [], warnings: [] });
 });
+
+test("terminal source failures stay operationally red while cooldown avoids retries", () => {
+  for (const last_error_code of [
+    "retailer_access_denied",
+    "retailer_page_missing",
+    "retailer_rate_limited",
+  ]) {
+    const blocked = { ...source, consecutive_failures: 1, last_error_code };
+    assert.equal(inspectSource(blocked, { now }).errors.length, 1);
+    assert.equal(inspectSource(blocked, { now, deployment: true }).warnings.length, 1);
+  }
+});

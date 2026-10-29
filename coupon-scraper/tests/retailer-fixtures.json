@@ -1,5 +1,5 @@
 {
-  "description": "Synthetic offline fixtures model retailer card structures observed on 26 October 2026. Names and prices are test data, not published offers.",
+  "description": "Synthetic offline fixtures model retailer card structures observed on 26 October 2026. Names and prices are test data, not published offers. Pick n Pay fixture models the public online-specials product-grid-item markup observed with Chromium on 29 October 2026; fixture product names and prices are synthetic.",
   "cards": [
     {
       "merchant": "Makro",
@@ -12,6 +12,12 @@
       "html": "<main><a href=\"https://www.spar.co.za/spar2u-app\"><div>Fixture pantry bundle</div><div class=\"_priceSection_a1b2\"><div>R99</div><div>Save R20</div></div></a><a href=\"/spar2u-app\"><div>Fixture soap bundle</div><div class=\"_priceSection_c3d4\"><div>R45</div><div>25% off</div></div></a><a href=\"/spar2u-app\">Download the app</a></main>",
       "expectedCards": 2,
       "expectedDiscounts": ["Save R20", "25% off"]
+    },
+    {
+      "merchant": "Pick n Pay",
+      "html": "<main><div class=\"product-grid-item\"><a class=\"product-grid-item__info-container__name\">Fixture nectarines 750g</a><div class=\"product-grid-item__promotion-container\">Buy 2, Save R10.00</div><div class=\"product-grid-item__price-container\">R44.99</div></div><div class=\"product-grid-item\"><a>Fixture yoghurt 100g</a><div class=\"product-grid-item__promotion-container\">2 For R35.00</div><div>R26.99</div></div></main>",
+      "expectedCards": 2,
+      "expectedDiscounts": ["Save R10.00", "2 For R35.00"]
     }
   ],
   "unqualifiedText": "Fixture plain rice 1 kg. R29.99. Available while stocks last.",
