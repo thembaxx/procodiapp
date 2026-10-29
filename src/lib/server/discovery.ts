@@ -56,7 +56,8 @@ async function runDiscovery(signal: AbortSignal) {
         offers: Offer[] = [],
         candidates: Candidate[] = [],
         errors: string[] = [];
-      let renderedPages = 0;
+      let renderedPages = 0,
+        renderAttempts = 0;
       const search: SearchDiscovery = await searchPromotions(store, signal, gemini).catch(() => ({
         searched: false,
         officialUrls: [] as string[],
@@ -100,11 +101,12 @@ async function runDiscovery(signal: AbortSignal) {
               if (
                 !(error instanceof BrowserRequiredError) ||
                 process.env.PROMOTION_BROWSER_FALLBACK !== "true" ||
-                renderedPages >= 1
+                renderAttempts >= 1
               )
                 throw error;
               // Robots were checked before determining a browser was needed.
               const { readBrowserDocument } = await import("./browser-pages");
+              renderAttempts++;
               try {
                 const browserResult = await readBrowserDocument(url, signal);
                 renderedPages++;
