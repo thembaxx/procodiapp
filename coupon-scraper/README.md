@@ -113,7 +113,7 @@ and primary-source validation are in place. Do not bypass robots/CAPTCHA.
 
 Firecrawl is an **additional rescue provider**, not a replacement for Browser Run or
 the six-store official promotion collector. When the existing browser returns no
-leads or fails, the Worker can request the **same approved retailer URL** from
+leads or has a transient failure, the Worker can request the **same approved retailer URL** from
 `POST https://api.firecrawl.dev/v2/scrape`. The returned Markdown is split into
 bounded text blocks and passed through the existing deterministic coupon parser,
 deduplication and D1 storage. These are **unverified review leads** in
@@ -169,6 +169,12 @@ Browser Run HTTP 429 errors are classified separately, logged without raw
 exception content, and cooled down for six hours rather than retried immediately.
 Unknown or navigation errors retain bounded queue retries.
 
+Retailer HTTP 401/403, 404/410 and 429 responses have separate access-denied,
+missing-page and rate-limit diagnostics. They receive a six-hour cooldown without
+queue retries or requests through another extraction provider. Transient retailer
+503 responses still retry. Hydrated SPA not-found pages and unreadable selectors
+remain failures; hidden or unpopulated cards do not count as readable content.
+
 Current source targets for Makro and SPAR use official promotion pages:
 `https://www.makro.co.za/promotions-store` and
 `https://www.spar.co.za/national-specials`. Their CSS extraction remains
@@ -180,8 +186,39 @@ The additive `source_diagnostics` and `browser_rate_gate` tables are created
 by `npm run db:migrate` before deploying; no existing coupon rows are deleted.
 
 `node scripts/check-scraper-health.mjs` is the strict twice-daily operational
-check and continues to flag three or more consecutive failures. The deploy
+check flags three or more consecutive failures, and flags an explicit retailer
+denial, missing page or rate limit on its first failure. The deploy
 workflow runs `node scripts/check-scraper-health.mjs --deployment-smoke`:
 it requires functioning, schema-valid Worker endpoints but reports old scraper
 failures as warnings, so successful code releases do not look like failed
 deployments. The operational monitor remains responsible for extraction health.
+
+### Retailer extraction verification — 29 October 2026
+
+Pick n Pay's former `/c/pnp/promotions` target returned HTTP 200 but hydrated to
+`Not Found | PnP`, with no product cards. The public site's Specials navigation
+now points to `https://www.pnp.co.za/online-specials`; its rendered cards use
+`.product-grid-item`. The Worker uses that observed URL/selector, waits for
+readable visible content and retains explicit `Buy 2, Save R10.00` / `2 For R35.00`
+promotion text as **unverified leads**, with the full card text for later review.
+
+A read-only Chromium 154 probe at **11:50 UTC** used the actual target,
+`retailerContentReady`, `collectRetailerTexts` and `parseCouponText` functions,
+with images/fonts/media blocked as in the Worker: HTTP 200, title
+`Shop Pick n Pay Specials Online | PnP`, 100 bounded readable cards and 53 parsed
+leads. No delivery address was entered, no item was bought, no D1 data was written
+and no lead was published. This establishes local browser extraction, **not** a
+deployed Cloudflare Browser Run transaction or verified regional offer availability.
+
+Checkers and ShopRite `/specials` and `/robots.txt` returned HTTP 403 from this
+environment. Their extraction is **not restored**. The failure remains visible;
+this change does not bypass access controls, change robots policy, or weaken the
+operational monitor. An authorized official feed or permitted source access is
+still required before claiming these retailer integrations work.
+
+Validation: Worker typecheck and dry-run bundle passed. All 31 tests passed,
+including real Chromium offline DOM fixtures and actual Worker queue/SQLite
+regressions for 401/403/404/410/429/503, cooldown, publication separation, soft
+404s and delayed/hidden card content. The optional DOM test requires root
+Playwright dependencies and Chromium; `RETAILER_FIXTURE_BROWSER=true` makes a
+missing browser an explicit failure instead of a skipped test.

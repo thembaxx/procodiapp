@@ -282,7 +282,13 @@ export async function recordSourceCheck(
   // On a provider outage back off for up to six hours. Even an empty scrape
   // remains a candidate-only result and is not a published offer.
   const delay =
-    diagnostic?.code === "browser_rate_limited"
+    diagnostic &&
+    [
+      "browser_rate_limited",
+      "retailer_access_denied",
+      "retailer_page_missing",
+      "retailer_rate_limited",
+    ].includes(diagnostic.code)
       ? 6 * 3600
       : failures >= 2
         ? Math.min(6 * 3600, 600 * 2 ** Math.min(failures - 2, 6))

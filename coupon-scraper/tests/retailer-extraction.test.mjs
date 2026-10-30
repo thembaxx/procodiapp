@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
+import { DatabaseSync } from "node:sqlite";
 
 const fixture = JSON.parse(
   readFileSync(new URL("./retailer-fixtures.json", import.meta.url), "utf8"),
@@ -28,10 +29,14 @@ function moduleUrl(file) {
   return url;
 }
 
-const { SCRAPE_TARGETS, parseCouponText, scrapeTargetNative, scrapeTarget } = await import(
-  moduleUrl(new URL("index.ts", sourceRoot))
-);
-const { collectRetailerTexts } = await import(
+const {
+  default: worker,
+  SCRAPE_TARGETS,
+  parseCouponText,
+  scrapeTargetNative,
+  scrapeTarget,
+} = await import(moduleUrl(new URL("index.ts", sourceRoot)));
+const { collectRetailerTexts, retailerContentReady } = await import(
   moduleUrl(new URL("puppeteer-scraper.ts", sourceRoot))
 );
 const target = SCRAPE_TARGETS.find((item) => item.merchant === "SPAR");
@@ -150,7 +155,7 @@ test("Puppeteer missing-selector failure closes its browser and is not empty suc
       setRequestInterception: async () => {},
       on() {},
       goto: async () => ({ ok: () => true }),
-      waitForSelector: async () => {
+      waitForFunction: async () => {
         throw new Error("Waiting for selector failed: Waiting failed: 10000ms exceeded");
       },
     }),
@@ -159,6 +164,109 @@ test("Puppeteer missing-selector failure closes its browser and is not empty suc
     },
   });
   await assert.rejects(scrapeTargetNative({ BROWSER: {} }, makro), /retailer selector timeout/);
+  assert.equal(closed, true);
+});
+
+test("denied, missing and rate-limited retailer pages persist failure without a retry storm", async () => {
+  const pnpIndex = SCRAPE_TARGETS.findIndex((item) => item.merchant === "Pick n Pay");
+  assert.ok(pnpIndex >= 0);
+  for (const status of [401, 403, 404, 410, 429, 503]) {
+    const networkCalls = [];
+    globalThis.fetch = async (input) => {
+      networkCalls.push(String(input));
+      throw new Error("No live network in queue regression tests");
+    };
+    const sqlite = new DatabaseSync(":memory:");
+    sqlite.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+    const DB = {
+      prepare(sql) {
+        const statement = sqlite.prepare(sql);
+        return {
+          bind(...args) {
+            return {
+              first: async () => statement.get(...args) ?? null,
+              all: async () => ({ results: statement.all(...args) }),
+              run: async () => ({ meta: { changes: statement.run(...args).changes } }),
+            };
+          },
+        };
+      },
+    };
+    let closed = false;
+    globalThis[puppeteerBinding] = async () => ({
+      newPage: async () => ({
+        setViewport: async () => {},
+        setRequestInterception: async () => {},
+        on() {},
+        goto: async () => ({ ok: () => false, status: () => status }),
+      }),
+      close: async () => {
+        closed = true;
+      },
+    });
+    const actions = [];
+    const message = {
+      body: { index: pnpIndex },
+      ack() {
+        actions.push("ack");
+      },
+      retry(options) {
+        actions.push(options);
+      },
+    };
+    try {
+      const before = Date.now();
+      await worker.queue(
+        { messages: [message] },
+        { DB, BROWSER: {}, FIRECRAWL_ENABLED: "true", FIRECRAWL_API_KEY: "offline-fixture-key" },
+      );
+      assert.equal(closed, true);
+      const state = sqlite.prepare("SELECT * FROM source_health").get();
+      const diagnostic = sqlite.prepare("SELECT * FROM source_diagnostics").get();
+      assert.equal(state.status, "failed");
+      assert.equal(state.consecutive_failures, 1);
+      assert.equal(diagnostic.provider, "retailer");
+      assert.equal(diagnostic.http_status, status);
+      assert.equal(sqlite.prepare("SELECT COUNT(*) AS count FROM coupons").get().count, 0);
+      assert.equal(sqlite.prepare("SELECT COUNT(*) AS count FROM verified_offers").get().count, 0);
+      if (status === 503) {
+        assert.deepEqual(actions, [{ delaySeconds: 120 }]);
+        assert.equal(state.cooldown_until, null);
+      } else {
+        assert.deepEqual(networkCalls, [], "Do not retry a denied source through another provider");
+        assert.deepEqual(actions, ["ack"]);
+        assert.ok(Date.parse(state.cooldown_until) >= before + 6 * 3600_000);
+        // A redelivery during cooldown is acknowledged before opening a browser.
+        globalThis[puppeteerBinding] = async () => {
+          throw new Error("Must respect cooldown");
+        };
+        await worker.queue({ messages: [message] }, { DB, BROWSER: {} });
+        assert.deepEqual(actions, ["ack", "ack"]);
+      }
+    } finally {
+      sqlite.close();
+    }
+  }
+});
+
+test("a hydrated HTTP-200 not-found route is a missing page, not an empty success", async () => {
+  const pnp = SCRAPE_TARGETS.find((item) => item.merchant === "Pick n Pay");
+  assert.equal(pnp.url, "https://www.pnp.co.za/online-specials");
+  let closed = false;
+  globalThis[puppeteerBinding] = async () => ({
+    newPage: async () => ({
+      setViewport: async () => {},
+      setRequestInterception: async () => {},
+      on() {},
+      goto: async () => ({ ok: () => true }),
+      waitForFunction: async () => {},
+      title: async () => "Not Found | PnP",
+    }),
+    close: async () => {
+      closed = true;
+    },
+  });
+  await assert.rejects(scrapeTarget({ BROWSER: {} }, pnp), /retailer page not found/);
   assert.equal(closed, true);
 });
 
@@ -179,7 +287,7 @@ if (process.env.RETAILER_FIXTURE_BROWSER === "true" && !browserAvailable) {
   );
 }
 test(
-  "offline DOM fixtures preserve Makro/SPAR card and discount boundaries",
+  "offline DOM fixtures preserve retailer card and discount boundaries",
   {
     skip: browserAvailable ? false : "Install root Playwright Chromium to run actual-DOM fixtures",
   },
@@ -193,6 +301,20 @@ test(
         return route.abort();
       });
       const page = await context.newPage();
+      const pnp = SCRAPE_TARGETS.find((item) => item.merchant === "Pick n Pay");
+      await page.setContent('<title>Specials</title><div class="product-grid-item"></div>');
+      assert.equal(await page.evaluate(retailerContentReady, pnp.selectors), false);
+      await page.setContent('<div class="product-grid-item" style="display:none">Save R10</div>');
+      assert.equal(await page.evaluate(retailerContentReady, pnp.selectors), false);
+      assert.deepEqual(await page.$$eval(pnp.selectors.join(", "), collectRetailerTexts), []);
+      await page.evaluate(() => {
+        setTimeout(() => {
+          document.body.innerHTML =
+            '<div class="product-grid-item">Fixture product. Save R10</div>';
+        }, 30);
+      });
+      await page.waitForFunction(retailerContentReady, pnp.selectors);
+      assert.equal(await page.evaluate(retailerContentReady, pnp.selectors), true);
       for (const card of fixture.cards) {
         const retailer = SCRAPE_TARGETS.find((item) => item.merchant === card.merchant);
         assert.ok(retailer);

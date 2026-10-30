@@ -1,7 +1,12 @@
 import type { Coupon, ScrapeJob, ScrapeTarget } from "./types";
 import { scrapeTargetPuppeteer } from "./puppeteer-scraper";
 import { scrapeFirecrawlLeads } from "./firecrawl";
-import { BROWSER_SPACING_SECONDS, classifyScrapeError, pacedJobs } from "./scrape-policy";
+import {
+  BROWSER_SPACING_SECONDS,
+  classifyScrapeError,
+  pacedJobs,
+  shouldRetryScrape,
+} from "./scrape-policy";
 import {
   approveReviewedOffer,
   listSourceHealth,
@@ -26,9 +31,10 @@ interface Env {
 export const SCRAPE_TARGETS: ScrapeTarget[] = [
   {
     merchant: "Pick n Pay",
-    url: "https://www.pnp.co.za/c/pnp/promotions",
+    url: "https://www.pnp.co.za/online-specials",
     usePuppeteer: true,
     selectors: [
+      ".product-grid-item",
       "[data-testid='product-card']",
       ".product-card",
       ".specials-card",
@@ -526,10 +532,10 @@ export default {
           ...diagnostic,
           checkedAt: new Date().toISOString(),
         });
-        // A provider 429 is not a retailer failure and immediate retries waste
-        // Browser Run quota. Wait for the next scheduled/manual healthful run.
-        if (diagnostic.code === "browser_rate_limited") message.ack();
-        else message.retry({ delaySeconds: 120 });
+        // Permanent page failures and explicit rate limits wait for cooldown;
+        // transient browser/navigation errors retain bounded queue retries.
+        if (shouldRetryScrape(diagnostic)) message.retry({ delaySeconds: 120 });
+        else message.ack();
       }
     }
   },
@@ -624,6 +630,10 @@ export async function scrapeTarget(env: Env, target: ScrapeTarget): Promise<Coup
     if (coupons.length) return coupons;
   } catch (error) {
     browserFailure = error;
+    // Do not use another provider to retry an explicitly denied, missing or
+    // rate-limited retailer page. Keep the original source failure visible.
+    const failure = classifyScrapeError(error);
+    if (failure.provider === "retailer" && !shouldRetryScrape(failure)) throw error;
   }
   try {
     // Optional, globally quota-limited API fallback; never auto-approves the leads.
@@ -689,7 +699,7 @@ export async function parseCouponText(
     /(?:code|promo(?:\s+code)?|coupon|voucher)[:\s]+([A-Z0-9]{3,20})\b/i,
   );
   const discountMatch = text.match(
-    /(?:save\s+R\s?\d+(?:[.,]\d+)?|(?<![\d.,])(?:R\s?\d+(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?\s*%)\s*(?:off|discount|savings?|special))/i,
+    /(?:save\s+R\s?\d+(?:[.,]\d+)?|\b(?:buy\s+)?[1-9]\d?\s+for\s+R\s?\d+(?:[.,]\d+)?\b|(?<![\d.,])(?:R\s?\d+(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?\s*%)\s*(?:off|discount|savings?|special))/i,
   );
   if (!codeMatch && !discountMatch) return [];
   const percentage = discountMatch?.[0].match(/(-?\d+(?:[.,]\d+)?)\s*%/);

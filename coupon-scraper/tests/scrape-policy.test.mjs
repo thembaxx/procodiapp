@@ -51,3 +51,28 @@ test("differentiate Browser Run rate limits from broken retailer extraction", ()
   });
   assert.equal(classifyScrapeError(new Error("broken parser")).code, "scrape_error");
 });
+
+test("retailer HTTP errors and unreadable cards retain retailer diagnostics", () => {
+  for (const [status, code] of [
+    [401, "retailer_access_denied"],
+    [403, "retailer_access_denied"],
+    [404, "retailer_page_missing"],
+    [410, "retailer_page_missing"],
+    [429, "retailer_rate_limited"],
+    [503, "retailer_navigation_error"],
+  ]) {
+    assert.deepEqual(classifyScrapeError(new Error(`retailer navigation returned ${status}`)), {
+      provider: "retailer",
+      code,
+      httpStatus: status,
+    });
+  }
+  assert.equal(
+    classifyScrapeError(new Error("retailer selectors matched no readable content")).code,
+    "retailer_selector_error",
+  );
+  assert.equal(
+    classifyScrapeError(new Error("retailer page not found")).code,
+    "retailer_page_missing",
+  );
+});

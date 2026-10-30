@@ -8,11 +8,33 @@ export function collectRetailerTexts(elements: Element[]): string[] {
   return elements
     .slice(0, 100)
     .map((element) =>
-      (element instanceof HTMLElement ? element.innerText : element.textContent || "")
+      (element instanceof HTMLElement
+        ? element.getClientRects().length
+          ? element.innerText
+          : ""
+        : element.textContent || ""
+      )
         .replace(/\u00a0/g, " ")
         .trim(),
     )
     .filter(Boolean);
+}
+
+/** A selector can exist while a client-rendered card is still empty or hidden. */
+export function retailerContentReady(selectors: string[]): boolean {
+  return (
+    /^not found(?:\s*[|—-]|$)/i.test(document.title.trim()) ||
+    selectors.some((selector) =>
+      Array.from(document.querySelectorAll(selector)).some((element) =>
+        (element instanceof HTMLElement
+          ? element.getClientRects().length
+            ? element.innerText
+            : ""
+          : element.textContent || ""
+        ).trim(),
+      ),
+    )
+  );
 }
 
 export async function scrapeTargetPuppeteer(
@@ -36,7 +58,7 @@ export async function scrapeTargetPuppeteer(
       throw new Error("retailer navigation returned " + response.status());
     }
     try {
-      await page.waitForSelector(target.selectors.join(", "), { timeout: 10000 });
+      await page.waitForFunction(retailerContentReady, { timeout: 15000 }, target.selectors);
     } catch (error) {
       // Distinguish stale retailer selectors from failed page navigation.
       // Avoid logging page contents or raw provider error text.
@@ -44,6 +66,11 @@ export async function scrapeTargetPuppeteer(
         throw new Error("retailer selector timeout", { cause: error });
       }
       throw error;
+    }
+    // SPAs can return HTTP 200 for a removed route. Do not call this an empty
+    // scrape or keep retrying the nonexistent page through another provider.
+    if (/^not found(?:\s*[|—-]|$)/i.test((await page.title()).trim())) {
+      throw new Error("retailer page not found");
     }
     for (let n = 0; n < 3; n++) {
       const clicked = await page.evaluate(() => {
