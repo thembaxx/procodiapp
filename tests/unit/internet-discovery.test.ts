@@ -12,6 +12,9 @@ import { readCache, writeCache } from "../../src/lib/server/storage";
 import { sourceSnapshot } from "../../src/lib/snapshot";
 import { stores } from "../../src/lib/stores";
 import { resetTregUsage } from "../../src/lib/server/treg-client";
+import { readBrowserDocument } from "../../src/lib/server/browser-pages";
+
+vi.mock("../../src/lib/server/browser-pages", () => ({ readBrowserDocument: vi.fn() }));
 
 let directory: string;
 beforeEach(async () => {
@@ -32,8 +35,34 @@ beforeEach(async () => {
     TREG_MAX_CALLS_PER_SCAN: "12",
     DISCOVERY_SEARCH_MODE: "brave",
     PROMOTION_FEED: "local",
+    PROMOTION_BROWSER_FALLBACK: "false",
   }))
     vi.stubEnv(name, value);
+});
+it("counts failed browser attempts against the one-render-per-store budget", async () => {
+  vi.stubEnv("PROMOTION_BROWSER_FALLBACK", "true");
+  const fetchMock = mockSources();
+  const readSource = fetchMock.getMockImplementation()!;
+  fetchMock.mockImplementation(async (value, options) => {
+    const url = new URL(String(value));
+    if (url.hostname === "www.pnp.co.za" && url.pathname !== "/robots.txt")
+      return new Response("<title>Pick n Pay Online Shopping</title>", {
+        headers: { "Content-Type": "text/html" },
+      });
+    return readSource(value, options);
+  });
+  vi.mocked(readBrowserDocument).mockRejectedValueOnce(new Error("Browser deadline exceeded."));
+  const result = await discoverOffers();
+  expect(readBrowserDocument).toHaveBeenCalledOnce();
+  expect(readBrowserDocument).toHaveBeenCalledWith(
+    "https://www.pnp.co.za/pnp-asap-terms-and-conditions",
+    expect.any(AbortSignal),
+  );
+  expect(result.checks.find((check) => check.storeId === "pnp")).toMatchObject({
+    status: "unavailable",
+    pages: 0,
+    extractedPages: 0,
+  });
 });
 afterEach(async () => {
   vi.unstubAllEnvs();

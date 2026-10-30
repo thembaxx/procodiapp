@@ -25,9 +25,13 @@ export const stores = [
     color: "#164da1",
     secondary: "#0c2f6a",
     ink: "#ffffff",
-    url: "https://www.pnp.co.za/asap",
+    url: "https://www.pnp.co.za/asap-same-day-delivery",
     domains: ["pnp.co.za"],
-    sources: ["https://www.pnp.co.za/asap", "https://www.pnp.co.za/smart-shopper"],
+    sources: [
+      "https://www.pnp.co.za/pnp-asap-terms-and-conditions",
+      "https://www.pnp.co.za/asap-same-day-delivery",
+      "https://www.pnp.co.za/smart-shopper",
+    ],
   },
   {
     id: "woolworths",
