@@ -1,25 +1,6 @@
 {
   "offers": [
     {
-      "id": "makro-senior-food",
-      "storeId": "makro",
-      "code": null,
-      "type": "discount",
-      "title": "Up to 5% off selected food for seniors",
-      "criteria": "Age 60+ with a valid Makro mSenior Citizens Card and South African ID or passport. Log in with your registered mSenior Citizens profile. Selected food only; excludes promotions, marketplace sellers, liquor, tobacco, baby formula and delivery fees. Applies automatically at checkout; personal purchases only.",
-      "expiresAt": null,
-      "expiryKnown": true,
-      "ongoing": true,
-      "sourceName": "Makro terms of use",
-      "sourceUrl": "https://www.makro.co.za/pages/terms-of-use",
-      "foundAt": "2026-10-08T20:30:00.000Z",
-      "checkedAt": "2026-10-31T19:59:49.442Z",
-      "validUntil": "2026-11-01T19:59:49.442Z",
-      "verified": false,
-      "evidence": "a discount of up to 5% (five percent) applies to selected food items",
-      "collectionMethod": "reviewed_source"
-    },
-    {
       "id": "woolworths-plus-delivery",
       "storeId": "woolworths",
       "code": null,
@@ -32,14 +13,33 @@
       "sourceName": "Woolworths",
       "sourceUrl": "https://www.woolworths.co.za/content/look/mydifference-plus-joinplus/_/A-cmp216901",
       "foundAt": "2026-10-08T20:30:00.000Z",
-      "checkedAt": "2026-10-31T19:59:47.049Z",
-      "validUntil": "2026-11-01T19:59:47.049Z",
+      "checkedAt": "2026-11-01T11:17:55.653Z",
+      "validUntil": "2026-11-02T11:17:55.653Z",
       "verified": false,
       "evidence": "Get free delivery when you shop Woolies online",
       "collectionMethod": "reviewed_source"
+    },
+    {
+      "id": "makro-senior-food",
+      "storeId": "makro",
+      "code": null,
+      "type": "discount",
+      "title": "Up to 5% off selected food for seniors",
+      "criteria": "Age 60+ with a valid Makro mSenior Citizens Card and South African ID or passport. Log in with your registered mSenior Citizens profile. Selected food only; excludes promotions, marketplace sellers, liquor, tobacco, baby formula and delivery fees. Applies automatically at checkout; personal purchases only.",
+      "expiresAt": null,
+      "expiryKnown": true,
+      "ongoing": true,
+      "sourceName": "Makro terms of use",
+      "sourceUrl": "https://www.makro.co.za/pages/terms-of-use",
+      "foundAt": "2026-10-08T20:30:00.000Z",
+      "checkedAt": "2026-11-01T11:17:45.842Z",
+      "validUntil": "2026-11-02T11:17:45.842Z",
+      "verified": false,
+      "evidence": "a discount of up to 5% (five percent) applies to selected food items",
+      "collectionMethod": "reviewed_source"
     }
   ],
-  "updatedAt": "2026-10-31T19:59:59.709Z",
+  "updatedAt": "2026-11-01T11:18:00.237Z",
   "checks": [
     {
       "storeId": "checkers",
@@ -68,10 +68,10 @@
     {
       "storeId": "woolworths",
       "status": "checked",
-      "pages": 5,
+      "pages": 4,
       "searched": false,
       "extractedPages": 1,
-      "parsedPages": 5,
+      "parsedPages": 4,
       "fallback": "unconfigured",
       "fallbackOffers": 0,
       "candidates": 0
@@ -102,10 +102,10 @@
     {
       "storeId": "makro",
       "status": "checked",
-      "pages": 4,
+      "pages": 3,
       "searched": false,
       "extractedPages": 0,
-      "parsedPages": 4,
+      "parsedPages": 3,
       "fallback": "unconfigured",
       "fallbackOffers": 0,
       "candidates": 0,
