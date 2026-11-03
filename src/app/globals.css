@@ -259,8 +259,10 @@ button:active {
 .header-nav button.current {
   color: var(--text);
 }
-.header-nav button:hover {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .header-nav button:hover {
+    color: var(--accent);
+  }
 }
 .nav-count {
   margin-left: 6px;
@@ -292,8 +294,10 @@ button:active {
   border: 1px solid var(--line);
   border-radius: 50%;
 }
-.icon-button:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .icon-button:hover {
+    background: var(--surface-raised);
+  }
 }
 .header-refresh {
   display: none;
@@ -431,8 +435,10 @@ h1 em {
   border-radius: 50%;
   color: inherit;
 }
-.delight-trigger:hover {
-  background: color-mix(in srgb, currentColor 10%, transparent);
+@media (hover: hover) and (pointer: fine) {
+  .delight-trigger:hover {
+    background: color-mix(in srgb, currentColor 10%, transparent);
+  }
 }
 .hero-live > p {
   color: var(--muted);
@@ -462,10 +468,12 @@ h1 em {
   filter: grayscale(1);
   opacity: 0.4;
 }
-.store-avatars button:hover {
-  transform: translateY(-4px);
-  opacity: 1;
-  filter: none;
+@media (hover: hover) and (pointer: fine) {
+  .store-avatars button:hover {
+    transform: translateY(-4px);
+    opacity: 1;
+    filter: none;
+  }
 }
 .hero-note {
   font-size: 9px;
@@ -516,8 +524,10 @@ h2 {
   min-height: 44px;
   padding: 0 17px;
 }
-.refresh-button:hover {
-  background: var(--surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .refresh-button:hover {
+    background: var(--surface-raised);
+  }
 }
 .toolbar {
   display: flex;
@@ -896,9 +906,11 @@ h2 {
   background: transparent;
   opacity: 0.85;
 }
-.share-offer:hover {
-  background: #ffffff1c;
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .share-offer:hover {
+    background: #ffffff1c;
+    opacity: 1;
+  }
 }
 @keyframes bookmark-pop {
   45% {
@@ -3265,9 +3277,11 @@ html[data-display="standalone"] {
     transform 0.2s,
     border-color 0.2s;
 }
-.directory-card:hover {
-  transform: translateY(-3px);
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .directory-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+  }
 }
 .directory-mark {
   display: grid;
@@ -3454,8 +3468,10 @@ html[data-display="standalone"] {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .directory-card:hover {
-    transform: none;
+  @media (hover: hover) and (pointer: fine) {
+    .directory-card:hover {
+      transform: none;
+    }
   }
 }
 
