@@ -1,0 +1,48 @@
+/* Promotion discovery: keep store, saving and offer terms legible on phones. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+:is(.toolbar, .content-grid, .store-card, .offer-row, .offer-details) {
+  min-width: 0;
+}
+:is(.offer-criteria, .offer-meta, .store-card-info, .source-note) {
+  overflow-wrap: anywhere;
+}
+.search-field input {
+  font-size: 16px;
+}
+:is(.offer-actions, .filters) {
+  row-gap: 10px;
+}
+:is(.save-offer, .share-offer, .category-pills button, .icon-button) {
+  min-height: 44px;
+}
+.settings-content,
+.dialog-content {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+@media (pointer: coarse), (max-width: 767px) {
+  :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
+    font-size: 16px !important;
+  }
+}
+@media (max-width: 600px) {
+  .toolbar,
+  .filters,
+  .offer-actions {
+    flex-wrap: wrap;
+  }
+  .settings-content,
+  .dialog-content {
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .save-offer,
+  .share-offer {
+    transition: none;
+  }
+}

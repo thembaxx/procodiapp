@@ -1090,8 +1090,8 @@ export function GroceryApp({
               <h2>{savedOnly ? "Your saved offers" : "Your stores. Your savings."}</h2>
               <p>
                 {savedOnly
-                  ? "A little collection for your next grocery run."
-                  : "See who's got a little something for you today."}
+                  ? "Offers you’ve saved for later."
+                  : "Browse promotions from your selected stores."}
               </p>
             </div>
             <button
@@ -1119,7 +1119,7 @@ export function GroceryApp({
                 disabled={!mounted}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search your grocery store"
+                placeholder="Search stores"
                 aria-label="Search stores"
                 autoComplete="off"
               />

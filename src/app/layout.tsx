@@ -4,6 +4,7 @@ import { Providers } from "@/components/providers";
 import { appearanceBootstrap, appearanceCriticalCss, appearanceNoScript } from "@/lib/appearance";
 import { pageMetadata, siteDescription, siteName } from "@/lib/site";
 import "./globals.css";
+import "./mobile-ux.css";
 
 export function generateMetadata(): Metadata {
   return {
