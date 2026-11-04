@@ -34,10 +34,6 @@ html {
   .offer-actions {
     flex-wrap: wrap;
   }
-  .settings-dialog,
-  .info-dialog {
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-  }
   .settings-content,
   .dialog-content {
     max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
