@@ -601,12 +601,12 @@ export function GroceryApp({
 
   useEffect(() => {
     if (!mounted || !online || (offlineLaunch && !recovered)) return;
-    let cancelled = false;
+    const snapshotLifecycle = { cancelled: false };
     saveOfflineOffers(data).then((ready) => {
-      if (!cancelled) markSnapshotReady(ready);
+      if (!snapshotLifecycle.cancelled) markSnapshotReady(ready);
     });
     return () => {
-      cancelled = true;
+      snapshotLifecycle.cancelled = true;
     };
   }, [data, mounted, online, offlineLaunch, recovered, markSnapshotReady]);
 
@@ -645,12 +645,12 @@ export function GroceryApp({
 
   useEffect(() => {
     if (!mounted) return;
-    let disposed = false;
+    const restoreLifecycle = { disposed: false };
     let retry: ReturnType<typeof setTimeout> | undefined;
     const restore = (attempt = 0) => {
-      if (disposed || !navigator.onLine) return;
+      if (restoreLifecycle.disposed || !navigator.onLine) return;
       void reconnect().then((connected) => {
-        if (!connected && !disposed && navigator.onLine && attempt < 2)
+        if (!connected && !restoreLifecycle.disposed && navigator.onLine && attempt < 2)
           retry = setTimeout(() => restore(attempt + 1), attempt === 0 ? 1200 : 3200);
       });
     };
@@ -671,7 +671,7 @@ export function GroceryApp({
     });
     return () => {
       cancelAnimationFrame(frame);
-      disposed = true;
+      restoreLifecycle.disposed = true;
       clearTimeout(retry);
       document.removeEventListener("visibilitychange", resume);
       window.removeEventListener("online", connected);

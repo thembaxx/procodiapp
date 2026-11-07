@@ -100,13 +100,13 @@ export function PwaProvider({ children }: { children: ReactNode }) {
       const frame = requestAnimationFrame(() => setWorkerState("unavailable"));
       return () => cancelAnimationFrame(frame);
     }
-    let cancelled = false;
+    const lifecycle = { cancelled: false };
     let registration: ServiceWorkerRegistration | undefined;
     const removals: (() => void)[] = [];
     const watch = (worker: ServiceWorker | null) => {
       if (!worker) return;
       const changed = () => {
-        if (cancelled) return;
+        if (lifecycle.cancelled) return;
         if (worker.state === "installed" && navigator.serviceWorker.controller) setWaiting(worker);
         if (worker.state === "activated") setWorkerState("ready");
         if (worker.state === "redundant" && !registration?.active) setWorkerState("failed");
@@ -119,7 +119,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/", updateViaCache: "none" })
         .then((value) => {
-          if (cancelled) return;
+          if (lifecycle.cancelled) return;
           registration = value;
           if (value.active?.state === "activated") setWorkerState("ready");
           if (value.waiting) setWaiting(value.waiting);
@@ -129,7 +129,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
           removals.push(() => value.removeEventListener("updatefound", found));
         })
         .catch(() => {
-          if (!cancelled)
+          if (!lifecycle.cancelled)
             setWorkerState(
               navigator.serviceWorker.controller?.state === "activated" ? "ready" : "failed",
             );
@@ -153,7 +153,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     window.addEventListener("online", check);
     const timer = setInterval(check, 60 * 60 * 1000);
     return () => {
-      cancelled = true;
+      lifecycle.cancelled = true;
       removals.forEach((remove) => remove());
       clearInterval(timer);
       navigator.serviceWorker.removeEventListener("controllerchange", controlled);
