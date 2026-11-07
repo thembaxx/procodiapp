@@ -41,7 +41,7 @@ export function ViewBackground({
       node.dataset.state = "data-saving";
       return;
     }
-    const lifecycle = { lifecycle.cancelled: false };
+    const lifecycle = { cancelled: false };
     let cleanUp = () => {};
     node.dataset.state = "loading";
     // Keep Three.js out of the initial page bundle and out of reduced-motion visits.
