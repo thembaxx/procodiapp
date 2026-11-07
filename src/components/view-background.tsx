@@ -42,7 +42,7 @@ export function ViewBackground({
       return;
     }
     const lifecycle = { cancelled: false };
-    let cleanUp = () => {};
+    const cleanUp = { run: () => {} };
     node.dataset.state = "loading";
     // Keep Three.js out of the initial page bundle and out of reduced-motion visits.
     const loadScene = () =>
@@ -86,7 +86,7 @@ export function ViewBackground({
             visibility();
           };
           const observer = new ResizeObserver(resize);
-          cleanUp = () => {
+          cleanUp.run = () => {
             observer.disconnect();
             document.removeEventListener("visibilitychange", visibility);
             window.removeEventListener("pointermove", pointer);
@@ -109,22 +109,22 @@ export function ViewBackground({
           visibility();
         })
         .catch(() => {
-          cleanUp();
-          cleanUp = () => {};
+          cleanUp.run();
+          cleanUp.run = () => {};
           if (!lifecycle.cancelled) node.dataset.state = "fallback";
         });
     // Paint the useful content first. Decorative work can wait for idle time.
-    let idle: number | undefined;
+    const idle = { handle: undefined as number | undefined };
     const timer = window.setTimeout(() => {
       if ("requestIdleCallback" in window)
-        idle = window.requestIdleCallback(() => void loadScene(), { timeout: 2000 });
+        idle.handle = window.requestIdleCallback(() => void loadScene(), { timeout: 2000 });
       else void loadScene();
     }, 1200);
     return () => {
       window.clearTimeout(timer);
-      if (idle !== undefined) window.cancelIdleCallback(idle);
+      if (idle.handle !== undefined) window.cancelIdleCallback(idle.handle);
       lifecycle.cancelled = true;
-      cleanUp();
+      cleanUp.run();
     };
   }, [enabled, reduced]);
 
