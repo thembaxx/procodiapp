@@ -601,7 +601,7 @@ export function GroceryApp({
 
   useEffect(() => {
     if (!mounted || !online || (offlineLaunch && !recovered)) return;
-    const snapshotLifecycle = { snapshotLifecycle.cancelled: false };
+    const snapshotLifecycle = { cancelled: false };
     saveOfflineOffers(data).then((ready) => {
       if (!snapshotLifecycle.cancelled) markSnapshotReady(ready);
     });
