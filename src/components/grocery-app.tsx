@@ -645,7 +645,7 @@ export function GroceryApp({
 
   useEffect(() => {
     if (!mounted) return;
-    const restoreLifecycle = { restoreLifecycle.disposed: false };
+    const restoreLifecycle = { disposed: false };
     let retry: ReturnType<typeof setTimeout> | undefined;
     const restore = (attempt = 0) => {
       if (restoreLifecycle.disposed || !navigator.onLine) return;
