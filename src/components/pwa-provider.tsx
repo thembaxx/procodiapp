@@ -100,7 +100,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
       const frame = requestAnimationFrame(() => setWorkerState("unavailable"));
       return () => cancelAnimationFrame(frame);
     }
-    const lifecycle = { lifecycle.cancelled: false };
+    const lifecycle = { cancelled: false };
     let registration: ServiceWorkerRegistration | undefined;
     const removals: (() => void)[] = [];
     const watch = (worker: ServiceWorker | null) => {
