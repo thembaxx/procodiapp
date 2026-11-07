@@ -41,14 +41,14 @@ export function ViewBackground({
       node.dataset.state = "data-saving";
       return;
     }
-    let cancelled = false;
+    const lifecycle = { lifecycle.cancelled: false };
     let cleanUp = () => {};
     node.dataset.state = "loading";
     // Keep Three.js out of the initial page bundle and out of reduced-motion visits.
     const loadScene = () =>
       import("@/lib/view-scene")
         .then(({ createViewScene }) => {
-          if (cancelled) return;
+          if (lifecycle.cancelled) return;
           const canvas = document.createElement("canvas");
           const scene = createViewScene(canvas, appearance.current);
           if (!scene) {
@@ -111,7 +111,7 @@ export function ViewBackground({
         .catch(() => {
           cleanUp();
           cleanUp = () => {};
-          if (!cancelled) node.dataset.state = "fallback";
+          if (!lifecycle.cancelled) node.dataset.state = "fallback";
         });
     // Paint the useful content first. Decorative work can wait for idle time.
     let idle: number | undefined;
@@ -123,7 +123,7 @@ export function ViewBackground({
     return () => {
       window.clearTimeout(timer);
       if (idle !== undefined) window.cancelIdleCallback(idle);
-      cancelled = true;
+      lifecycle.cancelled = true;
       cleanUp();
     };
   }, [enabled, reduced]);
