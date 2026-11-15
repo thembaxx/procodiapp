@@ -1,6 +1,25 @@
 {
   "offers": [
     {
+      "id": "makro-senior-food",
+      "storeId": "makro",
+      "code": null,
+      "type": "discount",
+      "title": "Up to 5% off selected food for seniors",
+      "criteria": "Age 60+ with a valid Makro mSenior Citizens Card and South African ID or passport. Log in with your registered mSenior Citizens profile. Selected food only; excludes promotions, marketplace sellers, liquor, tobacco, baby formula and delivery fees. Applies automatically at checkout; personal purchases only.",
+      "expiresAt": null,
+      "expiryKnown": true,
+      "ongoing": true,
+      "sourceName": "Makro terms of use",
+      "sourceUrl": "https://www.makro.co.za/pages/terms-of-use",
+      "foundAt": "2026-10-08T20:30:00.000Z",
+      "checkedAt": "2026-11-15T11:57:53.622Z",
+      "validUntil": "2026-11-16T11:57:53.622Z",
+      "verified": false,
+      "evidence": "a discount of up to 5% (five percent) applies to selected food items",
+      "collectionMethod": "reviewed_source"
+    },
+    {
       "id": "woolworths-plus-delivery",
       "storeId": "woolworths",
       "code": null,
@@ -18,28 +37,9 @@
       "verified": false,
       "evidence": "Get free delivery when you shop Woolies online",
       "collectionMethod": "reviewed_source"
-    },
-    {
-      "id": "makro-senior-food",
-      "storeId": "makro",
-      "code": null,
-      "type": "discount",
-      "title": "Up to 5% off selected food for seniors",
-      "criteria": "Age 60+ with a valid Makro mSenior Citizens Card and South African ID or passport. Log in with your registered mSenior Citizens profile. Selected food only; excludes promotions, marketplace sellers, liquor, tobacco, baby formula and delivery fees. Applies automatically at checkout; personal purchases only.",
-      "expiresAt": null,
-      "expiryKnown": true,
-      "ongoing": true,
-      "sourceName": "Makro terms of use",
-      "sourceUrl": "https://www.makro.co.za/pages/terms-of-use",
-      "foundAt": "2026-10-08T20:30:00.000Z",
-      "checkedAt": "2026-11-14T20:44:01.902Z",
-      "validUntil": "2026-11-15T20:44:01.902Z",
-      "verified": false,
-      "evidence": "a discount of up to 5% (five percent) applies to selected food items",
-      "collectionMethod": "reviewed_source"
     }
   ],
-  "updatedAt": "2026-11-14T20:44:20.412Z",
+  "updatedAt": "2026-11-15T11:58:05.011Z",
   "checks": [
     {
       "storeId": "checkers",
@@ -51,7 +51,7 @@
       "fallback": "unconfigured",
       "fallbackOffers": 0,
       "candidates": 0,
-      "message": "Some official promotion sources could not be checked."
+      "message": "Gemini source-page link selection was unavailable; using other sources. Some official promotion sources could not be checked."
     },
     {
       "storeId": "pnp",
@@ -63,18 +63,19 @@
       "fallback": "unconfigured",
       "fallbackOffers": 0,
       "candidates": 0,
-      "message": "Some official promotion sources could not be checked. An optional coupon review source could not be checked."
+      "message": "Gemini source-page link selection was unavailable; using other sources. Some official promotion sources could not be checked. An optional coupon review source could not be checked."
     },
     {
       "storeId": "woolworths",
-      "status": "checked",
-      "pages": 4,
+      "status": "unavailable",
+      "pages": 0,
       "searched": false,
-      "extractedPages": 1,
-      "parsedPages": 4,
+      "extractedPages": 0,
+      "parsedPages": 0,
       "fallback": "unconfigured",
       "fallbackOffers": 0,
-      "candidates": 0
+      "candidates": 0,
+      "message": "Gemini source-page link selection was unavailable; using other sources. Some official promotion sources could not be checked."
     },
     {
       "storeId": "shoprite",
@@ -86,7 +87,7 @@
       "fallback": "unconfigured",
       "fallbackOffers": 0,
       "candidates": 0,
-      "message": "Some official promotion sources could not be checked."
+      "message": "Gemini source-page link selection was unavailable; using other sources. Some official promotion sources could not be checked."
     },
     {
       "storeId": "spar",
@@ -97,7 +98,8 @@
       "parsedPages": 5,
       "fallback": "unconfigured",
       "fallbackOffers": 0,
-      "candidates": 0
+      "candidates": 0,
+      "message": "Gemini source-page link selection was unavailable; using other sources."
     },
     {
       "storeId": "makro",
@@ -109,7 +111,7 @@
       "fallback": "unconfigured",
       "fallbackOffers": 0,
       "candidates": 0,
-      "message": "Some official promotion sources could not be checked."
+      "message": "Gemini source-page link selection was unavailable; using other sources."
     }
   ],
   "mode": "free_sources"
