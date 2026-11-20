@@ -101,7 +101,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
       return () => cancelAnimationFrame(frame);
     }
     const lifecycle = { cancelled: false };
-    let registration: ServiceWorkerRegistration | undefined;
+    const registration = { current: undefined as ServiceWorkerRegistration | undefined };
     const removals: (() => void)[] = [];
     const watch = (worker: ServiceWorker | null) => {
       if (!worker) return;
@@ -109,7 +109,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
         if (lifecycle.cancelled) return;
         if (worker.state === "installed" && navigator.serviceWorker.controller) setWaiting(worker);
         if (worker.state === "activated") setWorkerState("ready");
-        if (worker.state === "redundant" && !registration?.active) setWorkerState("failed");
+        if (worker.state === "redundant" && !registration.current?.active) setWorkerState("failed");
       };
       worker.addEventListener("statechange", changed);
       removals.push(() => worker.removeEventListener("statechange", changed));
@@ -120,7 +120,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
         .register("/sw.js", { scope: "/", updateViaCache: "none" })
         .then((value) => {
           if (lifecycle.cancelled) return;
-          registration = value;
+          registration.current = value;
           if (value.active?.state === "activated") setWorkerState("ready");
           if (value.waiting) setWaiting(value.waiting);
           watch(value.installing);
@@ -144,7 +144,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     };
     const check = () => {
       if (!document.hidden && navigator.onLine) {
-        if (registration) void registration.update().catch(() => {});
+        if (registration.current) void registration.current.update().catch(() => {});
         else void register();
       }
     };
